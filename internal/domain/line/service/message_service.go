@@ -1,5 +1,7 @@
 package service
 
+import "medical-webhook/internal/domain/line/templates"
+
 // MessageService handles message business logic
 type MessageService struct{}
 
@@ -26,6 +28,7 @@ func (s *MessageService) ProcessTextCommand(text string) string {
 	}
 }
 
+// Text Message Methods
 func (s *MessageService) GetMenuMessage() string {
 	return `🏥 ระบบเครื่องมือแพทย์
 ━━━━━━━━━━━━━━━
@@ -98,4 +101,20 @@ func (s *MessageService) GetFollowerWelcomeMessage() string {
 ขอบคุณที่เพิ่มเราเป็นเพื่อน
 
 พิมพ์ "เมนู" เพื่อเริ่มใช้งาน`
+}
+
+// Flex Message Methods
+// GetMainMenuFlex returns a Flex Message for the main menu
+func (s *MessageService) GetMainMenuFlex() map[string]interface{} {
+	return templates.GetMainMenuFlex()
+}
+
+// GetEquipmentChangeFlex returns a Flex Message for equipment change request
+func (s *MessageService) GetEquipmentChangeFlex(linkURL string) map[string]interface{} {
+	return templates.GetEquipmentChangeFlex(linkURL)
+}
+
+// GetContactStaffFlex returns a Flex Message for contact information
+func (s *MessageService) GetContactStaffFlex() map[string]interface{} {
+	return templates.GetContactStaffFlex()
 }
