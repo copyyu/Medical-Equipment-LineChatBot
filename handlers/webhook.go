@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
@@ -14,6 +17,7 @@ import (
 type WebhookHandler struct {
 	bot    *messaging_api.MessagingApiAPI
 	secret string
+	token  string
 }
 
 // NewWebhookHandler creates a new webhook handler
@@ -26,6 +30,7 @@ func NewWebhookHandler(channelToken, channelSecret string) (*WebhookHandler, err
 	return &WebhookHandler{
 		bot:    bot,
 		secret: channelSecret,
+		token:  channelToken,
 	}, nil
 }
 
@@ -37,7 +42,7 @@ func (h *WebhookHandler) HandleCallback(c *fiber.Ctx) error {
 	req, err := http.NewRequest(
 		c.Method(),
 		c.OriginalURL(),
-		nil, // Body will be read by SDK
+		nil,
 	)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -47,15 +52,6 @@ func (h *WebhookHandler) HandleCallback(c *fiber.Ctx) error {
 	c.Request().Header.VisitAll(func(key, value []byte) {
 		req.Header.Set(string(key), string(value))
 	})
-
-	// Set body
-	// LINE SDK needs to read the body. Fiber's body is already read.
-	// We need to provide the body content to the ParseRequest.
-	// However, the v8 SDK's ParseRequest takes *http.Request and reads Body from it.
-	// A simpler way with Fiber is to manually validate signature and parse body if we want to avoid complex wrapping,
-	// BUT ParseRequest is convenient.
-	// Let's rely on a trick: we set the body bytes to a reader.
-	// Since Fiber reads the body into memory, we can use it.
 
 	// Create a new reader with the body data
 	bodyData := c.Body()
@@ -109,15 +105,12 @@ func (h *WebhookHandler) handleEvent(event webhook.EventInterface) {
 
 // handleMessageEvent handles text and other message events
 func (h *WebhookHandler) handleMessageEvent(event webhook.MessageEvent) {
-	var replyToken string
-	if event.ReplyToken != "" {
-		replyToken = event.ReplyToken
-	}
+	replyToken := event.ReplyToken
 
 	switch msg := event.Message.(type) {
 	case webhook.TextMessageContent:
 		log.Printf("📝 Text message: %s", msg.Text)
-		h.replyText(replyToken, h.processTextMessage(msg.Text))
+		h.processTextMessage(replyToken, msg.Text)
 	case webhook.ImageMessageContent:
 		log.Println("🖼️ Received image message")
 		h.replyText(replyToken, "ได้รับรูปภาพเรียบร้อยแล้ว กรุณารอเจ้าหน้าที่ตรวจสอบ")
@@ -129,88 +122,21 @@ func (h *WebhookHandler) handleMessageEvent(event webhook.MessageEvent) {
 	}
 }
 
-// processTextMessage processes text messages and returns appropriate response
-func (h *WebhookHandler) processTextMessage(text string) string {
-	// Medical equipment related keywords
-	switch text {
-	case "เมนู", "menu", "Menu":
-		return `🏥 ระบบเครื่องมือแพทย์
-━━━━━━━━━━━━━━━
-📋 บริการของเรา:
+// processTextMessage processes text messages - ANY text shows the main menu
+func (h *WebhookHandler) processTextMessage(replyToken, text string) {
+	textLower := strings.ToLower(strings.TrimSpace(text))
 
-1️⃣ แจ้งซ่อมเครื่องมือแพทย์
-   พิมพ์: แจ้งซ่อม
+	switch {
+	case textLower == "แจ้งเปลี่ยนเครื่อง" || strings.Contains(textLower, "เปลี่ยนเครื่อง"):
+		// แจ้งเปลี่ยนเครื่อง - ส่งลิงค์ Google
+		h.replyFlexMessage(replyToken, "แจ้งเปลี่ยนเครื่อง", GetEquipmentChangeFlex("https://www.google.com/"))
 
-2️⃣ ติดตามสถานะการซ่อม
-   พิมพ์: ติดตาม
-
-3️⃣ สอบถามข้อมูลเครื่องมือ
-   พิมพ์: สอบถาม
-
-4️⃣ ติดต่อเจ้าหน้าที่
-   พิมพ์: ติดต่อ
-
-━━━━━━━━━━━━━━━
-พิมพ์ "เมนู" เพื่อดูเมนูอีกครั้ง`
-
-	case "แจ้งซ่อม":
-		return `🔧 แจ้งซ่อมเครื่องมือแพทย์
-━━━━━━━━━━━━━━━
-กรุณาระบุข้อมูลดังนี้:
-
-📍 ชื่อเครื่องมือ:
-📍 รหัสเครื่อง:
-📍 แผนก/หน่วยงาน:
-📍 อาการเสีย:
-📍 ชื่อผู้แจ้ง:
-📍 เบอร์ติดต่อ:
-
-ตัวอย่าง:
-เครื่อง: Monitor ECG
-รหัส: ECG-001
-แผนก: ICU
-อาการ: หน้าจอไม่ติด
-ผู้แจ้ง: พยาบาล สมหญิง
-เบอร์: 1234`
-
-	case "ติดตาม":
-		return `🔍 ติดตามสถานะการซ่อม
-━━━━━━━━━━━━━━━
-กรุณาระบุหมายเลข Ticket
-หรือรหัสเครื่องมือที่ต้องการติดตาม
-
-ตัวอย่าง:
-ติดตาม TK-2024001
-หรือ
-ติดตาม ECG-001`
-
-	case "สอบถาม":
-		return `ℹ️ สอบถามข้อมูลเครื่องมือ
-━━━━━━━━━━━━━━━
-กรุณาพิมพ์ชื่อหรือรหัสเครื่องมือ
-ที่ต้องการสอบถาม
-
-ตัวอย่าง:
-สอบถาม Defibrillator
-หรือ
-สอบถาม DEF-001`
-
-	case "ติดต่อ":
-		return `📞 ติดต่อเจ้าหน้าที่
-━━━━━━━━━━━━━━━
-🏥 ศูนย์เครื่องมือแพทย์
-
-📱 โทร: 02-XXX-XXXX
-📧 Email: medical-equipment@hospital.com
-⏰ เวลาทำการ: จ-ศ 08:00-17:00
-
-🚨 กรณีฉุกเฉิน: 02-XXX-YYYY (24 ชม.)`
+	case textLower == "ติดต่อ" || textLower == "ติดต่อเจ้าหน้าที่":
+		h.replyFlexMessage(replyToken, "ติดต่อเจ้าหน้าที่", GetContactStaffFlex())
 
 	default:
-		return `👋 สวัสดีครับ ยินดีต้อนรับสู่
-🏥 ระบบเครื่องมือแพทย์
-
-พิมพ์ "เมนู" เพื่อดูบริการของเรา`
+		// Default: พิมพ์อะไรก็แสดงเมนูหลัก Flex Message
+		h.replyFlexMessage(replyToken, "เมนูหลัก", GetMainMenuFlex())
 	}
 }
 
@@ -225,11 +151,7 @@ func (h *WebhookHandler) handleFollowEvent(event webhook.FollowEvent) {
 	}
 
 	if userID != "" {
-		h.pushMessage(userID, `🏥 ยินดีต้อนรับสู่ระบบเครื่องมือแพทย์!
-━━━━━━━━━━━━━━━
-ขอบคุณที่เพิ่มเราเป็นเพื่อน
-
-พิมพ์ "เมนู" เพื่อเริ่มใช้งาน`)
+		h.pushFlexMessage(userID, "ยินดีต้อนรับ", GetMainMenuFlex())
 	}
 }
 
@@ -238,12 +160,42 @@ func (h *WebhookHandler) handleUnfollowEvent(event webhook.UnfollowEvent) {
 	log.Println("😢 User unfollowed")
 }
 
-// handlePostbackEvent handles postback events
+// handlePostbackEvent handles postback events from Flex Message buttons
 func (h *WebhookHandler) handlePostbackEvent(event webhook.PostbackEvent) {
-	log.Printf("📤 Postback data: %s", event.Postback.Data)
+	data := event.Postback.Data
+	replyToken := event.ReplyToken
 
-	if event.ReplyToken != "" {
-		h.replyText(event.ReplyToken, "ได้รับข้อมูลเรียบร้อยแล้ว")
+	log.Printf("📤 Postback data: %s", data)
+
+	switch data {
+	case "action=main_menu":
+		h.replyFlexMessage(replyToken, "เมนูหลัก", GetMainMenuFlex())
+
+	case "action=request_change":
+		// แจ้งเปลี่ยนเครื่อง - ส่งลิงค์ https://www.google.com/
+		h.replyFlexMessage(replyToken, "แจ้งเปลี่ยนเครื่อง", GetEquipmentChangeFlex("https://www.google.com/"))
+
+	case "action=report_problem":
+		h.replyText(replyToken, `🔧 แจ้งปัญหา / เช็กสถานะเครื่อง
+━━━━━━━━━━━━━━━━━━━
+กรุณาถ่ายรูปป้าย Serial Number 
+หรือสแกน QR Code บนเครื่อง
+
+📸 ส่งรูปมาได้เลยครับ`)
+
+	case "action=track_status":
+		h.replyText(replyToken, `📋 ติดตามสถานะ
+━━━━━━━━━━━━━━━━━━━
+กรุณาระบุหมายเลข Ticket 
+หรือ Serial Number ของเครื่อง
+
+ตัวอย่าง: TK-2024001`)
+
+	case "action=contact_staff":
+		h.replyFlexMessage(replyToken, "ติดต่อเจ้าหน้าที่", GetContactStaffFlex())
+
+	default:
+		h.replyFlexMessage(replyToken, "เมนูหลัก", GetMainMenuFlex())
 	}
 }
 
@@ -263,7 +215,106 @@ func (h *WebhookHandler) replyText(replyToken, text string) {
 	})
 
 	if err != nil {
-		log.Printf("❌ Error replying: %v", err)
+		log.Printf("❌ Error replying text: %v", err)
+	}
+}
+
+// replyFlexMessage sends a Flex Message reply using raw HTTP API
+func (h *WebhookHandler) replyFlexMessage(replyToken, altText string, flexContent map[string]interface{}) {
+	if replyToken == "" {
+		return
+	}
+
+	// Build the complete request body
+	requestBody := map[string]interface{}{
+		"replyToken": replyToken,
+		"messages": []map[string]interface{}{
+			{
+				"type":     "flex",
+				"altText":  altText,
+				"contents": flexContent,
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		log.Printf("❌ Error marshaling request: %v", err)
+		return
+	}
+
+	// Debug: Print JSON for debugging
+	log.Printf("📤 Sending Flex Message: %s", string(jsonBody)[:min(500, len(jsonBody))])
+
+	// Make HTTP request to LINE API
+	req, err := http.NewRequest("POST", "https://api.line.me/v2/bot/message/reply", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		log.Printf("❌ Error creating request: %v", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+h.token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("❌ Error sending flex message: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		// Read error body for debugging
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		log.Printf("❌ LINE API error %d: %s", resp.StatusCode, string(bodyBytes))
+	} else {
+		log.Println("✅ Flex message sent successfully")
+	}
+}
+
+// pushFlexMessage sends a Flex Message push to a user
+func (h *WebhookHandler) pushFlexMessage(userID, altText string, flexContent map[string]interface{}) {
+	// Build the complete request body
+	requestBody := map[string]interface{}{
+		"to": userID,
+		"messages": []map[string]interface{}{
+			{
+				"type":     "flex",
+				"altText":  altText,
+				"contents": flexContent,
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		log.Printf("❌ Error marshaling request: %v", err)
+		return
+	}
+
+	req, err := http.NewRequest("POST", "https://api.line.me/v2/bot/message/push", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		log.Printf("❌ Error creating request: %v", err)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+h.token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("❌ Error sending push flex message: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		log.Printf("❌ LINE API error %d: %s", resp.StatusCode, string(bodyBytes))
+	} else {
+		log.Println("✅ Push flex message sent successfully")
 	}
 }
 
@@ -295,4 +346,12 @@ func (h *WebhookHandler) SendMessage(userID, text string) error {
 	}, "")
 
 	return err
+}
+
+// min returns minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
