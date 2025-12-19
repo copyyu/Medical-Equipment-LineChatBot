@@ -18,10 +18,10 @@ var (
 
 func Connect(cfg *config.Config) error {
 
-	if cfg.DB.Host == "" || cfg.DB.User == "" || cfg.DB.Name == "" || cfg.DB.Port == "" {
-		return fmt.Errorf("database configuration is incomplete: host=%s, user=%s, dbname=%s, port=%s",
-			cfg.DB.Host, cfg.DB.User, cfg.DB.Name, cfg.DB.Port)
-	}
+	// if cfg.DB.Host == "" || cfg.DB.User == "" || cfg.DB.Name == "" || cfg.DB.Port == "" {
+	// 	return fmt.Errorf("database configuration is incomplete: host=%s, user=%s, dbname=%s, port=%s",
+	// 		cfg.DB.Host, cfg.DB.User, cfg.DB.Name, cfg.DB.Port)
+	// }
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		cfg.DB.Host, cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.Port,

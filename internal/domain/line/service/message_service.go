@@ -1,5 +1,7 @@
 package service
 
+import "medical-webhook/internal/domain/line/templates"
+
 // MessageService handles message business logic
 type MessageService struct{}
 
@@ -8,7 +10,25 @@ func NewMessageService() *MessageService {
 	return &MessageService{}
 }
 
-// GetMenuMessage returns menu message text
+// ProcessTextCommand processes text command and returns appropriate response
+func (s *MessageService) ProcessTextCommand(text string) string {
+	switch text {
+	case "เมนู", "menu", "Menu":
+		return s.GetMenuMessage()
+	case "แจ้งซ่อม":
+		return s.GetRepairFormMessage()
+	case "ติดตาม":
+		return s.GetTrackingFormMessage()
+	case "สอบถาม":
+		return s.GetInquiryFormMessage()
+	case "ติดต่อ":
+		return s.GetContactMessage()
+	default:
+		return s.GetDefaultMessage()
+	}
+}
+
+// Text Message Methods
 func (s *MessageService) GetMenuMessage() string {
 	return `🏥 ระบบเครื่องมือแพทย์
 ━━━━━━━━━━━━━━━
@@ -30,7 +50,6 @@ func (s *MessageService) GetMenuMessage() string {
 พิมพ์ "เมนู" เพื่อดูเมนูอีกครั้ง`
 }
 
-// GetRepairFormMessage returns repair form message
 func (s *MessageService) GetRepairFormMessage() string {
 	return `🔧 แจ้งซ่อมเครื่องมือแพทย์
 ━━━━━━━━━━━━━━━
@@ -41,70 +60,41 @@ func (s *MessageService) GetRepairFormMessage() string {
 📍 แผนก/หน่วยงาน:
 📍 อาการเสีย:
 📍 ชื่อผู้แจ้ง:
-📍 เบอร์ติดต่อ:
-
-ตัวอย่าง:
-เครื่อง: Monitor ECG
-รหัส: ECG-001
-แผนก: ICU
-อาการ: หน้าจอไม่ติด
-ผู้แจ้ง: พยาบาล สมหญิง
-เบอร์: 1234`
+📍 เบอร์ติดต่อ:`
 }
 
-// GetTrackingFormMessage returns tracking form message
 func (s *MessageService) GetTrackingFormMessage() string {
 	return `🔍 ติดตามสถานะการซ่อม
 ━━━━━━━━━━━━━━━
 กรุณาระบุหมายเลข Ticket
 หรือรหัสเครื่องมือที่ต้องการติดตาม
 
-ตัวอย่าง:
-ติดตาม TK-2024001
-หรือ
-ติดตาม ECG-001`
+ตัวอย่าง: TK-2024001`
 }
 
-// GetInquiryFormMessage returns inquiry form message
 func (s *MessageService) GetInquiryFormMessage() string {
 	return `ℹ️ สอบถามข้อมูลเครื่องมือ
 ━━━━━━━━━━━━━━━
 กรุณาพิมพ์ชื่อหรือรหัสเครื่องมือ
-ที่ต้องการสอบถาม
-
-ตัวอย่าง:
-สอบถาม Defibrillator
-หรือ
-สอบถาม DEF-001`
+ที่ต้องการสอบถาม`
 }
 
-// GetContactMessage returns contact information message
 func (s *MessageService) GetContactMessage() string {
 	return `📞 ติดต่อเจ้าหน้าที่
 ━━━━━━━━━━━━━━━
 🏥 ศูนย์เครื่องมือแพทย์
 
-📱 โทร: 02-XXX-XXXX
-📧 Email: medical-equipment@hospital.com
+📱 โทร: 123965845
+📧 Email: lao@hospital.com
 ⏰ เวลาทำการ: จ-ศ 08:00-17:00
 
-🚨 กรณีฉุกเฉิน: 02-XXX-YYYY (24 ชม.)`
+🚨 กรณีฉุกเฉิน: 12354675745 (24 ชม.)`
 }
 
-// GetWelcomeMessage returns welcome message for new follower
-func (s *MessageService) GetWelcomeMessage() string {
-	return `👋 สวัสดีครับ ยินดีต้อนรับสู่
-🏥 ระบบเครื่องมือแพทย์
-
-พิมพ์ "เมนู" เพื่อดูบริการของเรา`
-}
-
-// GetDefaultMessage returns default message for unknown input
 func (s *MessageService) GetDefaultMessage() string {
-	return s.GetWelcomeMessage()
+	return s.GetMenuMessage()
 }
 
-// GetFollowerWelcomeMessage returns welcome message when user follows
 func (s *MessageService) GetFollowerWelcomeMessage() string {
 	return `🏥 ยินดีต้อนรับสู่ระบบเครื่องมือแพทย์!
 ━━━━━━━━━━━━━━━
@@ -113,20 +103,18 @@ func (s *MessageService) GetFollowerWelcomeMessage() string {
 พิมพ์ "เมนู" เพื่อเริ่มใช้งาน`
 }
 
-// ProcessTextCommand processes text command and returns appropriate response
-func (s *MessageService) ProcessTextCommand(text string) string {
-	switch text {
-	case "เมนู", "menu", "Menu":
-		return s.GetMenuMessage()
-	case "แจ้งซ่อม":
-		return s.GetRepairFormMessage()
-	case "ติดตาม":
-		return s.GetTrackingFormMessage()
-	case "สอบถาม":
-		return s.GetInquiryFormMessage()
-	case "ติดต่อ":
-		return s.GetContactMessage()
-	default:
-		return s.GetDefaultMessage()
-	}
+// Flex Message Methods
+// GetMainMenuFlex returns a Flex Message for the main menu
+func (s *MessageService) GetMainMenuFlex() map[string]interface{} {
+	return templates.GetMainMenuFlex()
+}
+
+// GetEquipmentChangeFlex returns a Flex Message for equipment change request
+func (s *MessageService) GetEquipmentChangeFlex(linkURL string) map[string]interface{} {
+	return templates.GetEquipmentChangeFlex(linkURL)
+}
+
+// GetContactStaffFlex returns a Flex Message for contact information
+func (s *MessageService) GetContactStaffFlex() map[string]interface{} {
+	return templates.GetContactStaffFlex()
 }
