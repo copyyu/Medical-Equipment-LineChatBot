@@ -1,6 +1,5 @@
 package model
 
-// MessageType represents type of message
 type MessageType string
 
 const (
@@ -9,7 +8,7 @@ const (
 	MessageTypeLocation MessageType = "location"
 )
 
-// IncomingMessage represents message from LINE
+// IncomingMessage represents an incoming LINE message
 type IncomingMessage struct {
 	UserID      string
 	MessageType MessageType
@@ -26,7 +25,7 @@ type Location struct {
 	Address   string
 }
 
-// OutgoingMessage represents message to send
+// OutgoingMessage represents an outgoing message
 type OutgoingMessage struct {
 	To   string
 	Text string

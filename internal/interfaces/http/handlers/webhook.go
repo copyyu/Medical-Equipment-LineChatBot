@@ -156,5 +156,5 @@ func (h *WebhookHandler) handleUnfollowEvent(event webhook.UnfollowEvent) {
 
 // handlePostbackEvent handles postback events
 func (h *WebhookHandler) handlePostbackEvent(event webhook.PostbackEvent) {
-	log.Printf("📤 Postback data: %s", event.Postback.Data)
+	h.messageUseCase.HandlePostbackEvent(event)
 }

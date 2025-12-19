@@ -6,4 +6,6 @@ import "medical-webhook/internal/domain/line/model"
 type LineRepository interface {
 	ReplyMessage(replyToken, text string) error
 	PushMessage(msg *model.OutgoingMessage) error
+	ReplyFlexMessage(replyToken, altText string, flexContent map[string]interface{}) error
+	PushFlexMessage(userID, altText string, flexContent map[string]interface{}) error
 }
