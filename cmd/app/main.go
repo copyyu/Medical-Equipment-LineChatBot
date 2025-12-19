@@ -5,7 +5,9 @@ import (
 	"medical-webhook/config"
 	"medical-webhook/handlers"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 func main() {
@@ -18,35 +20,33 @@ func main() {
 		log.Fatalf("❌ Failed to create webhook handler: %v", err)
 	}
 
-	// Setup Gin router
-	r := gin.Default()
-
-	// CORS middleware
-	r.Use(func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
+	// Setup Fiber app
+	app := fiber.New(fiber.Config{
+		AppName: "Medical Equipment Webhook",
 	})
 
+	// Middleware
+	app.Use(logger.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
+
 	// Routes
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
 			"message": "🏥 Medical Equipment Webhook Server",
 			"status":  "running",
 		})
 	})
-	r.GET("/health", handlers.HealthCheck)
-	r.POST("/webhook", webhookHandler.HandleCallback)
-	r.POST("/callback", webhookHandler.HandleCallback) // Alias for LINE webhook
+
+	app.Get("/health", handlers.HealthCheck)
+	app.Post("/webhook", webhookHandler.HandleCallback)
+	app.Post("/callback", webhookHandler.HandleCallback) // Alias
 
 	// Start server
 	log.Printf("🚀 Server starting on port %s", cfg.Port)
-	if err := r.Run(":" + cfg.Port); err != nil {
+	if err := app.Listen(":" + cfg.Port); err != nil {
 		log.Fatalf("❌ Failed to start server: %v", err)
 	}
 }

@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"bytes"
 	"log"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
 )
@@ -29,18 +30,50 @@ func NewWebhookHandler(channelToken, channelSecret string) (*WebhookHandler, err
 }
 
 // HandleCallback handles webhook callback from LINE
-func (h *WebhookHandler) HandleCallback(c *gin.Context) {
+func (h *WebhookHandler) HandleCallback(c *fiber.Ctx) error {
 	log.Println("📩 Received webhook callback")
 
-	cb, err := webhook.ParseRequest(h.secret, c.Request)
+	// Create a standard http.Request from Fiber context for the LINE SDK
+	req, err := http.NewRequest(
+		c.Method(),
+		c.OriginalURL(),
+		nil, // Body will be read by SDK
+	)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Copy headers
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		req.Header.Set(string(key), string(value))
+	})
+
+	// Set body
+	// LINE SDK needs to read the body. Fiber's body is already read.
+	// We need to provide the body content to the ParseRequest.
+	// However, the v8 SDK's ParseRequest takes *http.Request and reads Body from it.
+	// A simpler way with Fiber is to manually validate signature and parse body if we want to avoid complex wrapping,
+	// BUT ParseRequest is convenient.
+	// Let's rely on a trick: we set the body bytes to a reader.
+	// Since Fiber reads the body into memory, we can use it.
+
+	// Create a new reader with the body data
+	bodyData := c.Body()
+
+	// Reconstruct Body
+	req.Body = &readCloser{
+		Reader: bytes.NewReader(bodyData),
+	}
+
+	// Parse
+	cb, err := webhook.ParseRequest(h.secret, req)
 	if err != nil {
 		log.Printf("❌ Error parsing webhook: %v", err)
 		if err == webhook.ErrInvalidSignature {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signature"})
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid signature"})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
-		return
 	}
 
 	// Process events
@@ -48,8 +81,15 @@ func (h *WebhookHandler) HandleCallback(c *gin.Context) {
 		h.handleEvent(event)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
 }
+
+// Implement a simple ReadCloser for bytes
+type readCloser struct {
+	*bytes.Reader
+}
+
+func (rc *readCloser) Close() error { return nil }
 
 // handleEvent processes individual LINE events
 func (h *WebhookHandler) handleEvent(event webhook.EventInterface) {

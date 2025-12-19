@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 // HealthCheck returns server health status
-func HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+func HealthCheck(c *fiber.Ctx) error {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "healthy",
 		"service": "medical-equipment-webhook",
 		"version": "1.0.0",
