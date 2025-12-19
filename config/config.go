@@ -16,7 +16,7 @@ func Load() *Config {
 	return &Config{
 		LineChannelToken:  getEnv("LINE_CHANNEL_TOKEN", "G2+t5K7oCV6uxnGMCbV8QoCBFUJ68MIqpm25bdc99oyhSVPiDFD/tPUPzqHCxKNqsXStBicQs0R1KQflpHbP/7Q+QKyfRhKflgc/UZq+bOIngj6rP3SGpxChpURom7THrEWYG+NuepetcIBKK5GMcAdB04t89/1O/w1cDnyilFU="),
 		LineChannelSecret: getEnv("LINE_CHANNEL_SECRET", "4e28ea2ad3e766b64453193dd99aae49"),
-		Port:              getEnv("PORT", "8080"),
+		Port:              getEnv("PORT", "8081"),
 	}
 }
 
