@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"medical-webhook/internal/config"
+	"medical-webhook/internal/domain/line/entity"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -44,11 +45,17 @@ func Connect(cfg *config.Config) error {
 
 	log.Println("✅ Connected to PostgreSQL successfully!")
 
-	// AutoMigrate your models here
-	// err = db.AutoMigrate(&YourModel1{}, &YourModel2{})
-	// if err != nil {
-	// 	return fmt.Errorf("migration failed: %w", err)
-	// }
+	err = db.AutoMigrate(
+		&entity.Brand{},
+		&entity.Department{},
+		&entity.EquipmentCategory{},
+		&entity.EquipmentModel{},
+		&entity.Equipment{},
+		&entity.MaintenanceRecord{},
+	)
+	if err != nil {
+		return fmt.Errorf("migration failed: %w", err)
+	}
 
 	return nil
 }
