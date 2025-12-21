@@ -6,32 +6,33 @@ import (
 	"io"
 	"log"
 	"medical-webhook/internal/domain/line/model"
+	"medical-webhook/internal/infrastructure/client"
 	"net/http"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot/messaging_api"
 )
 
 // RepositoryImpl implements domain.repository.LineRepository
-type RepositoryImpl struct {
-	client *Client
+type LineRepository struct {
+	client *client.Client
 	token  string
 }
 
 // NewRepositoryImpl creates a new LINE repository implementation
-func NewRepositoryImpl(client *Client) *RepositoryImpl {
-	return &RepositoryImpl{
+func NewLineRepository(client *client.Client) *LineRepository {
+	return &LineRepository{
 		client: client,
-		token:  client.token,
+		token:  client.Token,
 	}
 }
 
 // ReplyMessage sends a reply message
-func (r *RepositoryImpl) ReplyMessage(replyToken, text string) error {
+func (r *LineRepository) ReplyMessage(replyToken, text string) error {
 	if replyToken == "" {
 		return nil
 	}
 
-	_, err := r.client.bot.ReplyMessage(&messaging_api.ReplyMessageRequest{
+	_, err := r.client.Bot.ReplyMessage(&messaging_api.ReplyMessageRequest{
 		ReplyToken: replyToken,
 		Messages: []messaging_api.MessageInterface{
 			&messaging_api.TextMessage{
@@ -49,8 +50,8 @@ func (r *RepositoryImpl) ReplyMessage(replyToken, text string) error {
 }
 
 // PushMessage sends a push message to a user
-func (r *RepositoryImpl) PushMessage(msg *model.OutgoingMessage) error {
-	_, err := r.client.bot.PushMessage(&messaging_api.PushMessageRequest{
+func (r *LineRepository) PushMessage(msg *model.OutgoingMessage) error {
+	_, err := r.client.Bot.PushMessage(&messaging_api.PushMessageRequest{
 		To: msg.To,
 		Messages: []messaging_api.MessageInterface{
 			&messaging_api.TextMessage{
@@ -68,7 +69,7 @@ func (r *RepositoryImpl) PushMessage(msg *model.OutgoingMessage) error {
 }
 
 // ReplyFlexMessage sends a Flex Message reply using raw HTTP API
-func (r *RepositoryImpl) ReplyFlexMessage(replyToken, altText string, flexContent map[string]interface{}) error {
+func (r *LineRepository) ReplyFlexMessage(replyToken, altText string, flexContent map[string]interface{}) error {
 	if replyToken == "" {
 		return nil
 	}
@@ -84,7 +85,7 @@ func (r *RepositoryImpl) ReplyFlexMessage(replyToken, altText string, flexConten
 }
 
 // PushFlexMessage sends a Flex Message push to a user
-func (r *RepositoryImpl) PushFlexMessage(userID, altText string, flexContent map[string]interface{}) error {
+func (r *LineRepository) PushFlexMessage(userID, altText string, flexContent map[string]interface{}) error {
 	requestBody := map[string]interface{}{
 		"to": userID,
 		"messages": []map[string]interface{}{
@@ -96,7 +97,7 @@ func (r *RepositoryImpl) PushFlexMessage(userID, altText string, flexContent map
 }
 
 // sendRawJSON sends a raw JSON request to LINE API
-func (r *RepositoryImpl) sendRawJSON(url string, body interface{}) error {
+func (r *LineRepository) sendRawJSON(url string, body interface{}) error {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return err
@@ -124,5 +125,46 @@ func (r *RepositoryImpl) sendRawJSON(url string, body interface{}) error {
 		log.Println("✅ Flex message sent successfully")
 	}
 
+	return nil
+}
+
+// ✅ BroadcastMessage - ส่งหาทุกคนที่เพิ่มเพื่อน Bot
+func (r *LineRepository) BroadcastMessage(text string) error {
+	requestBody := map[string]interface{}{
+		"messages": []map[string]interface{}{
+			{
+				"type": "text",
+				"text": text,
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", "https://api.line.me/v2/bot/message/broadcast", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+r.token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		log.Printf("❌ LINE Broadcast API error %d: %s", resp.StatusCode, string(bodyBytes))
+		return err
+	}
+
+	log.Println("✅ Broadcast message sent successfully")
 	return nil
 }
