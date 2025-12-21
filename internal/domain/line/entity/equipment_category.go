@@ -16,9 +16,9 @@ const (
 
 type EquipmentCategory struct {
 	ID             uint           `gorm:"primaryKey" json:"id"`
-	Name           string         `gorm:"size:200;not null;uniqueIndex" json:"name"`
+	Name           string         `gorm:"size:300;not null;uniqueIndex" json:"name"`
 	ECRIRisk       ECRIRiskLevel  `gorm:"size:20;default:'MEDIUM'" json:"ecri_risk"`
-	Classification string         `gorm:"size:100" json:"classification"`
+	Classification string         `gorm:"size:150" json:"classification"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`

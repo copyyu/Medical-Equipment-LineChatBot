@@ -43,7 +43,7 @@ func Connect(cfg *config.Config) error {
 	DB = db
 	SqlDB = sqlDB
 
-	log.Println("✅ Connected to PostgreSQL successfully!")
+	log.Println("Connected to PostgreSQL successfully!")
 
 	err = db.AutoMigrate(
 		&entity.Brand{},
@@ -52,6 +52,8 @@ func Connect(cfg *config.Config) error {
 		&entity.EquipmentModel{},
 		&entity.Equipment{},
 		&entity.MaintenanceRecord{},
+		&entity.NotificationLog{},
+		&entity.NotificationSetting{},
 	)
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
