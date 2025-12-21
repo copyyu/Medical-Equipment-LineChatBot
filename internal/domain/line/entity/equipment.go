@@ -8,11 +8,11 @@ import (
 
 type Equipment struct {
 	ID           uint    `gorm:"primaryKey" json:"id"`
-	IDCode       string  `gorm:"size:50;uniqueIndex" json:"id_code"`    // ✅ ID CODE
-	SerialNo     string  `gorm:"size:100;uniqueIndex" json:"serial_no"` // ✅ Serial No
+	IDCode       string  `gorm:"size:100;uniqueIndex" json:"id_code"`
+	SerialNo     string  `gorm:"size:150;uniqueIndex" json:"serial_no"`
 	ModelID      uint    `gorm:"not null;index" json:"model_id"`
 	DepartmentID uint    `gorm:"not null;index" json:"department_id"`
-	AssessmentID *string `gorm:"size:50" json:"assessment_id"` // ✅ Assessment ID (nullable)
+	AssessmentID *string `gorm:"size:100" json:"assessment_id"`
 
 	// วันที่และราคา
 	ReceiveDate   *time.Time `json:"receive_date"`                                       // ✅ Receive Date

@@ -8,4 +8,5 @@ type LineRepository interface {
 	PushMessage(msg *model.OutgoingMessage) error
 	ReplyFlexMessage(replyToken, altText string, flexContent map[string]interface{}) error
 	PushFlexMessage(userID, altText string, flexContent map[string]interface{}) error
+	BroadcastMessage(text string) error // ✅ Broadcast
 }
