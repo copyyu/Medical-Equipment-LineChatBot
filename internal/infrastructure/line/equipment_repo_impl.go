@@ -1,8 +1,9 @@
-package database
+package line
 
 import (
 	"log"
 	"medical-webhook/internal/domain/line/entity"
+	"medical-webhook/internal/infrastructure/database"
 
 	"gorm.io/gorm"
 )
@@ -15,7 +16,7 @@ type EquipmentRepository struct {
 // NewEquipmentRepository creates a new equipment repository
 func NewEquipmentRepository() *EquipmentRepository {
 	return &EquipmentRepository{
-		db: DB, // Use global DB from db_connect.go
+		db: database.DB,
 	}
 }
 

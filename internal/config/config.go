@@ -31,8 +31,6 @@ func Load() *Config {
 		log.Println("⚠️  No .env file found, using environment variables")
 	}
 
-	ocrURL := os.Getenv("OCR_API_URL")
-	log.Printf("🔍 Debug: OCR_API_URL = '%s'", ocrURL)
 	return &Config{
 		LineChannelToken:  os.Getenv("LINE_CHANNEL_TOKEN"),
 		LineChannelSecret: os.Getenv("LINE_CHANNEL_SECRET"),

@@ -34,11 +34,6 @@ func InitializeApp() (*Application, func(), error) {
 		return nil, nil, err
 	}
 
-	// Seed mock data for testing
-	if err := database.SeedMockData(); err != nil {
-		log.Printf("⚠️ Failed to seed mock data: %v", err)
-	}
-
 	// Initialize LINE client
 	lineClient, err := client.NewClient(cfg.LineChannelToken)
 	if err != nil {
@@ -57,7 +52,7 @@ func InitializeApp() (*Application, func(), error) {
 	// Initialize repositories (Infrastructure Layer)
 	lineRepo := line.NewLineRepository(lineClient)
 	notificationRepo := line.NewNotificationRepository(database.GetDB())
-	equipmentRepo := database.NewEquipmentRepository()
+	equipmentRepo := line.NewEquipmentRepository()
 
 	// Initialize session store for OCR confirmations
 	sessionStore := usecase.NewSessionStore()
