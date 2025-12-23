@@ -8,5 +8,6 @@ type LineRepository interface {
 	PushMessage(msg *model.OutgoingMessage) error
 	ReplyFlexMessage(replyToken, altText string, flexContent map[string]interface{}) error
 	PushFlexMessage(userID, altText string, flexContent map[string]interface{}) error
-	BroadcastMessage(text string) error // ✅ Broadcast
+	BroadcastMessage(text string) error
+	GetImageContent(messageID string) ([]byte, error) // Download image from LINE
 }
