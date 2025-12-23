@@ -168,3 +168,24 @@ func (r *LineRepository) BroadcastMessage(text string) error {
 	log.Println("✅ Broadcast message sent successfully")
 	return nil
 }
+
+// GetImageContent downloads image content from LINE using message ID
+func (r *LineRepository) GetImageContent(messageID string) ([]byte, error) {
+	log.Printf("📥 Downloading image: %s", messageID)
+
+	resp, err := r.client.BlobAPI.GetMessageContent(messageID)
+	if err != nil {
+		log.Printf("❌ Error getting image content: %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	imageBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("❌ Error reading image: %v", err)
+		return nil, err
+	}
+
+	log.Printf("✅ Downloaded image: %d bytes", len(imageBytes))
+	return imageBytes, nil
+}

@@ -40,16 +40,35 @@ func InitializeApp() (*Application, func(), error) {
 		return nil, nil, err
 	}
 
+	// Initialize OCR client (optional - may be nil if not configured)
+	var ocrClient *client.OCRClient
+	if cfg.OCRURL != "" {
+		ocrClient = client.NewOCRClient(cfg.OCRURL)
+		log.Printf("✅ OCR client initialized: %s", cfg.OCRURL)
+	} else {
+		log.Println("⚠️ OCR_API_URL not configured, OCR features disabled")
+	}
+
 	// Initialize repositories (Infrastructure Layer)
 	lineRepo := line.NewLineRepository(lineClient)
 	notificationRepo := line.NewNotificationRepository(database.GetDB())
+	equipmentRepo := line.NewEquipmentRepository()
+
+	// Initialize session store for OCR confirmations
+	sessionStore := usecase.NewSessionStore()
 
 	// Initialize services (Domain Layer)
 	messageService := service.NewMessageService()
 	notificationService := service.NewNotificationService()
 
 	// Initialize use cases (Application Layer)
-	messageUseCase := usecase.NewMessageUseCase(lineRepo, messageService)
+	messageUseCase := usecase.NewMessageUseCase(
+		lineRepo,
+		equipmentRepo,
+		ocrClient,
+		sessionStore,
+		messageService,
+	)
 	notificationUseCase := usecase.NewNotificationUseCase(
 		notificationRepo,
 		notificationService,
