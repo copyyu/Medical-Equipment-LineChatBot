@@ -2,12 +2,13 @@ package bootstrap
 
 import (
 	"log"
+	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/config"
 	"medical-webhook/internal/domain/line/service"
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
-	"medical-webhook/internal/infrastructure/line"
+	"medical-webhook/internal/infrastructure/persistence"
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
@@ -17,11 +18,12 @@ import (
 )
 
 type Application struct {
-	Server                *fiber.App
-	Config                *config.Config
-	WebhookHandler        *handlers.WebhookHandler
-	NotificationHandler   *handlers.NotificationHandler
-	NotificationScheduler *scheduler.NotificationScheduler
+	Server                 *fiber.App
+	Config                 *config.Config
+	WebhookHandler         *handlers.WebhookHandler
+	NotificationHandler    *handlers.NotificationHandler
+	NotificationScheduler  *scheduler.NotificationScheduler
+	EquipmentImportHandler *handlers.EquipmentImportHandler
 }
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
@@ -50,16 +52,30 @@ func InitializeApp() (*Application, func(), error) {
 	}
 
 	// Initialize repositories (Infrastructure Layer)
-	lineRepo := line.NewLineRepository(lineClient)
-	notificationRepo := line.NewNotificationRepository(database.GetDB())
-	equipmentRepo := line.NewEquipmentRepository()
+	lineRepo := persistence.NewLineRepository(lineClient)
+	notificationRepo := persistence.NewNotificationRepository(database.GetDB())
+	equipmentRepo := persistence.NewEquipmentRepository()
+	brandRepo := persistence.NewBrandRepository()
+	equipmentCategoryRepo := persistence.NewEquipmentCategoryRepository()
+	departmentRepo := persistence.NewDepartmentRepository()
+	equipmentModelRepo := persistence.NewEquipmentModelRepository()
 
 	// Initialize session store for OCR confirmations
 	sessionStore := usecase.NewSessionStore()
 
+	equipmentMapper := mapper.NewEquipmentMapper()
+
 	// Initialize services (Domain Layer)
 	messageService := service.NewMessageService()
 	notificationService := service.NewNotificationService()
+	excelParserService := service.NewExcelParserService()
+	masterDataService := service.NewMasterDataService(
+		brandRepo,
+		equipmentCategoryRepo,
+		departmentRepo,
+		equipmentModelRepo,
+		equipmentMapper,
+	)
 
 	// Initialize use cases (Application Layer)
 	messageUseCase := usecase.NewMessageUseCase(
@@ -75,9 +91,17 @@ func InitializeApp() (*Application, func(), error) {
 		lineRepo,
 	)
 
+	equipmentImportUseCase := usecase.NewEquipmentImportUseCase(
+		equipmentRepo,
+		excelParserService,
+		masterDataService,
+		equipmentMapper,
+	)
+
 	// Initialize handlers (Interface Layer)
 	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
+	equipmentImportHandler := handlers.NewEquipmentImportHandler(equipmentImportUseCase)
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
@@ -98,7 +122,7 @@ func InitializeApp() (*Application, func(), error) {
 	middleware.FiberMiddleware(app)
 
 	// Register Routes
-	routes.Setup(app, webhookHandler, notificationHandler)
+	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler)
 
 	// Initialize และ Start Notification Scheduler
 	notificationScheduler := scheduler.NewNotificationScheduler(notificationUseCase)
@@ -119,10 +143,11 @@ func InitializeApp() (*Application, func(), error) {
 	}
 
 	return &Application{
-		Server:              app,
-		Config:              cfg,
-		WebhookHandler:      webhookHandler,
-		NotificationHandler: notificationHandler,
+		Server:                 app,
+		Config:                 cfg,
+		WebhookHandler:         webhookHandler,
+		NotificationHandler:    notificationHandler,
+		EquipmentImportHandler: equipmentImportHandler,
 	}, cleanup, nil
 }
 
