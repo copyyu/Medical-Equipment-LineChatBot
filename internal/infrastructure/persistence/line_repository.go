@@ -1,4 +1,4 @@
-package line
+package persistence
 
 import (
 	"bytes"
@@ -42,7 +42,7 @@ func (r *LineRepository) ReplyMessage(replyToken, text string) error {
 	})
 
 	if err != nil {
-		log.Printf("❌ Error replying: %v", err)
+		log.Printf("Error replying: %v", err)
 		return err
 	}
 
@@ -61,7 +61,7 @@ func (r *LineRepository) PushMessage(msg *model.OutgoingMessage) error {
 	}, "")
 
 	if err != nil {
-		log.Printf("❌ Error pushing message: %v", err)
+		log.Printf("Error pushing message: %v", err)
 		return err
 	}
 
@@ -120,15 +120,15 @@ func (r *LineRepository) sendRawJSON(url string, body interface{}) error {
 
 	if resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		log.Printf("❌ LINE API error %d: %s", resp.StatusCode, string(bodyBytes))
+		log.Printf("LINE API error %d: %s", resp.StatusCode, string(bodyBytes))
 	} else {
-		log.Println("✅ Flex message sent successfully")
+		log.Println("Flex message sent successfully")
 	}
 
 	return nil
 }
 
-// ✅ BroadcastMessage - ส่งหาทุกคนที่เพิ่มเพื่อน Bot
+// BroadcastMessage - ส่งหาทุกคนที่เพิ่มเพื่อน Bot
 func (r *LineRepository) BroadcastMessage(text string) error {
 	requestBody := map[string]interface{}{
 		"messages": []map[string]interface{}{
@@ -161,31 +161,31 @@ func (r *LineRepository) BroadcastMessage(text string) error {
 
 	if resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		log.Printf("❌ LINE Broadcast API error %d: %s", resp.StatusCode, string(bodyBytes))
+		log.Printf("LINE Broadcast API error %d: %s", resp.StatusCode, string(bodyBytes))
 		return err
 	}
 
-	log.Println("✅ Broadcast message sent successfully")
+	log.Println("Broadcast message sent successfully")
 	return nil
 }
 
 // GetImageContent downloads image content from LINE using message ID
 func (r *LineRepository) GetImageContent(messageID string) ([]byte, error) {
-	log.Printf("📥 Downloading image: %s", messageID)
+	log.Printf("Downloading image: %s", messageID)
 
 	resp, err := r.client.BlobAPI.GetMessageContent(messageID)
 	if err != nil {
-		log.Printf("❌ Error getting image content: %v", err)
+		log.Printf("Error getting image content: %v", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	imageBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("❌ Error reading image: %v", err)
+		log.Printf("Error reading image: %v", err)
 		return nil, err
 	}
 
-	log.Printf("✅ Downloaded image: %d bytes", len(imageBytes))
+	log.Printf("Downloaded image: %d bytes", len(imageBytes))
 	return imageBytes, nil
 }
