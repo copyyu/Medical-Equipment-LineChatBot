@@ -1,4 +1,4 @@
-package line
+package persistence
 
 import (
 	"context"
@@ -128,7 +128,7 @@ func (r *NotificationRepository) GetEquipmentsForAugustAlert(ctx context.Context
 		return nil, fmt.Errorf("failed to get August alerts: %w", err)
 	}
 
-	log.Printf("📊 August Alert: Found %d equipments for year %d (range: %d-%d months)",
+	log.Printf("August Alert: Found %d equipments for year %d (range: %d-%d months)",
 		len(results), targetYear, monthsRangeMin, monthsRangeMax)
 	for _, r := range results {
 		log.Printf("  ✓ %s: year=%d, months=%d", r.IDCode, r.ReplacementYear, r.MonthsRemaining)
@@ -180,7 +180,7 @@ func (r *NotificationRepository) GetEquipmentsForJuneAlert(ctx context.Context) 
 		return nil, fmt.Errorf("failed to get June alerts: %w", err)
 	}
 
-	log.Printf("📊 June Alert: Found %d equipments for year %d (range: %d-%d months)",
+	log.Printf("June Alert: Found %d equipments for year %d (range: %d-%d months)",
 		len(results), targetYear, monthsRangeMin, monthsRangeMax)
 	for _, r := range results {
 		log.Printf("  ✓ %s: year=%d, months=%d", r.IDCode, r.ReplacementYear, r.MonthsRemaining)
