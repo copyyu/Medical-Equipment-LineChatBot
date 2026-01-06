@@ -10,24 +10,27 @@ import (
 	"net/http"
 )
 
-// OCRText represents a single OCR detection result
-type OCRText struct {
-	Text       string  `json:"text"`
-	Confidence float64 `json:"confidence"`
+// OCRResult represents a single OCR result within a detection
+type OCRResult struct {
+	Raw        string  `json:"raw"`        // ข้อความดิบที่ OCR อ่านได้
+	Normalized string  `json:"normalized"` // ข้อความหลัง normalize
+	Confidence float64 `json:"confidence"` // ค่าความมั่นใจของ OCR (0-1)
+	IsSSH      bool    `json:"is_ssh"`     // ตรงกับ pattern SSH หรือไม่
 }
 
-// OCRDetection represents a detection with bounding box and OCR texts
+// OCRDetection represents a detection with bounding box and OCR results
 type OCRDetection struct {
-	BBox           []float64 `json:"bbox"`
-	YoloConfidence float64   `json:"yolo_confidence"`
-	CropPath       string    `json:"crop_path"`
-	OCRTexts       []OCRText `json:"ocr_texts"`
+	BBox           []float64   `json:"bbox"`            // พิกัด [x1, y1, x2, y2]
+	YoloConfidence float64     `json:"yolo_confidence"` // ค่าความมั่นใจจาก YOLO (0-1)
+	OCRResults     []OCRResult `json:"ocr_results"`     // ผลลัพธ์ OCR
 }
 
 // OCRResponse represents the response from OCR API
 type OCRResponse struct {
-	Status     string         `json:"status"`
-	Detections []OCRDetection `json:"detections"`
+	Status     string         `json:"status"`     // สถานะ ("success")
+	Count      int            `json:"count"`      // จำนวน detections
+	Detections []OCRDetection `json:"detections"` // รายการ detection
+	Error      string         `json:"error"`      // error message (if any)
 }
 
 // OCRClient handles communication with OCR API
@@ -86,38 +89,59 @@ func (c *OCRClient) ProcessImage(imageBytes []byte, filename string) (*OCRRespon
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("OCR API error %d: %s", resp.StatusCode, string(respBody))
-	}
-
 	// Parse response
 	var ocrResp OCRResponse
 	if err := json.Unmarshal(respBody, &ocrResp); err != nil {
 		return nil, fmt.Errorf("failed to parse OCR response: %w", err)
 	}
 
-	log.Printf("✅ OCR API response: status=%s, detections=%d", ocrResp.Status, len(ocrResp.Detections))
+	// Check for API error
+	if resp.StatusCode != http.StatusOK || ocrResp.Error != "" {
+		errMsg := ocrResp.Error
+		if errMsg == "" {
+			errMsg = string(respBody)
+		}
+		return nil, fmt.Errorf("OCR API error %d: %s", resp.StatusCode, errMsg)
+	}
+
+	log.Printf("✅ OCR API response: status=%s, count=%d", ocrResp.Status, ocrResp.Count)
 	return &ocrResp, nil
 }
 
-// GetBestText returns the text with highest confidence from OCR response
-func (c *OCRClient) GetBestText(resp *OCRResponse) string {
+// GetDetectedCode returns the best detected code from OCR response
+// Prioritizes: 1) is_ssh=true with highest confidence, 2) highest confidence normalized text
+func (c *OCRClient) GetDetectedCode(resp *OCRResponse) string {
 	if resp == nil || len(resp.Detections) == 0 {
 		return ""
 	}
 
-	var bestText string
+	var bestCode string
 	var bestConfidence float64
+	var foundSSH bool
 
+	// Search through all detections and OCR results
 	for _, detection := range resp.Detections {
-		for _, text := range detection.OCRTexts {
-			if text.Confidence > bestConfidence {
-				bestConfidence = text.Confidence
-				bestText = text.Text
+		for _, result := range detection.OCRResults {
+			// Prioritize is_ssh=true results
+			if result.IsSSH {
+				if !foundSSH || result.Confidence > bestConfidence {
+					foundSSH = true
+					bestConfidence = result.Confidence
+					bestCode = result.Normalized
+				}
+			} else if !foundSSH && result.Confidence > bestConfidence {
+				// If no SSH found yet, use highest confidence
+				bestConfidence = result.Confidence
+				bestCode = result.Normalized
 			}
 		}
 	}
 
-	log.Printf("📝 Best OCR text: %s (confidence: %.2f)", bestText, bestConfidence)
-	return bestText
+	if bestCode != "" {
+		log.Printf("📝 Detected code: %s (confidence: %.2f, is_ssh: %v)", bestCode, bestConfidence, foundSSH)
+	} else {
+		log.Println("⚠️ No code detected from OCR")
+	}
+
+	return bestCode
 }
