@@ -58,15 +58,6 @@ func GetEquipmentOptionsFlex(serialNumber string) map[string]interface{} {
 						"displayText": "ดูสเปกเครื่อง",
 					},
 				},
-				map[string]interface{}{
-					"type": "button", "style": "secondary", "margin": "md",
-					"action": map[string]interface{}{
-						"type":        "postback",
-						"label":       "🏠 กลับเมนูหลัก",
-						"data":        "action=main_menu",
-						"displayText": "กลับเมนูหลัก",
-					},
-				},
 			},
 		},
 	}
@@ -132,13 +123,6 @@ func GetRepairHistoryFlex(serialNumber string, records []map[string]interface{})
 						"type": "postback", "label": "⬅️ ย้อนกลับ",
 						"data":        fmt.Sprintf("action=ocr_confirm_yes&serial=%s", serialNumber),
 						"displayText": "ย้อนกลับ",
-					},
-				},
-				map[string]interface{}{
-					"type": "button", "style": "secondary",
-					"action": map[string]interface{}{
-						"type": "postback", "label": "🏠 เมนูหลัก",
-						"data": "action=main_menu", "displayText": "กลับเมนูหลัก",
 					},
 				},
 			},
@@ -215,13 +199,6 @@ func GetLifecycleFlex(serialNumber string, data map[string]interface{}) map[stri
 						"displayText": "ย้อนกลับ",
 					},
 				},
-				map[string]interface{}{
-					"type": "button", "style": "secondary",
-					"action": map[string]interface{}{
-						"type": "postback", "label": "🏠 เมนูหลัก",
-						"data": "action=main_menu", "displayText": "กลับเมนูหลัก",
-					},
-				},
 			},
 		},
 	}
@@ -294,13 +271,6 @@ func GetSpecsFlex(serialNumber string, data map[string]interface{}) map[string]i
 						"type": "postback", "label": "⬅️ ย้อนกลับ",
 						"data":        fmt.Sprintf("action=ocr_confirm_yes&serial=%s", serialNumber),
 						"displayText": "ย้อนกลับ",
-					},
-				},
-				map[string]interface{}{
-					"type": "button", "style": "secondary",
-					"action": map[string]interface{}{
-						"type": "postback", "label": "🏠 เมนูหลัก",
-						"data": "action=main_menu", "displayText": "กลับเมนูหลัก",
 					},
 				},
 			},

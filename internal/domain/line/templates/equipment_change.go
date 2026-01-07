@@ -21,7 +21,6 @@ func GetEquipmentChangeFlex(linkURL string) map[string]interface{} {
 			"type": "box", "layout": "vertical", "spacing": "sm",
 			"contents": []interface{}{
 				map[string]interface{}{"type": "button", "style": "primary", "color": "#FF9800", "height": "sm", "action": map[string]interface{}{"type": "uri", "label": "เปิดฟอร์มแจ้งเปลี่ยน", "uri": linkURL}},
-				map[string]interface{}{"type": "button", "style": "secondary", "height": "sm", "action": map[string]interface{}{"type": "postback", "label": "↩️ กลับเมนูหลัก", "data": "action=main_menu", "displayText": "↩️ กลับเมนูหลัก"}},
 			},
 		},
 	}

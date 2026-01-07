@@ -83,7 +83,7 @@ func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "กรุณาตรวจสอบและส่งรูปใหม่", "size": "sm", "align": "center", "margin": "md",
+					"type": "text", "text": "กรุณาตรวจสอบข้อความและส่งรูปภาพใหม่", "size": "sm", "align": "center", "margin": "md",
 				},
 			},
 		},
@@ -91,13 +91,7 @@ func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 			"type": "box", "layout": "vertical",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "secondary",
-					"action": map[string]interface{}{
-						"type":        "postback",
-						"label":       "🏠 กลับเมนูหลัก",
-						"data":        "action=main_menu",
-						"displayText": "กลับเมนูหลัก",
-					},
+					"type": "text", "text": "กรุณาเลือกเมนูด้านล่างเพื่อทำรายการอื่น", "size": "xs", "color": "#888888", "align": "center",
 				},
 			},
 		},
@@ -133,13 +127,7 @@ func GetOCRErrorFlex() map[string]interface{} {
 			"type": "box", "layout": "vertical",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "secondary",
-					"action": map[string]interface{}{
-						"type":        "postback",
-						"label":       "🏠 กลับเมนูหลัก",
-						"data":        "action=main_menu",
-						"displayText": "กลับเมนูหลัก",
-					},
+					"type": "text", "text": "กรุณาเลือกเมนูด้านล่างเพื่อทำรายการอื่น", "size": "xs", "color": "#888888", "align": "center",
 				},
 			},
 		},
@@ -175,13 +163,7 @@ func GetRetryPhotoFlex() map[string]interface{} {
 			"type": "box", "layout": "vertical",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "secondary",
-					"action": map[string]interface{}{
-						"type":        "postback",
-						"label":       "🏠 กลับเมนูหลัก",
-						"data":        "action=main_menu",
-						"displayText": "กลับเมนูหลัก",
-					},
+					"type": "text", "text": "หรือเลือกเมนูด้านล่างเพื่อทำรายการอื่น", "size": "xs", "color": "#888888", "align": "center",
 				},
 			},
 		},

@@ -52,7 +52,11 @@ func (r *EquipmentRepository) FindBySerialNo(serialNo string) (*entity.Equipment
 		log.Printf("Error finding equipment by serial_no: %v", err)
 		return nil, err
 	}
-	log.Printf("Found equipment: %s (ID: %d)", equipment.SerialNo, equipment.ID)
+	serial := "N/A"
+	if equipment.SerialNo != nil {
+		serial = *equipment.SerialNo
+	}
+	log.Printf("Found equipment: %s (ID: %d)", serial, equipment.ID)
 	return &equipment, nil
 }
 
@@ -69,7 +73,11 @@ func (r *EquipmentRepository) FindBySerialOrCode(query string) (*entity.Equipmen
 		log.Printf("Error finding equipment: %v", err)
 		return nil, err
 	}
-	log.Printf("Found equipment: %s/%s (ID: %d)", equipment.SerialNo, equipment.IDCode, equipment.ID)
+	serial := "N/A"
+	if equipment.SerialNo != nil {
+		serial = *equipment.SerialNo
+	}
+	log.Printf("Found equipment: %s/%s (ID: %d)", serial, equipment.IDCode, equipment.ID)
 	return &equipment, nil
 }
 

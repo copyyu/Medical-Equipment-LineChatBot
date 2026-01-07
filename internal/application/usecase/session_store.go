@@ -6,8 +6,18 @@ import (
 	"time"
 )
 
+// SessionMode represents what action user is doing
+type SessionMode string
+
+const (
+	ModeNone          SessionMode = ""
+	ModeReportProblem SessionMode = "report_problem" // แจ้งปัญหา/เช็กสถานะ
+	ModeTrackStatus   SessionMode = "track_status"   // ติดตามสถานะ
+)
+
 // OCRSession stores pending OCR result for a user
 type OCRSession struct {
+	Mode         SessionMode // โหมดที่ผู้ใช้เลือกจากเมนู
 	SerialNumber string
 	ImageURL     string
 	Timestamp    time.Time
