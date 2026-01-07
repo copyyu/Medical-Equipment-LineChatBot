@@ -45,7 +45,8 @@ func NewMessageUseCase(
 // HandleTextMessage handles incoming text message - shows Flex Menu for all messages
 func (uc *MessageUseCase) HandleTextMessage(msg *model.IncomingMessage) error {
 	log.Printf("📝 Processing text: %s", msg.Text)
-	textLower := strings.ToLower(strings.TrimSpace(msg.Text))
+	text := strings.TrimSpace(msg.Text)
+	textLower := strings.ToLower(text)
 
 	switch {
 	case textLower == "แจ้งเปลี่ยนเครื่อง" || strings.Contains(textLower, "เปลี่ยนเครื่อง"):
@@ -54,10 +55,38 @@ func (uc *MessageUseCase) HandleTextMessage(msg *model.IncomingMessage) error {
 	case textLower == "ติดต่อ" || textLower == "ติดต่อเจ้าหน้าที่":
 		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ติดต่อเจ้าหน้าที่", uc.messageService.GetContactStaffFlex())
 
+	case textLower == "เมนู" || textLower == "menu":
+		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เมนูหลัก", uc.messageService.GetMainMenuFlex())
+
 	default:
+		// Check if text looks like an equipment id_code or serial (alphanumeric, 3+ characters)
+		if len(text) >= 3 && isAlphanumeric(text) {
+			// Try to find equipment by id_code or serial_no
+			equipment, err := uc.equipmentRepo.FindBySerialOrCode(text)
+			if err == nil && equipment != nil {
+				log.Printf("✅ Found equipment by text query: %s", text)
+				// Found equipment - show options menu directly
+				return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(text))
+			}
+			// Not found - show not found message
+			if err == nil && equipment == nil {
+				log.Printf("⚠️ Equipment not found for text: %s", text)
+				return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ไม่พบข้อมูล", templates.GetOCRNotFoundFlex(text))
+			}
+		}
 		// Default: Show main menu Flex Message
 		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เมนูหลัก", uc.messageService.GetMainMenuFlex())
 	}
+}
+
+// isAlphanumeric checks if string contains only letters, numbers, and common separators
+func isAlphanumeric(s string) bool {
+	for _, r := range s {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 // HandleImageMessage handles incoming image message - processes OCR
@@ -85,7 +114,7 @@ func (uc *MessageUseCase) HandleImageMessage(msg *model.IncomingMessage) error {
 	}
 
 	// Step 3: Get best text from OCR result
-	detectedText := uc.ocrClient.GetBestText(ocrResult)
+	detectedText := uc.ocrClient.GetDetectedCode(ocrResult)
 	if detectedText == "" {
 		log.Println("⚠️ OCR detected no text")
 		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "อ่านรูปไม่สำเร็จ", templates.GetOCRErrorFlex())
