@@ -42,40 +42,70 @@ func NewMessageUseCase(
 	}
 }
 
-// HandleTextMessage handles incoming text message - shows Flex Menu for all messages
+// HandleTextMessage handles incoming text message from Rich Menu or direct input
 func (uc *MessageUseCase) HandleTextMessage(msg *model.IncomingMessage) error {
 	log.Printf("📝 Processing text: %s", msg.Text)
 	text := strings.TrimSpace(msg.Text)
-	textLower := strings.ToLower(text)
 
 	switch {
-	case textLower == "แจ้งเปลี่ยนเครื่อง" || strings.Contains(textLower, "เปลี่ยนเครื่อง"):
+	// Rich Menu: แจ้งปัญหา / เช็กสถานะ
+	case strings.Contains(text, "แจ้งปัญหา") || strings.Contains(text, "เช็กสถานะ"):
+		// Set session mode
+		uc.sessionStore.Set(msg.UserID, &OCRSession{Mode: ModeReportProblem})
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, "🔧 แจ้งปัญหา / เช็กสถานะเครื่อง\n━━━━━━━━━━━━━━━\nกรุณาถ่ายรูปป้าย Serial Number\nหรือพิมพ์รหัสเครื่อง (ID Code)\n\n📸 ส่งรูปมาได้เลยค่ะ\n✏️ หรือพิมพ์รหัส เช่น SSH12345")
+
+	// Rich Menu: ติดตามสถานะ
+	case strings.Contains(text, "ติดตามสถานะ"):
+		// Set session mode
+		uc.sessionStore.Set(msg.UserID, &OCRSession{Mode: ModeTrackStatus})
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 ติดตามสถานะ\n━━━━━━━━━━━━━━━\nกรุณาระบุหมายเลข Ticket\nหรือ Serial Number ของเครื่อง\n\nตัวอย่าง: TK-2024001")
+
+	// Rich Menu: แจ้งเปลี่ยนเครื่อง
+	case strings.Contains(text, "เปลี่ยนเครื่อง"):
 		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "แจ้งเปลี่ยนเครื่อง", uc.messageService.GetEquipmentChangeFlex("https://www.google.com/"))
 
-	case textLower == "ติดต่อ" || textLower == "ติดต่อเจ้าหน้าที่":
+	// Rich Menu: ติดต่อเจ้าหน้าที่
+	case strings.Contains(text, "ติดต่อ"):
 		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ติดต่อเจ้าหน้าที่", uc.messageService.GetContactStaffFlex())
 
-	case textLower == "เมนู" || textLower == "menu":
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เมนูหลัก", uc.messageService.GetMainMenuFlex())
+	// เรียกเมนู (ไม่ต้องแสดง Flex แล้ว ใช้ Rich Menu แทน)
+	case text == "เมนู" || strings.ToLower(text) == "menu":
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, "กรุณาเลือกบริการจากเมนูด้านล่างค่ะ 👇")
 
 	default:
-		// Check if text looks like an equipment id_code or serial (alphanumeric, 3+ characters)
-		if len(text) >= 3 && isAlphanumeric(text) {
-			// Try to find equipment by id_code or serial_no
-			equipment, err := uc.equipmentRepo.FindBySerialOrCode(text)
-			if err == nil && equipment != nil {
-				log.Printf("✅ Found equipment by text query: %s", text)
-				// Found equipment - show options menu directly
-				return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(text))
-			}
-			// Not found - show not found message
-			if err == nil && equipment == nil {
-				log.Printf("⚠️ Equipment not found for text: %s", text)
-				return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ไม่พบข้อมูล", templates.GetOCRNotFoundFlex(text))
-			}
+		// Check if user has selected a menu first
+		session := uc.sessionStore.Get(msg.UserID)
+		if session == nil || session.Mode == ModeNone {
+			// No menu selected - ask to select menu first
+			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "ขออภัยค่ะ เพื่อให้สามารถตอบคำถามได้ถูกต้อง กรุณาเลือกบริการที่ต้องการจากเมนูด้านล่างค่ะ 🙇🏻‍♀️")
 		}
-		// Default: Show main menu Flex Message
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เมนูหลัก", uc.messageService.GetMainMenuFlex())
+
+		// User has selected menu - process based on mode
+		if session.Mode == ModeReportProblem {
+			// Check if text looks like an equipment id_code or serial
+			if len(text) >= 3 && isAlphanumeric(text) {
+				// Try to find equipment by id_code or serial_no
+				equipment, err := uc.equipmentRepo.FindBySerialOrCode(text)
+				if err == nil && equipment != nil {
+					log.Printf("✅ Found equipment by text query: %s", text)
+					// Clear session after success
+					uc.sessionStore.Delete(msg.UserID)
+					return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(text))
+				}
+				if err == nil && equipment == nil {
+					log.Printf("⚠️ Equipment not found for text: %s", text)
+					return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ไม่พบข้อมูล", templates.GetOCRNotFoundFlex(text))
+				}
+			}
+			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "กรุณาพิมพ์รหัสเครื่อง หรือส่งรูปป้าย Serial Number ค่ะ")
+		}
+
+		if session.Mode == ModeTrackStatus {
+			// For track status - just acknowledge for now
+			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 ระบบได้รับข้อมูล: "+text+"\nกำลังตรวจสอบสถานะให้ค่ะ")
+		}
+
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, "ขออภัยค่ะ กรุณาเลือกบริการจากเมนูด้านล่างค่ะ 🙇🏻‍♀️")
 	}
 }
 
@@ -92,6 +122,13 @@ func isAlphanumeric(s string) bool {
 // HandleImageMessage handles incoming image message - processes OCR
 func (uc *MessageUseCase) HandleImageMessage(msg *model.IncomingMessage) error {
 	log.Printf("🖼️ Processing image from user: %s, imageID: %s", msg.UserID, msg.ImageID)
+
+	// Check if user has selected menu first
+	session := uc.sessionStore.Get(msg.UserID)
+	if session == nil || session.Mode != ModeReportProblem {
+		// User hasn't pressed "แจ้งปัญหา" menu first
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, "ขออภัยค่ะ กรุณากดเมนู \"แจ้งปัญหา / เช็กสถานะ\" ก่อนส่งรูปค่ะ 🙇🏻‍♀️")
+	}
 
 	// Check if OCR client is configured
 	if uc.ocrClient == nil {
@@ -163,16 +200,16 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 
 	switch action {
 	case "main_menu":
-		return uc.lineRepo.ReplyFlexMessage(replyToken, "เมนูหลัก", uc.messageService.GetMainMenuFlex())
+		return uc.lineRepo.ReplyMessage(replyToken, "กรุณาเลือกบริการจากเมนูด้านล่างค่ะ 👇")
 
 	case "request_change":
 		return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งเปลี่ยนเครื่อง", uc.messageService.GetEquipmentChangeFlex("https://www.google.com/"))
 
 	case "report_problem":
-		return uc.lineRepo.ReplyMessage(replyToken, "🔧 แจ้งปัญหา / เช็กสถานะเครื่อง\n━━━━━━━━━━━━━━━\nกรุณาถ่ายรูปป้าย Serial Number\nหรือสแกน QR Code บนเครื่อง\n\n📸 ส่งรูปมาได้เลยครับ")
+		return uc.lineRepo.ReplyMessage(replyToken, " แจ้งปัญหา / เช็กสถานะเครื่อง\n━━━━━━━━━━━━━━━\nกรุณาถ่ายรูปป้าย Serial Number\nหรือสแกน QR Code บนเครื่อง\n\n📸 ส่งรูปมาได้เลยครับ")
 
 	case "track_status":
-		return uc.lineRepo.ReplyMessage(replyToken, "📋 ติดตามสถานะ\n━━━━━━━━━━━━━━━\nกรุณาระบุหมายเลข Ticket\nหรือ Serial Number ของเครื่อง\n\nตัวอย่าง: TK-2024001")
+		return uc.lineRepo.ReplyMessage(replyToken, " ติดตามสถานะ\n━━━━━━━━━━━━━━━\nกรุณาระบุหมายเลข Ticket\nหรือ Serial Number ของเครื่อง\n\nตัวอย่าง: TK-2024001")
 
 	case "contact_staff":
 		return uc.lineRepo.ReplyFlexMessage(replyToken, "ติดต่อเจ้าหน้าที่", uc.messageService.GetContactStaffFlex())
@@ -182,7 +219,7 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		if serial != "" {
 			return uc.lineRepo.ReplyFlexMessage(replyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(serial))
 		}
-		return uc.lineRepo.ReplyFlexMessage(replyToken, "เมนูหลัก", uc.messageService.GetMainMenuFlex())
+		return uc.lineRepo.ReplyMessage(replyToken, "กรุณาเลือกบริการจากเมนูด้านล่างค่ะ 👇")
 
 	case "ocr_confirm_no":
 		// User denied OCR result - ask for new photo
@@ -198,7 +235,7 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.handleViewSpecs(replyToken, serial)
 
 	default:
-		return uc.lineRepo.ReplyFlexMessage(replyToken, "เมนูหลัก", uc.messageService.GetMainMenuFlex())
+		return uc.lineRepo.ReplyMessage(replyToken, "กรุณาเลือกบริการจากเมนูด้านล่างค่ะ 👇")
 	}
 }
 
@@ -264,10 +301,13 @@ func (uc *MessageUseCase) handleViewSpecs(replyToken, serial string) error {
 	return uc.lineRepo.ReplyFlexMessage(replyToken, "สเปกเครื่อง", templates.GetSpecsFlex(serial, data))
 }
 
-// SendWelcomeMessage sends welcome Flex Message to new follower
+// SendWelcomeMessage sends welcome message to new follower
 func (uc *MessageUseCase) SendWelcomeMessage(userID string) error {
 	log.Printf("👋 Sending welcome to user: %s", userID)
-	return uc.lineRepo.PushFlexMessage(userID, "ยินดีต้อนรับ", uc.messageService.GetMainMenuFlex())
+	return uc.lineRepo.PushMessage(&model.OutgoingMessage{
+		To:   userID,
+		Text: "ยินดีต้อนรับสู่ระบบเครื่องมือแพทย์ค่ะ 🏥\n━━━━━━━━━━━━━━━\nกรุณาเลือกบริการจากเมนูด้านล่างได้เลยค่ะ 👇",
+	})
 }
 
 // Helper functions

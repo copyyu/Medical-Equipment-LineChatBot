@@ -104,11 +104,6 @@ func (s *MessageService) GetFollowerWelcomeMessage() string {
 }
 
 // Flex Message Methods
-// GetMainMenuFlex returns a Flex Message for the main menu
-func (s *MessageService) GetMainMenuFlex() map[string]interface{} {
-	return templates.GetMainMenuFlex()
-}
-
 // GetEquipmentChangeFlex returns a Flex Message for equipment change request
 func (s *MessageService) GetEquipmentChangeFlex(linkURL string) map[string]interface{} {
 	return templates.GetEquipmentChangeFlex(linkURL)

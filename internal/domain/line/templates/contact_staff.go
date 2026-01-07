@@ -26,11 +26,5 @@ func GetContactStaffFlex() map[string]interface{} {
 				}},
 			},
 		},
-		"footer": map[string]interface{}{
-			"type": "box", "layout": "vertical",
-			"contents": []interface{}{
-				map[string]interface{}{"type": "button", "style": "secondary", "height": "sm", "action": map[string]interface{}{"type": "postback", "label": "↩️ กลับเมนูหลัก", "data": "action=main_menu", "displayText": "↩️ กลับเมนูหลัก"}},
-			},
-		},
 	}
 }
