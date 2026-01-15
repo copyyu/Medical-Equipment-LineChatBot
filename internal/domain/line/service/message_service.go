@@ -1,13 +1,22 @@
 package service
 
-import "medical-webhook/internal/domain/line/templates"
+import (
+	"fmt"
+
+	"medical-webhook/internal/config"
+	"medical-webhook/internal/domain/line/templates"
+)
 
 // MessageService handles message business logic
-type MessageService struct{}
+type MessageService struct {
+	contact config.ContactConfig
+}
 
-// NewMessageService creates a new message service
-func NewMessageService() *MessageService {
-	return &MessageService{}
+// NewMessageService creates a new message service with contact configuration
+func NewMessageService(contact config.ContactConfig) *MessageService {
+	return &MessageService{
+		contact: contact,
+	}
 }
 
 // ProcessTextCommand processes text command and returns appropriate response
@@ -79,16 +88,26 @@ func (s *MessageService) GetInquiryFormMessage() string {
 ที่ต้องการสอบถาม`
 }
 
+// GetContactMessage returns contact information from config
 func (s *MessageService) GetContactMessage() string {
-	return `📞 ติดต่อเจ้าหน้าที่
+	msg := fmt.Sprintf(`📞 ติดต่อเจ้าหน้าที่
 ━━━━━━━━━━━━━━━
-🏥 ศูนย์เครื่องมือแพทย์
+🏥 %s`, s.contact.CenterName)
 
-📱 โทร: 123965845
-📧 Email: lao@hospital.com
-⏰ เวลาทำการ: จ-ศ 08:00-17:00
+	if s.contact.Phone != "" {
+		msg += fmt.Sprintf("\n\n📱 โทร: %s", s.contact.Phone)
+	}
+	if s.contact.Email != "" {
+		msg += fmt.Sprintf("\n📧 Email: %s", s.contact.Email)
+	}
+	if s.contact.WorkingHours != "" {
+		msg += fmt.Sprintf("\n⏰ เวลาทำการ: %s", s.contact.WorkingHours)
+	}
+	if s.contact.EmergencyPhone != "" {
+		msg += fmt.Sprintf("\n\n🚨 กรณีฉุกเฉิน: %s (24 ชม.)", s.contact.EmergencyPhone)
+	}
 
-🚨 กรณีฉุกเฉิน: 12354675745 (24 ชม.)`
+	return msg
 }
 
 func (s *MessageService) GetDefaultMessage() string {

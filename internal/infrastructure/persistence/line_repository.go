@@ -3,6 +3,7 @@ package persistence
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"medical-webhook/internal/domain/line/model"
@@ -118,13 +119,13 @@ func (r *LineRepository) sendRawJSON(url string, body interface{}) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		log.Printf("LINE API error %d: %s", resp.StatusCode, string(bodyBytes))
-	} else {
-		log.Println("Flex message sent successfully")
+		return fmt.Errorf("LINE API error %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
+	log.Println("Flex message sent successfully")
 	return nil
 }
 
@@ -159,10 +160,10 @@ func (r *LineRepository) BroadcastMessage(text string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		log.Printf("LINE Broadcast API error %d: %s", resp.StatusCode, string(bodyBytes))
-		return err
+		return fmt.Errorf("LINE Broadcast API error %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	log.Println("Broadcast message sent successfully")

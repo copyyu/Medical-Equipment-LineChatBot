@@ -89,7 +89,7 @@ func (uc *NotificationUseCase) sendAlerts(ctx context.Context, notifyRound strin
 			errorMsg = &msg
 		}
 
-		log := &entity.NotificationLog{
+		notifLog := &entity.NotificationLog{
 			EquipmentID: alert.EquipmentID,
 			NotifyRound: notifyRound,
 			Message:     message,
@@ -97,7 +97,7 @@ func (uc *NotificationUseCase) sendAlerts(ctx context.Context, notifyRound strin
 			SentAt:      now,
 			ErrorMsg:    errorMsg,
 		}
-		uc.notificationRepo.CreateLog(ctx, log)
+		uc.notificationRepo.CreateLog(ctx, notifLog)
 	}
 
 	if err != nil {
