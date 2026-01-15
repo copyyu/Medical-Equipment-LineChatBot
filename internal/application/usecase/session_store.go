@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+// Session timeout constants
+const (
+	SessionExpiryDuration = 10 * time.Minute
+	CleanupInterval       = 5 * time.Minute
+)
+
 // SessionMode represents what action user is doing
 type SessionMode string
 
@@ -27,16 +33,24 @@ type OCRSession struct {
 type SessionStore struct {
 	sessions map[string]*OCRSession
 	mu       sync.RWMutex
+	done     chan struct{} // channel สำหรับ signal shutdown
 }
 
 // NewSessionStore creates a new session store
 func NewSessionStore() *SessionStore {
 	store := &SessionStore{
 		sessions: make(map[string]*OCRSession),
+		done:     make(chan struct{}),
 	}
 	// Start cleanup goroutine
 	go store.cleanupLoop()
 	return store
+}
+
+// Close gracefully shuts down the session store cleanup goroutine
+func (s *SessionStore) Close() {
+	close(s.done)
+	log.Println("🛑 Session store closed")
 }
 
 // Set stores OCR session for a user
@@ -67,13 +81,19 @@ func (s *SessionStore) Delete(userID string) {
 	log.Printf("🗑️ Session deleted for user: %s", userID)
 }
 
-// cleanupLoop removes expired sessions (older than 10 minutes)
+// cleanupLoop removes expired sessions periodically
 func (s *SessionStore) cleanupLoop() {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(CleanupInterval)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		s.cleanup()
+	for {
+		select {
+		case <-ticker.C:
+			s.cleanup()
+		case <-s.done:
+			log.Println("🛑 Session cleanup loop stopped")
+			return // graceful shutdown
+		}
 	}
 }
 
@@ -81,7 +101,7 @@ func (s *SessionStore) cleanup() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	expiry := time.Now().Add(-10 * time.Minute)
+	expiry := time.Now().Add(-SessionExpiryDuration)
 	for userID, session := range s.sessions {
 		if session.Timestamp.Before(expiry) {
 			delete(s.sessions, userID)
