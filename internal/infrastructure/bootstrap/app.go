@@ -66,7 +66,7 @@ func InitializeApp() (*Application, func(), error) {
 	equipmentMapper := mapper.NewEquipmentMapper()
 
 	// Initialize services (Domain Layer)
-	messageService := service.NewMessageService()
+	messageService := service.NewMessageService(cfg.Contact)
 	notificationService := service.NewNotificationService()
 	excelParserService := service.NewExcelParserService()
 	masterDataService := service.NewMasterDataService(
@@ -132,9 +132,13 @@ func InitializeApp() (*Application, func(), error) {
 	// Cleanup function
 	cleanup := func() {
 		log.Println("Shutting down gracefully...")
-		//  Stop scheduler
+		// Stop scheduler
 		if notificationScheduler != nil {
 			notificationScheduler.Stop()
+		}
+		// Close session store (stops cleanup goroutine)
+		if sessionStore != nil {
+			sessionStore.Close()
 		}
 		if err := database.Close(); err != nil {
 			log.Printf("Error closing database: %v", err)
