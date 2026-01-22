@@ -135,7 +135,7 @@ func InitializeApp() (*Application, func(), error) {
 	middleware.FiberMiddleware(app)
 
 	// Register Routes
-	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler)
+	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler)
 
 	// Initialize และ Start Notification Scheduler
 	notificationScheduler := scheduler.NewNotificationScheduler(notificationUseCase)
