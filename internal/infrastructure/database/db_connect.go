@@ -54,6 +54,8 @@ func Connect(cfg *config.Config) error {
 		&entity.MaintenanceRecord{},
 		&entity.NotificationLog{},
 		&entity.NotificationSetting{},
+		&entity.Admin{},
+		&entity.AdminSession{},
 	)
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)

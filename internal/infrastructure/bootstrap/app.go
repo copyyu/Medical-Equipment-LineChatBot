@@ -12,7 +12,7 @@ import (
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
-	"medical-webhook/internal/interfaces/http/scheduler"
+	"medical-webhook/internal/utils/scheduler"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -24,6 +24,7 @@ type Application struct {
 	NotificationHandler    *handlers.NotificationHandler
 	NotificationScheduler  *scheduler.NotificationScheduler
 	EquipmentImportHandler *handlers.EquipmentImportHandler
+	AdminHandler           *handlers.AdminHandler
 }
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
@@ -46,9 +47,9 @@ func InitializeApp() (*Application, func(), error) {
 	var ocrClient *client.OCRClient
 	if cfg.OCRURL != "" {
 		ocrClient = client.NewOCRClient(cfg.OCRURL)
-		log.Printf("✅ OCR client initialized: %s", cfg.OCRURL)
+		log.Printf("OCR client initialized: %s", cfg.OCRURL)
 	} else {
-		log.Println("⚠️ OCR_API_URL not configured, OCR features disabled")
+		log.Println("OCR_API_URL not configured, OCR features disabled")
 	}
 
 	// Initialize repositories (Infrastructure Layer)
@@ -59,6 +60,8 @@ func InitializeApp() (*Application, func(), error) {
 	equipmentCategoryRepo := persistence.NewEquipmentCategoryRepository()
 	departmentRepo := persistence.NewDepartmentRepository()
 	equipmentModelRepo := persistence.NewEquipmentModelRepository()
+	adminRepo := persistence.NewAdminRepository()
+	adminSessionRepo := persistence.NewAdminSessionRepository()
 
 	// Initialize session store for OCR confirmations
 	sessionStore := usecase.NewSessionStore()
@@ -75,6 +78,11 @@ func InitializeApp() (*Application, func(), error) {
 		departmentRepo,
 		equipmentModelRepo,
 		equipmentMapper,
+	)
+
+	adminService := service.NewAdminService(
+		adminRepo,
+		adminSessionRepo,
 	)
 
 	// Initialize use cases (Application Layer)
@@ -98,10 +106,15 @@ func InitializeApp() (*Application, func(), error) {
 		equipmentMapper,
 	)
 
+	adminUseCase := usecase.NewAdminUsecase(
+		adminService,
+	)
+
 	// Initialize handlers (Interface Layer)
 	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
 	equipmentImportHandler := handlers.NewEquipmentImportHandler(equipmentImportUseCase)
+	adminHandler := handlers.NewAdminHandler(adminUseCase)
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
@@ -152,6 +165,7 @@ func InitializeApp() (*Application, func(), error) {
 		WebhookHandler:         webhookHandler,
 		NotificationHandler:    notificationHandler,
 		EquipmentImportHandler: equipmentImportHandler,
+		AdminHandler:           adminHandler,
 	}, cleanup, nil
 }
 
