@@ -75,6 +75,7 @@ func (s *adminService) Register(ctx context.Context, username, email, password, 
 		Email:        email,
 		PasswordHash: string(hashedPassword),
 		FullName:     fullName,
+		Role:         string(entity.RoleAdmin),
 	}
 
 	if err := s.adminRepo.Create(ctx, admin); err != nil {

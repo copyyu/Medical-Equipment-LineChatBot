@@ -38,7 +38,8 @@ func AuthMiddleware(adminUsecase usecase.AdminUsecase) fiber.Handler {
 		c.Locals("admin_id", admin.ID)
 		c.Locals("admin_username", admin.Username)
 		c.Locals("admin_email", admin.Email)
-		c.Locals("admin", admin) // เก็บ admin object ทั้งหมด
+		c.Locals("admin", admin)
+		c.Locals("admin_role", admin.Role)
 
 		// Continue to next handler
 		return c.Next()

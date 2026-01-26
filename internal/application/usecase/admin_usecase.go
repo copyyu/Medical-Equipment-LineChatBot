@@ -39,6 +39,7 @@ func (u *adminUsecase) Register(ctx context.Context, req *dto.RegisterRequest) (
 		Username: admin.Username,
 		Email:    admin.Email,
 		FullName: admin.FullName,
+		Role:     admin.Role,
 	}, nil
 }
 
@@ -61,6 +62,7 @@ func (u *adminUsecase) Login(ctx context.Context, req *dto.LoginRequest, ipAddre
 			Username:    admin.Username,
 			Email:       admin.Email,
 			FullName:    admin.FullName,
+			Role:        admin.Role,
 			LastLoginAt: lastLogin,
 		},
 	}, nil
