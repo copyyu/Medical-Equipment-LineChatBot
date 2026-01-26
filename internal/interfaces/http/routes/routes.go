@@ -7,7 +7,7 @@ import (
 )
 
 // Setup configures all application routes
-func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler, notificationHandler *handlers.NotificationHandler, equipmentImportHandler *handlers.EquipmentImportHandler) {
+func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler, notificationHandler *handlers.NotificationHandler, equipmentImportHandler *handlers.EquipmentImportHandler, adminHandler *handlers.AdminHandler) {
 	// Root endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -28,6 +28,9 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler, notification
 
 	// Setup equipmentImport routes
 	SetupEquipmentImportRoutes(app, equipmentImportHandler)
+
+	// Setup admin routes (login, register, etc.)
+	SetupAdminRoutes(app, adminHandler)
 	// 404 handler (must be last)
 	app.Use(func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
