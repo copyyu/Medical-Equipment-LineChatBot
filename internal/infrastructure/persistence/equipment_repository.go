@@ -193,3 +193,28 @@ func (r *EquipmentRepository) FindAll(ctx context.Context, limit, offset int) ([
 	log.Printf("Found %d equipments", len(equipments))
 	return equipments, nil
 }
+
+// Count returns total count of equipments
+func (r *EquipmentRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&entity.Equipment{}).Count(&count).Error
+	if err != nil {
+		log.Printf("Error counting equipments: %v", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// CountNearExpiry returns count of equipments with remain_life <= 1 year
+func (r *EquipmentRepository) CountNearExpiry(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&entity.Equipment{}).
+		Where("remain_life <= ?", 1.0).
+		Count(&count).Error
+	if err != nil {
+		log.Printf("Error counting near expiry equipments: %v", err)
+		return 0, err
+	}
+	return count, nil
+}

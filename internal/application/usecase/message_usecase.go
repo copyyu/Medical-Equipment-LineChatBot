@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"medical-webhook/internal/domain/line/constants"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/model"
 	"medical-webhook/internal/domain/line/repository"
@@ -63,11 +64,11 @@ func (uc *MessageUseCase) handleRichMenuCommand(msg *model.IncomingMessage, text
 	switch {
 	case strings.Contains(text, "แจ้งปัญหา") || strings.Contains(text, "เช็กสถานะ"):
 		uc.sessionStore.Set(msg.UserID, &OCRSession{Mode: ModeReportProblem})
-		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgReportProblem)
+		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgReportProblem)
 
 	case strings.Contains(text, "ติดตามสถานะ"):
 		uc.sessionStore.Set(msg.UserID, &OCRSession{Mode: ModeTrackStatus})
-		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgTrackStatus)
+		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgTrackStatus)
 
 	case strings.Contains(text, "เปลี่ยนเครื่อง"):
 		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "แจ้งเปลี่ยนเครื่อง", uc.messageService.GetEquipmentChangeFlex("https://www.google.com/"))
@@ -76,7 +77,7 @@ func (uc *MessageUseCase) handleRichMenuCommand(msg *model.IncomingMessage, text
 		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ติดต่อเจ้าหน้าที่", uc.messageService.GetContactStaffFlex())
 
 	case text == "เมนู" || strings.ToLower(text) == "menu":
-		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgSelectMenu)
+		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgSelectMenu)
 
 	default:
 		return false, nil
@@ -87,7 +88,7 @@ func (uc *MessageUseCase) handleRichMenuCommand(msg *model.IncomingMessage, text
 func (uc *MessageUseCase) handleUserInput(msg *model.IncomingMessage, text string) error {
 	session := uc.sessionStore.Get(msg.UserID)
 	if session == nil || session.Mode == ModeNone {
-		return uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgSelectMenuFirst)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgSelectMenuFirst)
 	}
 
 	switch session.Mode {
@@ -96,7 +97,7 @@ func (uc *MessageUseCase) handleUserInput(msg *model.IncomingMessage, text strin
 	case ModeTrackStatus:
 		return uc.handleTrackStatusInput(msg, text)
 	default:
-		return uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgSelectMenuFirst)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgSelectMenuFirst)
 	}
 }
 
@@ -105,14 +106,14 @@ func (uc *MessageUseCase) handleReportProblemInput(msg *model.IncomingMessage, t
 	// Validate and sanitize input
 	sanitizedText, isValid := ValidateAndSanitizeSerial(text)
 	if !isValid {
-		return uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgRequestPhoto)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgRequestPhoto)
 	}
 
 	// Try to find equipment by id_code or serial_no
 	equipment, err := uc.equipmentRepo.FindBySerialOrCode(sanitizedText)
 	if err != nil {
 		log.Printf("❌ DB lookup error: %v", err)
-		return uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgDBLookupFailed)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgDBLookupFailed)
 	}
 
 	if equipment != nil {
@@ -140,13 +141,13 @@ func (uc *MessageUseCase) HandleImageMessage(msg *model.IncomingMessage) error {
 	session := uc.sessionStore.Get(msg.UserID)
 	if session == nil || session.Mode != ModeReportProblem {
 		// User hasn't pressed "แจ้งปัญหา" menu first
-		return uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgPleaseSelectReport)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgPleaseSelectReport)
 	}
 
 	// Check if OCR client is configured
 	if uc.ocrClient == nil {
 		log.Println("⚠️ OCR client not configured, using default response")
-		return uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgImageReceived)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgImageReceived)
 	}
 
 	// Step 1: Download image from LINE
@@ -197,7 +198,7 @@ func (uc *MessageUseCase) HandleImageMessage(msg *model.IncomingMessage) error {
 // HandleLocationMessage handles incoming location message
 func (uc *MessageUseCase) HandleLocationMessage(msg *model.IncomingMessage) error {
 	log.Printf("📍 Processing location from user: %s", msg.UserID)
-	return uc.lineRepo.ReplyMessage(msg.ReplyToken, MsgLocationReceived)
+	return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgLocationReceived)
 }
 
 // HandlePostbackEvent handles postback events from Flex Message buttons
@@ -213,16 +214,16 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 
 	switch action {
 	case ActionMainMenu:
-		return uc.lineRepo.ReplyMessage(replyToken, MsgSelectMenu)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case ActionRequestChange:
 		return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งเปลี่ยนเครื่อง", uc.messageService.GetEquipmentChangeFlex("https://www.google.com/"))
 
 	case ActionReportProblem:
-		return uc.lineRepo.ReplyMessage(replyToken, MsgReportProblem)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgReportProblem)
 
 	case ActionTrackStatus:
-		return uc.lineRepo.ReplyMessage(replyToken, MsgTrackStatus)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgTrackStatus)
 
 	case ActionContactStaff:
 		return uc.lineRepo.ReplyFlexMessage(replyToken, "ติดต่อเจ้าหน้าที่", uc.messageService.GetContactStaffFlex())
@@ -232,7 +233,7 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		if serial != "" {
 			return uc.lineRepo.ReplyFlexMessage(replyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(serial))
 		}
-		return uc.lineRepo.ReplyMessage(replyToken, MsgSelectMenu)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case ActionOCRConfirmNo:
 		// User denied OCR result - ask for new photo
@@ -248,7 +249,7 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.handleViewSpecs(replyToken, serial)
 
 	default:
-		return uc.lineRepo.ReplyMessage(replyToken, MsgSelectMenu)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 	}
 }
 
@@ -256,12 +257,12 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 func (uc *MessageUseCase) handleViewRepairHistory(replyToken, serial string) error {
 	equipment, err := uc.equipmentRepo.FindBySerialOrCode(serial)
 	if err != nil || equipment == nil {
-		return uc.lineRepo.ReplyMessage(replyToken, MsgEquipmentNotFound)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgEquipmentNotFound)
 	}
 
 	records, err := uc.equipmentRepo.GetMaintenanceRecords(equipment.ID)
 	if err != nil {
-		return uc.lineRepo.ReplyMessage(replyToken, MsgRepairHistoryFail)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgRepairHistoryFail)
 	}
 
 	// Convert to map format for template
@@ -282,7 +283,7 @@ func (uc *MessageUseCase) handleViewRepairHistory(replyToken, serial string) err
 func (uc *MessageUseCase) handleViewLifecycle(replyToken, serial string) error {
 	equipment, err := uc.equipmentRepo.FindBySerialOrCode(serial)
 	if err != nil || equipment == nil {
-		return uc.lineRepo.ReplyMessage(replyToken, MsgEquipmentNotFound)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgEquipmentNotFound)
 	}
 
 	data := map[string]interface{}{
@@ -300,7 +301,7 @@ func (uc *MessageUseCase) handleViewLifecycle(replyToken, serial string) error {
 func (uc *MessageUseCase) handleViewSpecs(replyToken, serial string) error {
 	equipment, err := uc.equipmentRepo.FindBySerialOrCode(serial)
 	if err != nil || equipment == nil {
-		return uc.lineRepo.ReplyMessage(replyToken, MsgEquipmentNotFound)
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgEquipmentNotFound)
 	}
 
 	data := map[string]interface{}{
@@ -319,7 +320,7 @@ func (uc *MessageUseCase) SendWelcomeMessage(userID string) error {
 	log.Printf("👋 Sending welcome to user: %s", userID)
 	return uc.lineRepo.PushMessage(&model.OutgoingMessage{
 		To:   userID,
-		Text: MsgWelcome,
+		Text: constants.MsgWelcome,
 	})
 }
 

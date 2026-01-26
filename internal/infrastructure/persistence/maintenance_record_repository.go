@@ -10,6 +10,7 @@ import (
 )
 
 // MaintenanceRecordRepository implements repository.MaintenanceRecordRepository using GORM
+// This is the unified maintenance repository combining CRUD and aggregate query operations
 type MaintenanceRecordRepository struct {
 	db *gorm.DB
 }
@@ -20,6 +21,10 @@ func NewMaintenanceRecordRepository() *MaintenanceRecordRepository {
 		db: database.DB,
 	}
 }
+
+// ============================================
+// CRUD Operations
+// ============================================
 
 // Create creates a new maintenance record
 func (r *MaintenanceRecordRepository) Create(ctx context.Context, record *entity.MaintenanceRecord) error {
@@ -80,6 +85,85 @@ func (r *MaintenanceRecordRepository) FindByEquipmentIDAndType(ctx context.Conte
 	return records, nil
 }
 
+// Update updates maintenance record
+func (r *MaintenanceRecordRepository) Update(ctx context.Context, record *entity.MaintenanceRecord) error {
+	err := r.db.WithContext(ctx).Save(record).Error
+	if err != nil {
+		log.Printf("Error updating maintenance record: %v", err)
+		return err
+	}
+	log.Printf("Updated maintenance record ID: %d", record.ID)
+	return nil
+}
+
+// Delete soft deletes maintenance record
+func (r *MaintenanceRecordRepository) Delete(ctx context.Context, id uint) error {
+	err := r.db.WithContext(ctx).Delete(&entity.MaintenanceRecord{}, id).Error
+	if err != nil {
+		log.Printf("Error deleting maintenance record: %v", err)
+		return err
+	}
+	log.Printf("Deleted maintenance record ID: %d", id)
+	return nil
+}
+
+// ============================================
+// Aggregate Query Operations (for Dashboard)
+// ============================================
+
+// Count returns total count of maintenance records
+func (r *MaintenanceRecordRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&entity.MaintenanceRecord{}).Count(&count).Error
+	if err != nil {
+		log.Printf("Error counting maintenance records: %v", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// CountByType returns count of maintenance records grouped by type (CM/PM)
+func (r *MaintenanceRecordRepository) CountByType(ctx context.Context) (map[string]int64, error) {
+	var results []struct {
+		MaintenanceType string
+		Count           int64
+	}
+
+	err := r.db.WithContext(ctx).
+		Model(&entity.MaintenanceRecord{}).
+		Select("maintenance_type, count(*) as count").
+		Group("maintenance_type").
+		Find(&results).Error
+
+	if err != nil {
+		log.Printf("Error counting maintenance by type: %v", err)
+		return nil, err
+	}
+
+	counts := make(map[string]int64)
+	for _, r := range results {
+		counts[r.MaintenanceType] = r.Count
+	}
+	return counts, nil
+}
+
+// GetRecent returns recent maintenance records with equipment details
+func (r *MaintenanceRecordRepository) GetRecent(ctx context.Context, limit int) ([]entity.MaintenanceRecord, error) {
+	var records []entity.MaintenanceRecord
+	err := r.db.WithContext(ctx).
+		Preload("Equipment").
+		Preload("Equipment.Model").
+		Order("maintenance_date DESC").
+		Limit(limit).
+		Find(&records).Error
+
+	if err != nil {
+		log.Printf("Error getting recent maintenance: %v", err)
+		return nil, err
+	}
+	return records, nil
+}
+
 // GetTotalCostByEquipmentID calculates total maintenance cost for equipment
 func (r *MaintenanceRecordRepository) GetTotalCostByEquipmentID(ctx context.Context, equipmentID uint) (float64, error) {
 	var totalCost float64
@@ -109,26 +193,4 @@ func (r *MaintenanceRecordRepository) GetCMCountByEquipmentID(ctx context.Contex
 	}
 	log.Printf("CM count for equipment ID %d: %d", equipmentID, count)
 	return count, nil
-}
-
-// Update updates maintenance record
-func (r *MaintenanceRecordRepository) Update(ctx context.Context, record *entity.MaintenanceRecord) error {
-	err := r.db.WithContext(ctx).Save(record).Error
-	if err != nil {
-		log.Printf("Error updating maintenance record: %v", err)
-		return err
-	}
-	log.Printf("Updated maintenance record ID: %d", record.ID)
-	return nil
-}
-
-// Delete soft deletes maintenance record
-func (r *MaintenanceRecordRepository) Delete(ctx context.Context, id uint) error {
-	err := r.db.WithContext(ctx).Delete(&entity.MaintenanceRecord{}, id).Error
-	if err != nil {
-		log.Printf("Error deleting maintenance record: %v", err)
-		return err
-	}
-	log.Printf("Deleted maintenance record ID: %d", id)
-	return nil
 }
