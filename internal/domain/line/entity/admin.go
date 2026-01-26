@@ -15,6 +15,14 @@ const (
 	AdminStatusInactive AdminStatus = "inactive"
 )
 
+type AdminRole string
+
+const (
+	RoleAdmin      AdminRole = "admin"
+	RoleSuperAdmin AdminRole = "super_admin"
+	RoleStaff      AdminRole = "staff"
+)
+
 // Admin model
 type Admin struct {
 	ID           uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
@@ -22,6 +30,8 @@ type Admin struct {
 	Email        string    `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	PasswordHash string    `gorm:"type:varchar(255);not null" json:"-"`
 	FullName     string    `gorm:"type:varchar(255);not null" json:"full_name"`
+	Role         string    `gorm:"type:varchar(50);default:'admin';not null" json:"role"`
+
 	// Status        AdminStatus    `gorm:"type:varchar(20);default:'active'" json:"status"`
 	LastLoginAt *time.Time     `gorm:"type:timestamp" json:"last_login_at"`
 	CreatedAt   time.Time      `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`

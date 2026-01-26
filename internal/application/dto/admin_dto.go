@@ -22,6 +22,7 @@ type AdminDetail struct {
 	Username    string  `json:"username"`
 	Email       string  `json:"email"`
 	FullName    string  `json:"full_name"`
+	Role        string  `json:"role"`
 	LastLoginAt *string `json:"last_login_at"`
 }
 
