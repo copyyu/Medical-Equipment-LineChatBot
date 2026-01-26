@@ -194,3 +194,28 @@ func (r *MaintenanceRecordRepository) GetCMCountByEquipmentID(ctx context.Contex
 	log.Printf("CM count for equipment ID %d: %d", equipmentID, count)
 	return count, nil
 }
+
+// CountByStatus returns count of maintenance records grouped by job status
+func (r *MaintenanceRecordRepository) CountByStatus(ctx context.Context) (map[entity.JobStatus]int64, error) {
+	var results []struct {
+		Status string
+		Count  int64
+	}
+
+	err := r.db.WithContext(ctx).
+		Model(&entity.MaintenanceRecord{}).
+		Select("status, count(*) as count").
+		Group("status").
+		Find(&results).Error
+
+	if err != nil {
+		log.Printf("Error counting maintenance by status: %v", err)
+		return nil, err
+	}
+
+	counts := make(map[entity.JobStatus]int64)
+	for _, r := range results {
+		counts[entity.JobStatus(r.Status)] = r.Count
+	}
+	return counts, nil
+}

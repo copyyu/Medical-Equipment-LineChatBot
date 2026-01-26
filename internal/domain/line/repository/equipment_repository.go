@@ -26,4 +26,5 @@ type EquipmentRepository interface {
 	// Aggregate Query Operations (for Dashboard)
 	Count(ctx context.Context) (int64, error)
 	CountNearExpiry(ctx context.Context) (int64, error)
+	CountByStatus(ctx context.Context) (map[entity.AssetStatus]int64, error) // นับจำนวนอุปกรณ์แยกตาม Status
 }

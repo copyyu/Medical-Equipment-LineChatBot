@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"medical-webhook/internal/application/dto"
+	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	"time"
 )
@@ -46,8 +47,14 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 		return nil, err
 	}
 
-	// Get maintenance by type (CM/PM)
-	maintenanceTypeCounts, err := u.maintenanceRepo.CountByType(ctx)
+	// Get equipment count by Asset Status (จาก field status ใน equipments table)
+	assetStatusMap, err := u.equipmentRepo.CountByStatus(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get maintenance count by Job Status (จาก field status ใน maintenance_records table)
+	jobStatusMap, err := u.maintenanceRepo.CountByStatus(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -58,14 +65,25 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 		return nil, err
 	}
 
-	// Map maintenance types to job status format for frontend
-	// CM (Corrective) -> in_process, PM (Preventive) -> return_equipment_back
-	jobCounts := []dto.JobStatusCount{
-		{Status: "in_process", Count: maintenanceTypeCounts["CM"]},
-		{Status: "return_equipment_back", Count: maintenanceTypeCounts["PM"]},
-		{Status: "send_to_outsource", Count: 0},
+	// Build Asset Status Counts from real data
+	assetStatusCounts := []dto.AssetStatusCount{
+		{Status: "active", Count: assetStatusMap[entity.AssetStatusActive]},
+		{Status: "defective", Count: assetStatusMap[entity.AssetStatusDefective]},
+		{Status: "wait_decom", Count: assetStatusMap[entity.AssetStatusWaitDecom]},
+		{Status: "decommission", Count: assetStatusMap[entity.AssetStatusDecommission]},
+		{Status: "active_ready_to_sell", Count: assetStatusMap[entity.AssetStatusActiveReadyToSell]},
+		{Status: "missing", Count: assetStatusMap[entity.AssetStatusMissing]},
+		{Status: "plan_to_replace", Count: assetStatusMap[entity.AssetStatusPlanToReplace]},
 	}
 
+	// Build Job Status Counts from real data
+	jobCounts := []dto.JobStatusCount{
+		{Status: "in_process", Count: jobStatusMap[entity.JobStatusInProcess]},
+		{Status: "return_equipment_back", Count: jobStatusMap[entity.JobStatusReturnEquipmentBack]},
+		{Status: "send_to_outsource", Count: jobStatusMap[entity.JobStatusSendToOutsource]},
+	}
+
+	// Build recent jobs list
 	recentJobs := make([]dto.RecentJobResponse, 0)
 	for _, m := range recentMaintenance {
 		equipmentName := ""
@@ -75,35 +93,18 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 			equipmentName = m.Equipment.IDCode
 		}
 
-		// Map maintenance type to status
-		status := "in_process"
-		if m.MaintenanceType == "PM" {
-			status = "return_equipment_back"
-		}
-
 		recentJobs = append(recentJobs, dto.RecentJobResponse{
 			ID:            formatJobID(m.ID),
 			EquipmentName: equipmentName,
-			Status:        status,
+			Status:        string(m.Status), // ใช้ status จริงจาก DB
 			Assignee:      getAssignee(m.Technician),
 			UpdatedAt:     formatTimeAgo(m.UpdatedAt),
 		})
 	}
 
-	// Asset status counts based on equipment data
-	assetStatusCounts := []dto.AssetStatusCount{
-		{Status: "active", Count: totalEquipment - nearExpiry},
-		{Status: "defective", Count: 0},
-		{Status: "wait_decom", Count: 0},
-		{Status: "decommission", Count: 0},
-		{Status: "active_ready_to_sell", Count: 0},
-		{Status: "missing", Count: 0},
-		{Status: "plan_to_replace", Count: nearExpiry},
-	}
-
 	return &dto.DashboardSummaryResponse{
 		TotalEquipment:    totalEquipment,
-		RentalEquipment:   0, // No rental data in current schema
+		RentalEquipment:   0, // TODO: Add rental tracking if needed
 		NearExpiry:        nearExpiry,
 		TotalMaintenance:  totalMaintenance,
 		AssetStatusCounts: assetStatusCounts,

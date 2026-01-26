@@ -218,3 +218,28 @@ func (r *EquipmentRepository) CountNearExpiry(ctx context.Context) (int64, error
 	}
 	return count, nil
 }
+
+// CountByStatus returns count of equipments grouped by status
+func (r *EquipmentRepository) CountByStatus(ctx context.Context) (map[entity.AssetStatus]int64, error) {
+	var results []struct {
+		Status string
+		Count  int64
+	}
+
+	err := r.db.WithContext(ctx).
+		Model(&entity.Equipment{}).
+		Select("status, count(*) as count").
+		Group("status").
+		Find(&results).Error
+
+	if err != nil {
+		log.Printf("Error counting equipments by status: %v", err)
+		return nil, err
+	}
+
+	counts := make(map[entity.AssetStatus]int64)
+	for _, r := range results {
+		counts[entity.AssetStatus(r.Status)] = r.Count
+	}
+	return counts, nil
+}
