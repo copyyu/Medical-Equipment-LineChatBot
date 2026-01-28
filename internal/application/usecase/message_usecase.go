@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"time"
 
 	"medical-webhook/internal/domain/line/constants"
 	"medical-webhook/internal/domain/line/entity"
@@ -96,6 +97,8 @@ func (uc *MessageUseCase) handleUserInput(msg *model.IncomingMessage, text strin
 		return uc.handleReportProblemInput(msg, text)
 	case ModeTrackStatus:
 		return uc.handleTrackStatusInput(msg, text)
+	case ModeInputIssueDesc:
+		return uc.handleInputIssueDescInput(msg, text)
 	default:
 		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgSelectMenuFirst)
 	}
@@ -119,7 +122,7 @@ func (uc *MessageUseCase) handleReportProblemInput(msg *model.IncomingMessage, t
 	if equipment != nil {
 		log.Printf("✅ Found equipment by text query: %s", sanitizedText)
 		uc.sessionStore.Delete(msg.UserID)
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(sanitizedText))
+		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เลือกการดำเนินการ", templates.GetActionMenuFlex(sanitizedText))
 	}
 
 	log.Printf("⚠️ Equipment not found for text: %s", sanitizedText)
@@ -131,6 +134,50 @@ func (uc *MessageUseCase) handleTrackStatusInput(msg *model.IncomingMessage, tex
 	// Sanitize input before using
 	sanitizedText := SanitizeInput(text)
 	return uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 ระบบได้รับข้อมูล: "+sanitizedText+"\nกำลังตรวจสอบสถานะให้ค่ะ")
+}
+
+// handleInputIssueDescInput handles user input when waiting for issue description.
+func (uc *MessageUseCase) handleInputIssueDescInput(msg *model.IncomingMessage, text string) error {
+	session := uc.sessionStore.Get(msg.UserID)
+	if session == nil || session.SerialNumber == "" {
+		uc.sessionStore.Delete(msg.UserID)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgSelectMenuFirst)
+	}
+
+	// Sanitize input
+	description := SanitizeInput(text)
+
+	// Create maintenance record
+	err := uc.createMaintenanceRecord(session.SerialNumber, description)
+	if err != nil {
+		log.Printf("❌ Failed to create maintenance record: %v", err)
+		uc.sessionStore.Delete(msg.UserID)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgIssueReportFailed)
+	}
+
+	// Clear session and show success
+	uc.sessionStore.Delete(msg.UserID)
+	return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "บันทึกสำเร็จ", templates.GetIssueSuccessFlex(session.SerialNumber))
+}
+
+// createMaintenanceRecord creates a new maintenance record for equipment
+func (uc *MessageUseCase) createMaintenanceRecord(serialOrCode, description string) error {
+	// Find equipment first
+	equipment, err := uc.equipmentRepo.FindBySerialOrCode(serialOrCode)
+	if err != nil || equipment == nil {
+		return fmt.Errorf("equipment not found: %s", serialOrCode)
+	}
+
+	// Create maintenance record
+	record := &entity.MaintenanceRecord{
+		EquipmentID:     equipment.ID,
+		MaintenanceType: entity.MaintenanceCM, // CM = Corrective Maintenance (ซ่อมแซม)
+		MaintenanceDate: time.Now(),
+		Description:     description,
+		Status:          entity.JobStatusInProcess,
+	}
+
+	return uc.equipmentRepo.CreateMaintenanceRecord(record)
 }
 
 // HandleImageMessage handles incoming image message - processes OCR
@@ -229,9 +276,9 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.lineRepo.ReplyFlexMessage(replyToken, "ติดต่อเจ้าหน้าที่", uc.messageService.GetContactStaffFlex())
 
 	case ActionOCRConfirmYes:
-		// User confirmed OCR result - show equipment options
+		// User confirmed OCR result - show action menu (ดูข้อมูล/แจ้งปัญหา)
 		if serial != "" {
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(serial))
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกการดำเนินการ", templates.GetActionMenuFlex(serial))
 		}
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
@@ -247,6 +294,52 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 
 	case ActionViewSpecs:
 		return uc.handleViewSpecs(replyToken, serial)
+
+	// New handlers for report issue flow
+	case ActionShowActionMenu:
+		// Show action menu (ดูข้อมูล/แจ้งปัญหา)
+		if serial != "" {
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกการดำเนินการ", templates.GetActionMenuFlex(serial))
+		}
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
+
+	case ActionViewEquipInfo:
+		// Go to equipment info menu (existing)
+		if serial != "" {
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(serial))
+		}
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
+
+	case ActionStartReportIssue:
+		// Show issue input menu (พิมพ์รายละเอียด/ข้าม)
+		if serial != "" {
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งปัญหา", templates.GetIssueInputFlex(serial))
+		}
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
+
+	case ActionInputIssueDesc:
+		// Set session mode to wait for issue description
+		if serial != "" {
+			uc.sessionStore.Set(event.Source.(webhook.UserSource).UserId, &OCRSession{
+				Mode:         ModeInputIssueDesc,
+				SerialNumber: serial,
+			})
+			return uc.lineRepo.ReplyMessage(replyToken, constants.MsgInputIssueDesc)
+		}
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
+
+	case ActionSubmitIssue:
+		// Submit issue without description (skip)
+		if serial != "" {
+			desc := params.Get("desc") // empty for skip
+			err := uc.createMaintenanceRecord(serial, desc)
+			if err != nil {
+				log.Printf("❌ Failed to create maintenance record: %v", err)
+				return uc.lineRepo.ReplyMessage(replyToken, constants.MsgIssueReportFailed)
+			}
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "บันทึกสำเร็จ", templates.GetIssueSuccessFlex(serial))
+		}
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	default:
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
