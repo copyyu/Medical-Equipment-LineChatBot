@@ -98,25 +98,66 @@ func MapEquipmentToListItem(e entity.Equipment) EquipmentListItem {
 }
 
 // mapAssetStatusToFrontend maps backend AssetStatus to frontend EquipmentStatus
+// Return raw status values to match frontend expectations
 func mapAssetStatusToFrontend(status entity.AssetStatus) string {
-	switch status {
-	case entity.AssetStatusActive:
-		return "ready"
-	case entity.AssetStatusDefective:
-		return "broken"
-	case entity.AssetStatusWaitDecom, entity.AssetStatusDecommission:
-		return "maintenance"
-	case entity.AssetStatusMissing:
-		return "broken"
-	case entity.AssetStatusPlanToReplace:
-		return "expired"
-	case entity.AssetStatusActiveReadyToSell:
-		return "in_use"
-	default:
-		return "ready"
+	// Return the status value directly (active, defective, etc.)
+	if status == "" {
+		return "active"
 	}
+	return string(status)
 }
 
 func formatYear(year int) string {
 	return string(rune('0'+year/1000)) + string(rune('0'+(year/100)%10)) + string(rune('0'+(year/10)%10)) + string(rune('0'+year%10))
+}
+
+// EquipmentUpdateRequest represents the request body for updating equipment
+type EquipmentUpdateRequest struct {
+	Status      string `json:"status"`       // Asset Status (active, defective, etc.)
+	Location    string `json:"location"`     // Department name
+	ComputeDate string `json:"compute_date"` // Last check date (YYYY-MM-DD)
+}
+
+// EquipmentDetailResponse represents a single equipment detail for GET by ID
+type EquipmentDetailResponse struct {
+	ID           string `json:"id"`            // ID Code
+	Name         string `json:"name"`          // Model name
+	Category     string `json:"category"`      // Equipment category
+	Status       string `json:"status"`        // Asset status
+	Location     string `json:"location"`      // Department/location
+	LastCheck    string `json:"last_check"`    // Last maintenance date
+	Expiry       string `json:"expiry"`        // Expiry year
+	IsExpiring   bool   `json:"is_expiring"`   // Flag for expiring soon
+	SerialNo     string `json:"serial_no"`     // Serial number
+	Brand        string `json:"brand"`         // Brand name
+	DepartmentID uint   `json:"department_id"` // Department ID for updates
+}
+
+// MapEquipmentToDetailResponse converts entity.Equipment to EquipmentDetailResponse
+func MapEquipmentToDetailResponse(e entity.Equipment) EquipmentDetailResponse {
+	item := MapEquipmentToListItem(e)
+
+	serialNo := ""
+	if e.SerialNo != nil {
+		serialNo = *e.SerialNo
+	}
+
+	brand := ""
+	if e.Model.Brand.Name != "" {
+		brand = e.Model.Brand.Name
+	}
+
+	return EquipmentDetailResponse{
+		ID:           item.ID,
+		Name:         item.Name,
+		Category:     item.Category,
+		Status:       item.Status,
+		Location:     item.Location,
+		LastCheck:    item.LastCheck,
+		Expiry:       item.Expiry,
+		IsExpiring:   item.IsExpiring,
+		SerialNo:     serialNo,
+		Brand:        brand,
+		DepartmentID: e.DepartmentID,
+	}
 }

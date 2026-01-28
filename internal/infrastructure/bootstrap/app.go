@@ -119,7 +119,7 @@ func InitializeApp() (*Application, func(), error) {
 	)
 
 	// Initialize equipment usecase for equipment list
-	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentRepo)
+	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentRepo, departmentRepo)
 
 	// Initialize handlers (Interface Layer)
 	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)

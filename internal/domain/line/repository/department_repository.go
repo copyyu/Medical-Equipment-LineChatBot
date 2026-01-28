@@ -13,4 +13,5 @@ type DepartmentRepository interface {
 	FindAll(ctx context.Context) ([]entity.Department, error)
 	Update(ctx context.Context, department *entity.Department) error
 	Delete(ctx context.Context, id uint) error
+	FindOrCreate(ctx context.Context, name string) (*entity.Department, error)
 }

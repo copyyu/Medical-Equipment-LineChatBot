@@ -97,3 +97,22 @@ func (r *DepartmentRepository) Delete(ctx context.Context, id uint) error {
 	log.Printf("Deleted department ID: %d", id)
 	return nil
 }
+
+// FindOrCreate finds department by name or creates a new one
+func (r *DepartmentRepository) FindOrCreate(ctx context.Context, name string) (*entity.Department, error) {
+	// Try to find existing department
+	dept, err := r.FindByName(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	if dept != nil {
+		return dept, nil
+	}
+
+	// Create new department
+	newDept := &entity.Department{Name: name}
+	if err := r.Create(ctx, newDept); err != nil {
+		return nil, err
+	}
+	return newDept, nil
+}

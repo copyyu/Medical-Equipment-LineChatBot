@@ -14,6 +14,8 @@ type EquipmentRepository interface {
 	FindBySerialOrCode(query string) (*entity.Equipment, error)
 	// GetMaintenanceRecords gets maintenance records for equipment
 	GetMaintenanceRecords(equipmentID uint) ([]entity.MaintenanceRecord, error)
+	// CreateMaintenanceRecord creates a new maintenance record
+	CreateMaintenanceRecord(record *entity.MaintenanceRecord) error
 
 	// CRUD methods for Excel import
 	Create(ctx context.Context, equipment *entity.Equipment) error
@@ -22,9 +24,11 @@ type EquipmentRepository interface {
 	Delete(ctx context.Context, id uint) error
 	FindByID(ctx context.Context, id uint) (*entity.Equipment, error)
 	FindAll(ctx context.Context, limit, offset int) ([]entity.Equipment, error)
+	FindAllWithFilter(ctx context.Context, limit, offset int, status, search string) ([]entity.Equipment, error)
 
 	// Aggregate Query Operations (for Dashboard)
 	Count(ctx context.Context) (int64, error)
+	CountWithFilter(ctx context.Context, status, search string) (int64, error)
 	CountNearExpiry(ctx context.Context) (int64, error)
 	CountByStatus(ctx context.Context) (map[entity.AssetStatus]int64, error) // นับจำนวนอุปกรณ์แยกตาม Status
 }
