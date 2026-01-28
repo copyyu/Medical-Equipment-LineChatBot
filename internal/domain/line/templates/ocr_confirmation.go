@@ -83,7 +83,7 @@ func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "กรุณาตรวจสอบข้อความและส่งรูปภาพใหม่", "size": "sm", "align": "center", "margin": "md",
+					"type": "text", "text": "กรุณาตรวจสอบข้อความแล้วส่งรูปภาพใหม่", "size": "sm", "align": "center", "margin": "md",
 				},
 			},
 		},

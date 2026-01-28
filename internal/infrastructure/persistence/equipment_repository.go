@@ -193,3 +193,53 @@ func (r *EquipmentRepository) FindAll(ctx context.Context, limit, offset int) ([
 	log.Printf("Found %d equipments", len(equipments))
 	return equipments, nil
 }
+
+// Count returns total count of equipments
+func (r *EquipmentRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&entity.Equipment{}).Count(&count).Error
+	if err != nil {
+		log.Printf("Error counting equipments: %v", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// CountNearExpiry returns count of equipments with remain_life <= 1 year
+func (r *EquipmentRepository) CountNearExpiry(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&entity.Equipment{}).
+		Where("remain_life <= ?", 1.0).
+		Count(&count).Error
+	if err != nil {
+		log.Printf("Error counting near expiry equipments: %v", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// CountByStatus returns count of equipments grouped by status
+func (r *EquipmentRepository) CountByStatus(ctx context.Context) (map[entity.AssetStatus]int64, error) {
+	var results []struct {
+		Status string
+		Count  int64
+	}
+
+	err := r.db.WithContext(ctx).
+		Model(&entity.Equipment{}).
+		Select("status, count(*) as count").
+		Group("status").
+		Find(&results).Error
+
+	if err != nil {
+		log.Printf("Error counting equipments by status: %v", err)
+		return nil, err
+	}
+
+	counts := make(map[entity.AssetStatus]int64)
+	for _, r := range results {
+		counts[entity.AssetStatus(r.Status)] = r.Count
+	}
+	return counts, nil
+}

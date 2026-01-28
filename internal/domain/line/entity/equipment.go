@@ -6,6 +6,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// AssetStatus represents the status of equipment
+type AssetStatus string
+
+const (
+	AssetStatusActive            AssetStatus = "active"               // ใช้งานอยู่
+	AssetStatusDefective         AssetStatus = "defective"            // ชำรุด
+	AssetStatusWaitDecom         AssetStatus = "wait_decom"           // รอปลดระวาง
+	AssetStatusDecommission      AssetStatus = "decommission"         // ปลดระวางแล้ว
+	AssetStatusActiveReadyToSell AssetStatus = "active_ready_to_sell" // พร้อมขาย
+	AssetStatusMissing           AssetStatus = "missing"              // สูญหาย
+	AssetStatusPlanToReplace     AssetStatus = "plan_to_replace"      // รอเปลี่ยนใหม่
+)
+
 type Equipment struct {
 	ID           uint    `gorm:"primaryKey" json:"id"`
 	IDCode       string  `gorm:"size:100;uniqueIndex" json:"id_code"`
@@ -13,6 +26,9 @@ type Equipment struct {
 	ModelID      uint    `gorm:"not null;index" json:"model_id"`
 	DepartmentID uint    `gorm:"not null;index" json:"department_id"`
 	AssessmentID *string `gorm:"size:100" json:"assessment_id"`
+
+	// สถานะเครื่องมือแพทย์
+	Status AssetStatus `gorm:"size:50;default:active" json:"status"` // Asset Status
 
 	// วันที่และราคา
 	ReceiveDate   *time.Time `json:"receive_date"`                                       // Receive Date

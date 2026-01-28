@@ -110,11 +110,24 @@ func InitializeApp() (*Application, func(), error) {
 		adminService,
 	)
 
+	// Initialize maintenance repository for dashboard
+	maintenanceRepo := persistence.NewMaintenanceRecordRepository()
+
+	dashboardUseCase := usecase.NewDashboardUsecase(
+		equipmentRepo,
+		maintenanceRepo,
+	)
+
+	// Initialize equipment usecase for equipment list
+	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentRepo)
+
 	// Initialize handlers (Interface Layer)
 	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
 	equipmentImportHandler := handlers.NewEquipmentImportHandler(equipmentImportUseCase)
 	adminHandler := handlers.NewAdminHandler(adminUseCase)
+	dashboardHandler := handlers.NewDashboardHandler(dashboardUseCase)
+	equipmentHandler := handlers.NewEquipmentHandler(equipmentUseCase)
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
@@ -135,7 +148,7 @@ func InitializeApp() (*Application, func(), error) {
 	middleware.FiberMiddleware(app)
 
 	// Register Routes
-	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler)
+	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler)
 
 	// Initialize และ Start Notification Scheduler
 	notificationScheduler := scheduler.NewNotificationScheduler(notificationUseCase)

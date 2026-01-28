@@ -1,4 +1,4 @@
-package line
+package templates
 
 // FlexMessageBuilder defines interface for building flex messages
 type FlexMessageBuilder interface {
