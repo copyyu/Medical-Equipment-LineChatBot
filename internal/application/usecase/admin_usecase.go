@@ -3,7 +3,7 @@ package usecase
 import (
 	"context"
 	"medical-webhook/internal/application/dto"
-	"medical-webhook/internal/domain/line/service"
+	"medical-webhook/internal/application/service"
 
 	"github.com/google/uuid"
 )

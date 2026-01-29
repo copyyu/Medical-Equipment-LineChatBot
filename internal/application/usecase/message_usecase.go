@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/domain/line/constants"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/model"
 	"medical-webhook/internal/domain/line/repository"
-	"medical-webhook/internal/domain/line/service"
-	"medical-webhook/internal/domain/line/templates"
 	"medical-webhook/internal/infrastructure/client"
+	"medical-webhook/internal/infrastructure/line/templates"
 
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
 )

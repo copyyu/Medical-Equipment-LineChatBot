@@ -3,9 +3,9 @@ package bootstrap
 import (
 	"log"
 	"medical-webhook/internal/application/mapper"
+	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/config"
-	"medical-webhook/internal/domain/line/service"
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
 	"medical-webhook/internal/infrastructure/persistence"
