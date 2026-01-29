@@ -9,6 +9,7 @@ import (
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
 	"medical-webhook/internal/infrastructure/persistence"
+	"medical-webhook/internal/infrastructure/session"
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
@@ -64,7 +65,7 @@ func InitializeApp() (*Application, func(), error) {
 	adminSessionRepo := persistence.NewAdminSessionRepository()
 
 	// Initialize session store for OCR confirmations
-	sessionStore := usecase.NewSessionStore()
+	sessionStore := session.NewSessionStore()
 
 	equipmentMapper := mapper.NewEquipmentMapper()
 
