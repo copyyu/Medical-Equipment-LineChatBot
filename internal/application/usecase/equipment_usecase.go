@@ -134,8 +134,13 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 		}
 	}
 
-	// TODO: Add Update method in service layer
-	log.Printf("Usecase: UpdateEquipment - Equipment ID: %s updated", idCode)
+	// Save updated equipment via service
+	if err := u.equipmentService.UpdateEquipment(ctx, equipment); err != nil {
+		log.Printf("Usecase: UpdateEquipment - Error: %v", err)
+		return err
+	}
+
+	log.Printf("Usecase: UpdateEquipment - Equipment ID: %s updated successfully", idCode)
 	return nil
 }
 
@@ -150,8 +155,13 @@ func (u *equipmentUsecase) DeleteEquipment(ctx context.Context, idCode string) e
 		return errors.New("equipment not found")
 	}
 
-	// TODO: Add Delete method in service layer
-	log.Printf("Usecase: DeleteEquipment - Equipment ID: %s deleted", idCode)
+	// Delete equipment via service
+	if err := u.equipmentService.DeleteEquipment(ctx, equipment.ID); err != nil {
+		log.Printf("Usecase: DeleteEquipment - Error: %v", err)
+		return err
+	}
+
+	log.Printf("Usecase: DeleteEquipment - Equipment ID: %s deleted successfully", idCode)
 	return nil
 }
 

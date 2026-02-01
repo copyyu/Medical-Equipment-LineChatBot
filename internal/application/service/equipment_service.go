@@ -9,12 +9,14 @@ import (
 )
 
 type EquipmentService interface {
-	// Equipment
+	// Equipment CRUD
 	FindEquipmentByIDCode(ctx context.Context, idCode string) (*entity.Equipment, error)
 	FindEquipmentByID(ctx context.Context, id uint) (*entity.Equipment, error)
 	FindAllEquipments(ctx context.Context, limit, offset int) ([]entity.Equipment, error)
 	CountEquipments(ctx context.Context) (int64, error)
 	CreateEquipment(ctx context.Context, equipment *entity.Equipment) error
+	UpdateEquipment(ctx context.Context, equipment *entity.Equipment) error
+	DeleteEquipment(ctx context.Context, id uint) error
 
 	// Brand
 	FindOrCreateBrand(ctx context.Context, brandName string) (*entity.Brand, error)
@@ -102,6 +104,37 @@ func (s *equipmentService) CreateEquipment(ctx context.Context, equipment *entit
 	}
 
 	log.Printf("Service: Successfully created equipment ID: %d", equipment.ID)
+	return nil
+}
+
+func (s *equipmentService) UpdateEquipment(ctx context.Context, equipment *entity.Equipment) error {
+	// Validate equipment entity
+	if err := s.validateEquipment(equipment); err != nil {
+		return err
+	}
+
+	err := s.equipmentRepo.Update(ctx, equipment)
+	if err != nil {
+		log.Printf("Service: Error updating equipment: %v", err)
+		return err
+	}
+
+	log.Printf("Service: Successfully updated equipment ID: %d", equipment.ID)
+	return nil
+}
+
+func (s *equipmentService) DeleteEquipment(ctx context.Context, id uint) error {
+	if id == 0 {
+		return errors.New("equipment ID is required")
+	}
+
+	err := s.equipmentRepo.Delete(ctx, id)
+	if err != nil {
+		log.Printf("Service: Error deleting equipment: %v", err)
+		return err
+	}
+
+	log.Printf("Service: Successfully deleted equipment ID: %d", id)
 	return nil
 }
 
