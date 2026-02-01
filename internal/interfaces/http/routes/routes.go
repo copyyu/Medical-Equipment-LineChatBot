@@ -7,7 +7,12 @@ import (
 )
 
 // Setup configures all application routes
-func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler, notificationHandler *handlers.NotificationHandler, equipmentImportHandler *handlers.EquipmentImportHandler, adminHandler *handlers.AdminHandler, dashboardHandler *handlers.DashboardHandler, equipmentHandler *handlers.EquipmentHandler) {
+func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
+	notificationHandler *handlers.NotificationHandler,
+	equipmentImportHandler *handlers.EquipmentImportHandler,
+	adminHandler *handlers.AdminHandler,
+	dashboardHandler *handlers.DashboardHandler,
+	equipmentHandler *handlers.EquipmentHandler) {
 	// Root endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{

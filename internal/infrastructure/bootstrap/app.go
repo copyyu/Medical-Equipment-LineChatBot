@@ -3,12 +3,13 @@ package bootstrap
 import (
 	"log"
 	"medical-webhook/internal/application/mapper"
+	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/config"
-	"medical-webhook/internal/domain/line/service"
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
 	"medical-webhook/internal/infrastructure/persistence"
+	"medical-webhook/internal/infrastructure/session"
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
@@ -65,7 +66,7 @@ func InitializeApp() (*Application, func(), error) {
 	adminSessionRepo := persistence.NewAdminSessionRepository()
 
 	// Initialize session store for OCR confirmations
-	sessionStore := usecase.NewSessionStore()
+	sessionStore := session.NewSessionStore()
 
 	equipmentMapper := mapper.NewEquipmentMapper()
 
@@ -127,7 +128,7 @@ func InitializeApp() (*Application, func(), error) {
 		maintenanceRepo,
 	)
 
-	// Initialize equipment usecase for equipment list
+	// Initialize equipment usecase for equipment list (using service layer)
 	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentService)
 
 	// Initialize handlers (Interface Layer)

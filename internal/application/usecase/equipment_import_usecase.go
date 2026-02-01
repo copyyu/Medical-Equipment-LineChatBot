@@ -7,8 +7,8 @@ import (
 	"log"
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/application/mapper"
+	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/domain/line/repository"
-	"medical-webhook/internal/domain/line/service"
 )
 
 // EquipmentImportUseCase - UseCase สำหรับ import equipment จาก Excel

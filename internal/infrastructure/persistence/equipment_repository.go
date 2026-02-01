@@ -96,6 +96,17 @@ func (r *EquipmentRepository) GetMaintenanceRecords(equipmentID uint) ([]entity.
 	return records, nil
 }
 
+// CreateMaintenanceRecord creates a new maintenance record
+func (r *EquipmentRepository) CreateMaintenanceRecord(record *entity.MaintenanceRecord) error {
+	err := r.db.Create(record).Error
+	if err != nil {
+		log.Printf("Error creating maintenance record: %v", err)
+		return err
+	}
+	log.Printf("Created maintenance record ID: %d for equipment ID: %d", record.ID, record.EquipmentID)
+	return nil
+}
+
 // Create creates a new equipment
 func (r *EquipmentRepository) Create(ctx context.Context, equipment *entity.Equipment) error {
 	err := r.db.WithContext(ctx).Create(equipment).Error
@@ -203,6 +214,69 @@ func (r *EquipmentRepository) Count(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return count, nil
+}
+
+// CountWithFilter returns total count of equipments with filters
+func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, search string) (int64, error) {
+	var count int64
+	query := r.db.WithContext(ctx).Model(&entity.Equipment{})
+
+	// Apply status filter
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	// Apply search filter (search in id_code, serial_no, and model name via join)
+	if search != "" {
+		searchPattern := "%" + search + "%"
+		query = query.Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
+			Where("equipments.id_code LIKE ? OR equipments.serial_no LIKE ? OR equipment_models.model_name LIKE ?",
+				searchPattern, searchPattern, searchPattern)
+	}
+
+	err := query.Count(&count).Error
+	if err != nil {
+		log.Printf("Error counting equipments with filter: %v", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+// FindAllWithFilter finds all equipments with pagination and filters
+func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offset int, status, search string) ([]entity.Equipment, error) {
+	var equipments []entity.Equipment
+	query := r.db.WithContext(ctx).
+		Preload("Model").
+		Preload("Model.Brand").
+		Preload("Model.Category").
+		Preload("Department")
+
+	// Apply status filter
+	if status != "" {
+		query = query.Where("equipments.status = ?", status)
+	}
+
+	// Apply search filter (search in id_code, serial_no, and model name via join)
+	if search != "" {
+		searchPattern := "%" + search + "%"
+		query = query.Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
+			Where("equipments.id_code LIKE ? OR equipments.serial_no LIKE ? OR equipment_models.model_name LIKE ?",
+				searchPattern, searchPattern, searchPattern)
+	}
+
+	query = query.Order("equipments.id DESC")
+
+	if limit > 0 {
+		query = query.Limit(limit).Offset(offset)
+	}
+
+	err := query.Find(&equipments).Error
+	if err != nil {
+		log.Printf("Error finding equipments with filter: %v", err)
+		return nil, err
+	}
+	log.Printf("Found %d equipments with filter (status=%s, search=%s)", len(equipments), status, search)
+	return equipments, nil
 }
 
 // CountNearExpiry returns count of equipments with remain_life <= 1 year

@@ -6,13 +6,16 @@ import (
 	"log"
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/application/mapper"
+	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/domain/line/entity"
-	"medical-webhook/internal/domain/line/service"
 	"time"
 )
 
 type EquipmentUsecase interface {
 	GetEquipmentList(ctx context.Context, req dto.EquipmentListRequest) (*dto.EquipmentListResponse, error)
+	GetByIDCode(ctx context.Context, idCode string) (*dto.EquipmentDetailResponse, error)
+	UpdateEquipment(ctx context.Context, idCode string, req dto.EquipmentUpdateRequest) error
+	DeleteEquipment(ctx context.Context, idCode string) error
 	CreateEquipment(ctx context.Context, req dto.CreateEquipmentRequest) (*dto.EquipmentResponse, error)
 }
 
@@ -82,6 +85,84 @@ func (u *equipmentUsecase) GetEquipmentList(ctx context.Context, req dto.Equipme
 		Limit:      req.Limit,
 		TotalPages: totalPages,
 	}, nil
+}
+
+// GetByIDCode returns equipment detail by ID code
+func (u *equipmentUsecase) GetByIDCode(ctx context.Context, idCode string) (*dto.EquipmentDetailResponse, error) {
+	equipment, err := u.equipmentService.FindEquipmentByIDCode(ctx, idCode)
+	if err != nil {
+		return nil, err
+	}
+	if equipment == nil {
+		return nil, errors.New("equipment not found")
+	}
+
+	result := u.mapEquipmentToDetailResponse(equipment)
+	return result, nil
+}
+
+// UpdateEquipment updates equipment by ID code
+func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, req dto.EquipmentUpdateRequest) error {
+	// Find existing equipment
+	equipment, err := u.equipmentService.FindEquipmentByIDCode(ctx, idCode)
+	if err != nil {
+		return err
+	}
+	if equipment == nil {
+		return errors.New("equipment not found")
+	}
+
+	// Update status if provided
+	if req.Status != "" {
+		equipment.Status = entity.AssetStatus(req.Status)
+	}
+
+	// Update department if location provided
+	if req.Location != "" {
+		dept, err := u.equipmentService.FindOrCreateDepartment(ctx, req.Location)
+		if err != nil {
+			return err
+		}
+		equipment.DepartmentID = dept.ID
+	}
+
+	// Update compute date if provided
+	if req.ComputeDate != "" {
+		computeDate, err := time.Parse("2006-01-02", req.ComputeDate)
+		if err == nil {
+			equipment.ComputeDate = &computeDate
+		}
+	}
+
+	// Save updated equipment via service
+	if err := u.equipmentService.UpdateEquipment(ctx, equipment); err != nil {
+		log.Printf("Usecase: UpdateEquipment - Error: %v", err)
+		return err
+	}
+
+	log.Printf("Usecase: UpdateEquipment - Equipment ID: %s updated successfully", idCode)
+	return nil
+}
+
+// DeleteEquipment soft deletes equipment by ID code
+func (u *equipmentUsecase) DeleteEquipment(ctx context.Context, idCode string) error {
+	// Find existing equipment
+	equipment, err := u.equipmentService.FindEquipmentByIDCode(ctx, idCode)
+	if err != nil {
+		return err
+	}
+	if equipment == nil {
+		return errors.New("equipment not found")
+	}
+
+	// Delete equipment via service
+	if err := u.equipmentService.DeleteEquipment(ctx, equipment.ID); err != nil {
+		log.Printf("Usecase: DeleteEquipment - Error: %v", err)
+		return err
+	}
+
+	log.Printf("Usecase: DeleteEquipment - Equipment ID: %s deleted successfully", idCode)
+	return nil
 }
 
 // CreateEquipment - สร้าง Equipment ใหม่จากข้อมูลที่กรอกในฟอร์ม
@@ -201,7 +282,35 @@ func (u *equipmentUsecase) CreateEquipment(ctx context.Context, req dto.CreateEq
 	return u.mapper.MapEquipmentToResponse(createdEquipment), nil
 }
 
-// ===== VALIDATION =====
+// ===== HELPER FUNCTIONS =====
+
+func (u *equipmentUsecase) mapEquipmentToDetailResponse(e *entity.Equipment) *dto.EquipmentDetailResponse {
+	item := u.mapper.MapEquipmentToListItem(e)
+
+	serialNo := ""
+	if e.SerialNo != nil {
+		serialNo = *e.SerialNo
+	}
+
+	brand := ""
+	if e.Model.Brand.Name != "" {
+		brand = e.Model.Brand.Name
+	}
+
+	return &dto.EquipmentDetailResponse{
+		ID:           item.ID,
+		Name:         item.Name,
+		Category:     item.Category,
+		Status:       item.Status,
+		Location:     item.Location,
+		LastCheck:    item.LastCheck,
+		Expiry:       item.Expiry,
+		IsExpiring:   item.IsExpiring,
+		SerialNo:     serialNo,
+		Brand:        brand,
+		DepartmentID: e.DepartmentID,
+	}
+}
 
 func (u *equipmentUsecase) validateCreateRequest(req dto.CreateEquipmentRequest) error {
 	if req.IDCode == "" {
@@ -239,8 +348,6 @@ func (u *equipmentUsecase) validateCreateRequest(req dto.CreateEquipmentRequest)
 
 	return nil
 }
-
-// ===== HELPER FUNCTIONS =====
 
 func (u *equipmentUsecase) calculateStatus(remainLife float64) entity.AssetStatus {
 	if remainLife <= 0 {

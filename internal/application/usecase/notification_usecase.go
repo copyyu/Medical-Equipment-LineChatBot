@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"medical-webhook/internal/application/dto"
+	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	notificationRepo "medical-webhook/internal/domain/line/repository"
-	"medical-webhook/internal/domain/line/service"
 )
 
 type NotificationUseCase struct {

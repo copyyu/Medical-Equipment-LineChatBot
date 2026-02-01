@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"medical-webhook/internal/config"
-	"medical-webhook/internal/domain/line/templates"
+	"medical-webhook/internal/infrastructure/line/templates"
 )
 
 // MessageService handles message business logic

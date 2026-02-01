@@ -40,6 +40,57 @@ func (h *EquipmentHandler) GetList(c *fiber.Ctx) error {
 	return errors.Success(c, result, "Equipment list retrieved successfully")
 }
 
+// GetByID returns equipment detail by ID code
+// GET /api/equipment/:id
+func (h *EquipmentHandler) GetByID(c *fiber.Ctx) error {
+	idCode := c.Params("id")
+	if idCode == "" {
+		return errors.BadRequest(c, "Equipment ID is required")
+	}
+
+	result, err := h.equipmentUsecase.GetByIDCode(c.Context(), idCode)
+	if err != nil {
+		return errors.Error(c, err)
+	}
+
+	return errors.Success(c, result, "Equipment retrieved successfully")
+}
+
+// Update updates equipment by ID code
+// PUT /api/equipment/:id
+func (h *EquipmentHandler) Update(c *fiber.Ctx) error {
+	idCode := c.Params("id")
+	if idCode == "" {
+		return errors.BadRequest(c, "Equipment ID is required")
+	}
+
+	var req dto.EquipmentUpdateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return errors.BadRequest(c, "Invalid request body")
+	}
+
+	if err := h.equipmentUsecase.UpdateEquipment(c.Context(), idCode, req); err != nil {
+		return errors.Error(c, err)
+	}
+
+	return errors.Success(c, nil, "Equipment updated successfully")
+}
+
+// Delete soft deletes equipment by ID code
+// DELETE /api/equipment/:id
+func (h *EquipmentHandler) Delete(c *fiber.Ctx) error {
+	idCode := c.Params("id")
+	if idCode == "" {
+		return errors.BadRequest(c, "Equipment ID is required")
+	}
+
+	if err := h.equipmentUsecase.DeleteEquipment(c.Context(), idCode); err != nil {
+		return errors.Error(c, err)
+	}
+
+	return errors.Success(c, nil, "Equipment deleted successfully")
+}
+
 // CreateEquipment creates a new equipment
 // POST /api/equipment
 // Body: CreateEquipmentRequest JSON
@@ -62,58 +113,4 @@ func (h *EquipmentHandler) CreateEquipment(c *fiber.Ctx) error {
 
 	log.Printf("Handler: CreateEquipment - Success, created equipment ID: %s", req.IDCode)
 	return errors.Success(c, result, "Equipment created successfully")
-}
-
-// GetByID returns equipment by ID
-// GET /api/equipment/:id
-func (h *EquipmentHandler) GetByID(c *fiber.Ctx) error {
-	log.Printf("Handler: GetByID - Received request")
-
-	id, err := c.ParamsInt("id")
-	if err != nil {
-		log.Printf("Handler: GetByID - Invalid ID parameter: %v", err)
-		return errors.Error(c, fiber.NewError(fiber.StatusBadRequest, "Invalid equipment ID"))
-	}
-
-	log.Printf("Handler: GetByID - ID: %d", id)
-
-	return errors.Error(c, fiber.NewError(fiber.StatusNotImplemented, "GetByID not implemented yet"))
-}
-
-// UpdateEquipment updates an existing equipment
-// PUT /api/equipment/:id
-func (h *EquipmentHandler) UpdateEquipment(c *fiber.Ctx) error {
-	log.Printf("Handler: UpdateEquipment - Received request")
-
-	id, err := c.ParamsInt("id")
-	if err != nil {
-		log.Printf("Handler: UpdateEquipment - Invalid ID parameter: %v", err)
-		return errors.Error(c, fiber.NewError(fiber.StatusBadRequest, "Invalid equipment ID"))
-	}
-
-	var req dto.CreateEquipmentRequest
-	if err := c.BodyParser(&req); err != nil {
-		log.Printf("Handler: UpdateEquipment - Body parse error: %v", err)
-		return errors.Error(c, fiber.NewError(fiber.StatusBadRequest, "Invalid request body"))
-	}
-
-	log.Printf("Handler: UpdateEquipment - ID: %d, IDCode: %s", id, req.IDCode)
-
-	return errors.Error(c, fiber.NewError(fiber.StatusNotImplemented, "UpdateEquipment not implemented yet"))
-}
-
-// DeleteEquipment deletes an equipment
-// DELETE /api/equipment/:id
-func (h *EquipmentHandler) DeleteEquipment(c *fiber.Ctx) error {
-	log.Printf("Handler: DeleteEquipment - Received request")
-
-	id, err := c.ParamsInt("id")
-	if err != nil {
-		log.Printf("Handler: DeleteEquipment - Invalid ID parameter: %v", err)
-		return errors.Error(c, fiber.NewError(fiber.StatusBadRequest, "Invalid equipment ID"))
-	}
-
-	log.Printf("Handler: DeleteEquipment - ID: %d", id)
-
-	return errors.Error(c, fiber.NewError(fiber.StatusNotImplemented, "DeleteEquipment not implemented yet"))
 }

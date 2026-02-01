@@ -89,3 +89,25 @@ type EquipmentModelDTO struct {
 	Brand                 *BrandDTO    `json:"brand,omitempty"`
 	Category              *CategoryDTO `json:"category,omitempty"`
 }
+
+// EquipmentUpdateRequest represents the request body for updating equipment
+type EquipmentUpdateRequest struct {
+	Status      string `json:"status"`       // Asset Status (active, defective, etc.)
+	Location    string `json:"location"`     // Department name
+	ComputeDate string `json:"compute_date"` // Last check date (YYYY-MM-DD)
+}
+
+// EquipmentDetailResponse represents a single equipment detail for GET by ID
+type EquipmentDetailResponse struct {
+	ID           string `json:"id"`            // ID Code
+	Name         string `json:"name"`          // Model name
+	Category     string `json:"category"`      // Equipment category
+	Status       string `json:"status"`        // Asset status
+	Location     string `json:"location"`      // Department/location
+	LastCheck    string `json:"last_check"`    // Last maintenance date
+	Expiry       string `json:"expiry"`        // Expiry year
+	IsExpiring   bool   `json:"is_expiring"`   // Flag for expiring soon
+	SerialNo     string `json:"serial_no"`     // Serial number
+	Brand        string `json:"brand"`         // Brand name
+	DepartmentID uint   `json:"department_id"` // Department ID for updates
+}
