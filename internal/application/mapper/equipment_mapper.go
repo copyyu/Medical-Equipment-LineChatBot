@@ -4,6 +4,7 @@ package mapper
 import (
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/domain/line/entity"
+	"strconv"
 )
 
 // EquipmentMapper - Mapper สำหรับแปลงระหว่าง Entity และ DTO
@@ -155,4 +156,157 @@ func (m *EquipmentMapper) ToModelDTO(entity *entity.EquipmentModel) *dto.ModelDT
 		ModelName:             entity.ModelName,
 		DefaultLifeExpectancy: entity.DefaultLifeExpectancy,
 	}
+}
+
+func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.EquipmentListItem {
+	// Get name from model
+	name := ""
+	if entity.Model.ModelName != "" {
+		name = entity.Model.ModelName
+	} else {
+		name = entity.IDCode
+	}
+
+	// Get category from model
+	category := ""
+	if entity.Model.Category.Name != "" {
+		category = entity.Model.Category.Name
+	}
+
+	// Get location from department
+	location := ""
+	if entity.Department.Name != "" {
+		location = entity.Department.Name
+	}
+
+	// Calculate expiry date based on replacement year
+	expiry := ""
+	isExpiring := false
+	if entity.ReplacementYear != nil {
+		expiry = formatYear(*entity.ReplacementYear)
+		// Check if expiring within 1 year
+		if entity.RemainLife <= 1 {
+			isExpiring = true
+		}
+	} else if entity.RemainLife > 0 {
+		// Calculate based on remain life
+		currentYear := 2026 // Current year
+		expiryYear := currentYear + int(entity.RemainLife)
+		expiry = formatYear(expiryYear)
+		if entity.RemainLife <= 1 {
+			isExpiring = true
+		}
+	}
+
+	// Get last check date from latest maintenance record
+	lastCheck := ""
+	if len(entity.MaintenanceRecords) > 0 {
+		lastCheck = entity.MaintenanceRecords[0].MaintenanceDate.Format("2006-01-02")
+	} else if entity.ComputeDate != nil {
+		lastCheck = entity.ComputeDate.Format("2006-01-02")
+	}
+
+	// Map asset status to frontend status
+	status := mapAssetStatusToFrontend(entity.Status)
+
+	return &dto.EquipmentListItem{
+		ID:         entity.IDCode,
+		Name:       name,
+		Category:   category,
+		Status:     status,
+		Location:   location,
+		LastCheck:  lastCheck,
+		Expiry:     expiry,
+		IsExpiring: isExpiring,
+	}
+}
+
+// mapAssetStatusToFrontend maps backend AssetStatus to frontend EquipmentStatus
+func mapAssetStatusToFrontend(status entity.AssetStatus) string {
+	switch status {
+	case entity.AssetStatusActive:
+		return "ready"
+	case entity.AssetStatusDefective:
+		return "broken"
+	case entity.AssetStatusWaitDecom, entity.AssetStatusDecommission:
+		return "maintenance"
+	case entity.AssetStatusMissing:
+		return "broken"
+	case entity.AssetStatusPlanToReplace:
+		return "expired"
+	case entity.AssetStatusActiveReadyToSell:
+		return "in_use"
+	default:
+		return "ready"
+	}
+}
+
+func formatYear(year int) string {
+	return strconv.Itoa(year)
+}
+
+// func formatYear(year int) string {
+//     return string(rune('0'+year/1000)) + string(rune('0'+(year/100)%10)) + string(rune('0'+(year/10)%10)) + string(rune('0'+year%10))
+// }
+//
+
+func (m *EquipmentMapper) MapEquipmentToResponse(entity *entity.Equipment) *dto.EquipmentResponse {
+	resp := &dto.EquipmentResponse{
+		ID:                    entity.ID,
+		IDCode:                entity.IDCode,
+		SerialNo:              entity.SerialNo,
+		AssessmentID:          entity.AssessmentID,
+		Status:                string(entity.Status),
+		ReceiveDate:           entity.ReceiveDate,
+		PurchasePrice:         entity.PurchasePrice,
+		EquipmentAge:          entity.EquipmentAge,
+		ComputeDate:           entity.ComputeDate,
+		LifeExpectancy:        entity.LifeExpectancy,
+		RemainLife:            entity.RemainLife,
+		UsefulLifetimePercent: entity.UsefulLifetimePercent,
+		ReplacementYear:       entity.ReplacementYear,
+		Technology:            entity.Technology,
+		UsageStatistics:       entity.UsageStatistics,
+		Efficiency:            entity.Efficiency,
+		Others:                entity.Others,
+		CreatedAt:             entity.CreatedAt,
+		UpdatedAt:             entity.UpdatedAt,
+	}
+
+	// Map Model if exists
+	if entity.Model.ID != 0 {
+		resp.Model = &dto.EquipmentModelDTO{
+			ID:                    entity.Model.ID,
+			ModelName:             entity.Model.ModelName,
+			DefaultLifeExpectancy: entity.Model.DefaultLifeExpectancy,
+		}
+
+		// Map Brand if exists
+		if entity.Model.Brand.ID != 0 {
+			resp.Model.Brand = &dto.BrandDTO{
+				ID:   entity.Model.Brand.ID,
+				Name: entity.Model.Brand.Name,
+			}
+		}
+
+		// Map Category if exists
+		if entity.Model.Category.ID != 0 {
+			resp.Model.Category = &dto.CategoryDTO{
+				ID:             entity.Model.Category.ID,
+				Name:           entity.Model.Category.Name,
+				ECRIRisk:       string(entity.Model.Category.ECRIRisk),
+				Classification: entity.Model.Category.Classification,
+			}
+		}
+	}
+
+	// Map Department if exists
+	if entity.Department.ID != 0 {
+		resp.Department = &dto.DepartmentDTO{
+			ID:   entity.Department.ID,
+			Name: entity.Department.Name,
+		}
+	}
+
+	return resp
 }

@@ -1,6 +1,8 @@
 package dto
 
-import "medical-webhook/internal/domain/line/entity"
+import (
+	"time"
+)
 
 // EquipmentListRequest represents the request parameters for equipment list
 type EquipmentListRequest struct {
@@ -33,82 +35,59 @@ type EquipmentListResponse struct {
 	TotalPages int                 `json:"total_pages"`
 }
 
-// MapEquipmentToListItem converts entity.Equipment to EquipmentListItem
-func MapEquipmentToListItem(e entity.Equipment) EquipmentListItem {
-	// Get name from model
-	name := ""
-	if e.Model.ModelName != "" {
-		name = e.Model.ModelName
-	} else {
-		name = e.IDCode
-	}
-
-	// Get category from model
-	category := ""
-	if e.Model.Category.Name != "" {
-		category = e.Model.Category.Name
-	}
-
-	// Get location from department
-	location := ""
-	if e.Department.Name != "" {
-		location = e.Department.Name
-	}
-
-	// Calculate expiry date based on replacement year
-	expiry := ""
-	isExpiring := false
-	if e.ReplacementYear != nil {
-		expiry = formatYear(*e.ReplacementYear)
-		// Check if expiring within 1 year
-		if e.RemainLife <= 1 {
-			isExpiring = true
-		}
-	} else if e.RemainLife > 0 {
-		// Calculate based on remain life
-		currentYear := 2026 // Current year
-		expiryYear := currentYear + int(e.RemainLife)
-		expiry = formatYear(expiryYear)
-		if e.RemainLife <= 1 {
-			isExpiring = true
-		}
-	}
-
-	// Get last check date from latest maintenance record
-	lastCheck := ""
-	if len(e.MaintenanceRecords) > 0 {
-		lastCheck = e.MaintenanceRecords[0].MaintenanceDate.Format("2006-01-02")
-	} else if e.ComputeDate != nil {
-		lastCheck = e.ComputeDate.Format("2006-01-02")
-	}
-
-	// Map asset status to frontend status
-	status := mapAssetStatusToFrontend(e.Status)
-
-	return EquipmentListItem{
-		ID:         e.IDCode,
-		Name:       name,
-		Category:   category,
-		Status:     status,
-		Location:   location,
-		LastCheck:  lastCheck,
-		Expiry:     expiry,
-		IsExpiring: isExpiring,
-	}
+type CreateEquipmentRequest struct {
+	IDCode                string   `json:"id_code" binding:"required"`
+	SerialNo              string   `json:"serial_no" binding:"required"`
+	AssessmentID          string   `json:"assessment_id"`
+	Department            string   `json:"department" binding:"required"`
+	Brand                 string   `json:"brand" binding:"required"`
+	Model                 string   `json:"model" binding:"required"`
+	Category              string   `json:"category" binding:"required"`
+	ReceiveDate           string   `json:"receive_date" binding:"required"` // Format: YYYY-MM-DD
+	PurchasePrice         float64  `json:"purchase_price" binding:"required"`
+	EquipmentAge          float64  `json:"equipment_age"`
+	ComputeDate           string   `json:"compute_date"` // Format: YYYY-MM-DD
+	LifeExpectancy        float64  `json:"life_expectancy"`
+	RemainLife            float64  `json:"remain_life"`
+	UsefulLifetimePercent float64  `json:"useful_lifetime_percent"`
+	ReplacementYear       int      `json:"replacement_year"`
+	Technology            *float64 `json:"technology"`
+	UsageStatistics       *float64 `json:"usage_statistics"`
+	Efficiency            *float64 `json:"efficiency"`
+	Others                string   `json:"others"`
 }
 
-// mapAssetStatusToFrontend maps backend AssetStatus to frontend EquipmentStatus
-// Return raw status values to match frontend expectations
-func mapAssetStatusToFrontend(status entity.AssetStatus) string {
-	// Return the status value directly (active, defective, etc.)
-	if status == "" {
-		return "active"
-	}
-	return string(status)
+// EquipmentResponse - ใช้ snake_case ตาม entity
+type EquipmentResponse struct {
+	ID                    uint               `json:"id"`
+	IDCode                string             `json:"id_code"`
+	SerialNo              *string            `json:"serial_no"`
+	AssessmentID          *string            `json:"assessment_id"`
+	Status                string             `json:"status"`
+	ReceiveDate           *time.Time         `json:"receive_date"`
+	PurchasePrice         float64            `json:"purchase_price"`
+	EquipmentAge          float64            `json:"equipment_age"`
+	ComputeDate           *time.Time         `json:"compute_date"`
+	LifeExpectancy        float64            `json:"life_expectancy"`
+	RemainLife            float64            `json:"remain_life"`
+	UsefulLifetimePercent float64            `json:"useful_lifetime_percent"`
+	ReplacementYear       *int               `json:"replacement_year"`
+	Technology            *float64           `json:"technology"`
+	UsageStatistics       *float64           `json:"usage_statistics"`
+	Efficiency            *float64           `json:"efficiency"`
+	Others                *string            `json:"others"`
+	Model                 *EquipmentModelDTO `json:"model,omitempty"`
+	Department            *DepartmentDTO     `json:"department,omitempty"`
+	CreatedAt             time.Time          `json:"created_at"`
+	UpdatedAt             time.Time          `json:"updated_at"`
 }
 
-func formatYear(year int) string {
-	return string(rune('0'+year/1000)) + string(rune('0'+(year/100)%10)) + string(rune('0'+(year/10)%10)) + string(rune('0'+year%10))
+type EquipmentModelDTO struct {
+	ID                    uint         `json:"id"`
+	ModelName             string       `json:"model_name"`
+	DefaultLifeExpectancy float64      `json:"default_life_expectancy"`
+	Brand                 *BrandDTO    `json:"brand,omitempty"`
+	Category              *CategoryDTO `json:"category,omitempty"`
 }
 
 // EquipmentUpdateRequest represents the request body for updating equipment
@@ -131,33 +110,4 @@ type EquipmentDetailResponse struct {
 	SerialNo     string `json:"serial_no"`     // Serial number
 	Brand        string `json:"brand"`         // Brand name
 	DepartmentID uint   `json:"department_id"` // Department ID for updates
-}
-
-// MapEquipmentToDetailResponse converts entity.Equipment to EquipmentDetailResponse
-func MapEquipmentToDetailResponse(e entity.Equipment) EquipmentDetailResponse {
-	item := MapEquipmentToListItem(e)
-
-	serialNo := ""
-	if e.SerialNo != nil {
-		serialNo = *e.SerialNo
-	}
-
-	brand := ""
-	if e.Model.Brand.Name != "" {
-		brand = e.Model.Brand.Name
-	}
-
-	return EquipmentDetailResponse{
-		ID:           item.ID,
-		Name:         item.Name,
-		Category:     item.Category,
-		Status:       item.Status,
-		Location:     item.Location,
-		LastCheck:    item.LastCheck,
-		Expiry:       item.Expiry,
-		IsExpiring:   item.IsExpiring,
-		SerialNo:     serialNo,
-		Brand:        brand,
-		DepartmentID: e.DepartmentID,
-	}
 }

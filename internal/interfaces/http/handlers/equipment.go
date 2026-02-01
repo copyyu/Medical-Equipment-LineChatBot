@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/utils/errors"
@@ -88,4 +89,28 @@ func (h *EquipmentHandler) Delete(c *fiber.Ctx) error {
 	}
 
 	return errors.Success(c, nil, "Equipment deleted successfully")
+}
+
+// CreateEquipment creates a new equipment
+// POST /api/equipment
+// Body: CreateEquipmentRequest JSON
+func (h *EquipmentHandler) CreateEquipment(c *fiber.Ctx) error {
+	log.Printf("Handler: CreateEquipment - Received request")
+
+	var req dto.CreateEquipmentRequest
+	if err := c.BodyParser(&req); err != nil {
+		log.Printf("Handler: CreateEquipment - Body parse error: %v", err)
+		return errors.Error(c, fiber.NewError(fiber.StatusBadRequest, "Invalid request body"))
+	}
+
+	log.Printf("Handler: CreateEquipment - IDCode: %s, SerialNo: %s", req.IDCode, req.SerialNo)
+
+	result, err := h.equipmentUsecase.CreateEquipment(c.Context(), req)
+	if err != nil {
+		log.Printf("Handler: CreateEquipment - Error: %v", err)
+		return errors.Error(c, err)
+	}
+
+	log.Printf("Handler: CreateEquipment - Success, created equipment ID: %s", req.IDCode)
+	return errors.Success(c, result, "Equipment created successfully")
 }
