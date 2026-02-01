@@ -25,6 +25,7 @@ type Application struct {
 	NotificationScheduler  *scheduler.NotificationScheduler
 	EquipmentImportHandler *handlers.EquipmentImportHandler
 	AdminHandler           *handlers.AdminHandler
+	EquipmentHandler       *handlers.EquipmentHandler
 }
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
@@ -85,6 +86,14 @@ func InitializeApp() (*Application, func(), error) {
 		adminSessionRepo,
 	)
 
+	equipmentService := service.NewEquipmentService(
+		equipmentRepo,
+		brandRepo,
+		equipmentCategoryRepo,
+		departmentRepo,
+		equipmentModelRepo,
+	)
+
 	// Initialize use cases (Application Layer)
 	messageUseCase := usecase.NewMessageUseCase(
 		lineRepo,
@@ -119,7 +128,7 @@ func InitializeApp() (*Application, func(), error) {
 	)
 
 	// Initialize equipment usecase for equipment list
-	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentRepo)
+	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentService)
 
 	// Initialize handlers (Interface Layer)
 	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
@@ -179,6 +188,7 @@ func InitializeApp() (*Application, func(), error) {
 		NotificationHandler:    notificationHandler,
 		EquipmentImportHandler: equipmentImportHandler,
 		AdminHandler:           adminHandler,
+		EquipmentHandler:       equipmentHandler,
 	}, cleanup, nil
 }
 

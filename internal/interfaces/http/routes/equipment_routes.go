@@ -15,4 +15,5 @@ func SetupEquipmentRoutes(app *fiber.App, equipmentHandler *handlers.EquipmentHa
 
 	// GET /api/equipment - Get paginated equipment list
 	equipment.Get("/", equipmentHandler.GetList)
+	equipment.Post("/", equipmentHandler.CreateEquipment)
 }
