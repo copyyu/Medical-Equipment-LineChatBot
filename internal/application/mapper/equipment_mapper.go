@@ -222,23 +222,11 @@ func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.
 }
 
 // mapAssetStatusToFrontend maps backend AssetStatus to frontend EquipmentStatus
+// Returns exact status values to match frontend EQUIPMENT_STATUS_CONFIG keys
 func mapAssetStatusToFrontend(status entity.AssetStatus) string {
-	switch status {
-	case entity.AssetStatusActive:
-		return "ready"
-	case entity.AssetStatusDefective:
-		return "broken"
-	case entity.AssetStatusWaitDecom, entity.AssetStatusDecommission:
-		return "maintenance"
-	case entity.AssetStatusMissing:
-		return "broken"
-	case entity.AssetStatusPlanToReplace:
-		return "expired"
-	case entity.AssetStatusActiveReadyToSell:
-		return "in_use"
-	default:
-		return "ready"
-	}
+	// Return exact status string to match frontend type definitions:
+	// active, defective, wait_decom, decommission, active_ready_to_sell, missing, plan_to_replace
+	return string(status)
 }
 
 func formatYear(year int) string {
