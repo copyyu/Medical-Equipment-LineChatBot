@@ -13,7 +13,9 @@ type EquipmentService interface {
 	FindEquipmentByIDCode(ctx context.Context, idCode string) (*entity.Equipment, error)
 	FindEquipmentByID(ctx context.Context, id uint) (*entity.Equipment, error)
 	FindAllEquipments(ctx context.Context, limit, offset int) ([]entity.Equipment, error)
+	FindAllEquipmentsWithFilter(ctx context.Context, limit, offset int, status, search string) ([]entity.Equipment, error)
 	CountEquipments(ctx context.Context) (int64, error)
+	CountEquipmentsWithFilter(ctx context.Context, status, search string) (int64, error)
 	CreateEquipment(ctx context.Context, equipment *entity.Equipment) error
 	UpdateEquipment(ctx context.Context, equipment *entity.Equipment) error
 	DeleteEquipment(ctx context.Context, id uint) error
@@ -86,6 +88,24 @@ func (s *equipmentService) CountEquipments(ctx context.Context) (int64, error) {
 	count, err := s.equipmentRepo.Count(ctx)
 	if err != nil {
 		log.Printf("Service: Error counting equipments: %v", err)
+		return 0, err
+	}
+	return count, nil
+}
+
+func (s *equipmentService) FindAllEquipmentsWithFilter(ctx context.Context, limit, offset int, status, search string) ([]entity.Equipment, error) {
+	equipments, err := s.equipmentRepo.FindAllWithFilter(ctx, limit, offset, status, search)
+	if err != nil {
+		log.Printf("Service: Error finding equipments with filter: %v", err)
+		return nil, err
+	}
+	return equipments, nil
+}
+
+func (s *equipmentService) CountEquipmentsWithFilter(ctx context.Context, status, search string) (int64, error) {
+	count, err := s.equipmentRepo.CountWithFilter(ctx, status, search)
+	if err != nil {
+		log.Printf("Service: Error counting equipments with filter: %v", err)
 		return 0, err
 	}
 	return count, nil

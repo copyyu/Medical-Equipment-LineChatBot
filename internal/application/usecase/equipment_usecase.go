@@ -31,9 +31,9 @@ func NewEquipmentUsecase(equipmentService service.EquipmentService) EquipmentUse
 	}
 }
 
-// GetEquipmentList - ดึงรายการ Equipment แบบ pagination
+// GetEquipmentList - ดึงรายการ Equipment แบบ pagination พร้อม filter
 func (u *equipmentUsecase) GetEquipmentList(ctx context.Context, req dto.EquipmentListRequest) (*dto.EquipmentListResponse, error) {
-	log.Printf("Usecase: GetEquipmentList - Page: %d, Limit: %d", req.Page, req.Limit)
+	log.Printf("Usecase: GetEquipmentList - Page: %d, Limit: %d, Status: %s, Search: %s", req.Page, req.Limit, req.Status, req.Search)
 
 	// Set default values
 	if req.Page <= 0 {
@@ -49,18 +49,41 @@ func (u *equipmentUsecase) GetEquipmentList(ctx context.Context, req dto.Equipme
 	// Calculate offset
 	offset := (req.Page - 1) * req.Limit
 
-	// Get total count from service
-	total, err := u.equipmentService.CountEquipments(ctx)
-	if err != nil {
-		log.Printf("Usecase: Error counting equipments: %v", err)
-		return nil, err
-	}
+	var total int64
+	var equipments []entity.Equipment
+	var err error
 
-	// Get equipment list with pagination from service
-	equipments, err := u.equipmentService.FindAllEquipments(ctx, req.Limit, offset)
-	if err != nil {
-		log.Printf("Usecase: Error getting equipments: %v", err)
-		return nil, err
+	// Check if we need to apply filters
+	hasFilter := req.Status != "" || req.Search != ""
+
+	if hasFilter {
+		// Get total count with filters
+		total, err = u.equipmentService.CountEquipmentsWithFilter(ctx, req.Status, req.Search)
+		if err != nil {
+			log.Printf("Usecase: Error counting equipments with filter: %v", err)
+			return nil, err
+		}
+
+		// Get equipment list with pagination and filters
+		equipments, err = u.equipmentService.FindAllEquipmentsWithFilter(ctx, req.Limit, offset, req.Status, req.Search)
+		if err != nil {
+			log.Printf("Usecase: Error getting equipments with filter: %v", err)
+			return nil, err
+		}
+	} else {
+		// Get total count without filters
+		total, err = u.equipmentService.CountEquipments(ctx)
+		if err != nil {
+			log.Printf("Usecase: Error counting equipments: %v", err)
+			return nil, err
+		}
+
+		// Get equipment list with pagination without filters
+		equipments, err = u.equipmentService.FindAllEquipments(ctx, req.Limit, offset)
+		if err != nil {
+			log.Printf("Usecase: Error getting equipments: %v", err)
+			return nil, err
+		}
 	}
 
 	// Map to DTO using mapper
@@ -76,7 +99,7 @@ func (u *equipmentUsecase) GetEquipmentList(ctx context.Context, req dto.Equipme
 		totalPages++
 	}
 
-	log.Printf("Usecase: Successfully retrieved %d equipments", len(items))
+	log.Printf("Usecase: Successfully retrieved %d equipments (total: %d, filtered: %v)", len(items), total, hasFilter)
 
 	return &dto.EquipmentListResponse{
 		Data:       items,
