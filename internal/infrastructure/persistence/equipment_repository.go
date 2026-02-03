@@ -317,3 +317,16 @@ func (r *EquipmentRepository) CountByStatus(ctx context.Context) (map[entity.Ass
 	}
 	return counts, nil
 }
+func (r *EquipmentRepository) CountExpired(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&entity.Equipment{}).
+		Where("remain_life <= ?", 0). // เงื่อนไข: อายุน้อยกว่าหรือเท่ากับ 0
+		Count(&count).Error
+
+	if err != nil {
+		log.Printf("Error counting expired equipments: %v", err)
+		return 0, err
+	}
+	return count, nil
+}

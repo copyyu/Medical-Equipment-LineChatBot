@@ -282,7 +282,7 @@ func (u *equipmentUsecase) CreateEquipment(ctx context.Context, req dto.CreateEq
 		equipment.Others = &req.Others
 	}
 
-	// 9. Calculate and set Status based on RemainLife
+	// 9. ✅ Calculate and set Status based on RemainLife
 	equipment.Status = u.calculateStatus(req.RemainLife)
 
 	// 10. Save to database via service
@@ -372,11 +372,12 @@ func (u *equipmentUsecase) validateCreateRequest(req dto.CreateEquipmentRequest)
 	return nil
 }
 
+// calculateStatus determines the asset status based on remain_life
 func (u *equipmentUsecase) calculateStatus(remainLife float64) entity.AssetStatus {
 	if remainLife <= 0 {
-		return entity.AssetStatusPlanToReplace // ถึงเวลาเปลี่ยนแล้ว
+		return entity.AssetStatusPlanToReplace // Expired
 	} else if remainLife <= 1 {
-		return entity.AssetStatusPlanToReplace // เหลืออายุไม่ถึง 1 ปี
+		return entity.AssetStatusPlanToReplace // Near Expiry (Warning)
 	}
-	return entity.AssetStatusActive // ใช้งานปกติ
+	return entity.AssetStatusActive // Active
 }
