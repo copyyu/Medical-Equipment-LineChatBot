@@ -27,6 +27,7 @@ type EquipmentRepository interface {
 	FindAllWithFilter(ctx context.Context, limit, offset int, status, search string) ([]entity.Equipment, error)
 
 	// Aggregate Query Operations (for Dashboard)
+	CountExpired(ctx context.Context) (int64, error)
 	Count(ctx context.Context) (int64, error)
 	CountWithFilter(ctx context.Context, status, search string) (int64, error)
 	CountNearExpiry(ctx context.Context) (int64, error)

@@ -218,6 +218,7 @@ func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.
 		LastCheck:  lastCheck,
 		Expiry:     expiry,
 		IsExpiring: isExpiring,
+		RemainLife: entity.RemainLife,
 	}
 }
 

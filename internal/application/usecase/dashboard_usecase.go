@@ -29,43 +29,50 @@ func NewDashboardUsecase(
 }
 
 func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.DashboardSummaryResponse, error) {
-	// Get total equipment count
+	// 1. Get total equipment count
 	totalEquipment, err := u.equipmentRepo.Count(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get near expiry count (equipment with remain_life <= 1 year)
+	// ✅ 2. Get expired equipment count (remain_life <= 0)
+	// เพิ่มส่วนนี้เพื่อดึงข้อมูลอุปกรณ์ที่หมดอายุจาก Database
+	expiredEquipment, err := u.equipmentRepo.CountExpired(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Get near expiry count (equipment with remain_life <= 1 year)
 	nearExpiry, err := u.equipmentRepo.CountNearExpiry(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get total maintenance count
+	// 4. Get total maintenance count
 	totalMaintenance, err := u.maintenanceRepo.Count(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get equipment count by Asset Status (จาก field status ใน equipments table)
+	// 5. Get equipment count by Asset Status
 	assetStatusMap, err := u.equipmentRepo.CountByStatus(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get maintenance count by Job Status (จาก field status ใน maintenance_records table)
+	// 6. Get maintenance count by Job Status
 	jobStatusMap, err := u.maintenanceRepo.CountByStatus(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get recent maintenance jobs
+	// 7. Get recent maintenance jobs
 	recentMaintenance, err := u.maintenanceRepo.GetRecent(ctx, 5)
 	if err != nil {
 		return nil, err
 	}
 
-	// Build Asset Status Counts from real data
+	// Build Asset Status Counts
 	assetStatusCounts := []dto.AssetStatusCount{
 		{Status: "active", Count: assetStatusMap[entity.AssetStatusActive]},
 		{Status: "defective", Count: assetStatusMap[entity.AssetStatusDefective]},
@@ -76,7 +83,7 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 		{Status: "plan_to_replace", Count: assetStatusMap[entity.AssetStatusPlanToReplace]},
 	}
 
-	// Build Job Status Counts from real data
+	// Build Job Status Counts
 	jobCounts := []dto.JobStatusCount{
 		{Status: "in_process", Count: jobStatusMap[entity.JobStatusInProcess]},
 		{Status: "return_equipment_back", Count: jobStatusMap[entity.JobStatusReturnEquipmentBack]},
@@ -96,7 +103,7 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 		recentJobs = append(recentJobs, dto.RecentJobResponse{
 			ID:            formatJobID(m.ID),
 			EquipmentName: equipmentName,
-			Status:        string(m.Status), // ใช้ status จริงจาก DB
+			Status:        string(m.Status),
 			Assignee:      getAssignee(m.Technician),
 			UpdatedAt:     formatTimeAgo(m.UpdatedAt),
 		})
@@ -104,7 +111,7 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 
 	return &dto.DashboardSummaryResponse{
 		TotalEquipment:    totalEquipment,
-		RentalEquipment:   0, // TODO: Add rental tracking if needed
+		RentalEquipment:   expiredEquipment, // ✅ ใส่ค่า expiredEquipment ลงไปใน field นี้เพื่อให้ Frontend แสดงผล
 		NearExpiry:        nearExpiry,
 		TotalMaintenance:  totalMaintenance,
 		AssetStatusCounts: assetStatusCounts,
@@ -113,6 +120,7 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 	}, nil
 }
 
+// Helper functions
 func formatJobID(id uint) string {
 	return fmt.Sprintf("JOB-2026-%04d", id)
 }

@@ -16,14 +16,15 @@ type EquipmentListRequest struct {
 
 // EquipmentListItem represents a single equipment item for the table
 type EquipmentListItem struct {
-	ID         string `json:"id"`          // ID Code
-	Name       string `json:"name"`        // Model name or description
-	Category   string `json:"category"`    // Equipment category
-	Status     string `json:"status"`      // Asset status
-	Location   string `json:"location"`    // Department/location
-	LastCheck  string `json:"last_check"`  // Last maintenance date
-	Expiry     string `json:"expiry"`      // Based on replacement year or remain life
-	IsExpiring bool   `json:"is_expiring"` // Flag for expiring soon
+	ID         string  `json:"id"`          // ID Code
+	Name       string  `json:"name"`        // Model name or description
+	Category   string  `json:"category"`    // Equipment category
+	Status     string  `json:"status"`      // Asset status
+	Location   string  `json:"location"`    // Department/location
+	LastCheck  string  `json:"last_check"`  // Last maintenance date
+	Expiry     string  `json:"expiry"`      // Based on replacement year or remain life
+	IsExpiring bool    `json:"is_expiring"` // Flag for expiring soon
+	RemainLife float64 `json:"remain_life"`
 }
 
 // EquipmentListResponse represents the paginated equipment list response
