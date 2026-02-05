@@ -5,6 +5,7 @@ import (
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/domain/line/entity"
 	"strconv"
+	"time"
 )
 
 // EquipmentMapper - Mapper สำหรับแปลงระหว่าง Entity และ DTO
@@ -182,15 +183,24 @@ func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.
 	// Calculate expiry date based on replacement year
 	expiry := ""
 	isExpiring := false
+	currentYear := time.Now().Year()
+
 	if entity.ReplacementYear != nil {
 		expiry = formatYear(*entity.ReplacementYear)
-		// Check if expiring within 1 year
+		// Check if expiring (<= 1 year includes both expired and near expiry)
 		if entity.RemainLife <= 1 {
 			isExpiring = true
 		}
+	} else if entity.LifeExpectancy > 0 && entity.EquipmentAge > 0 {
+		// Calculate based on life expectancy and age
+		remainLife := entity.LifeExpectancy - entity.EquipmentAge
+		expiryYear := currentYear + int(remainLife)
+		expiry = formatYear(expiryYear)
+		if remainLife <= 1 {
+			isExpiring = true
+		}
 	} else if entity.RemainLife > 0 {
-		// Calculate based on remain life
-		currentYear := 2026 // Current year
+		// Fallback: Calculate based on remain life
 		expiryYear := currentYear + int(entity.RemainLife)
 		expiry = formatYear(expiryYear)
 		if entity.RemainLife <= 1 {
