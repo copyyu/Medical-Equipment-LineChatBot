@@ -96,6 +96,7 @@ type EquipmentUpdateRequest struct {
 	Status      string `json:"status"`       // Asset Status (active, defective, etc.)
 	Location    string `json:"location"`     // Department name
 	ComputeDate string `json:"compute_date"` // Last check date (YYYY-MM-DD)
+	ExpiryDate  string `json:"expiry_date"`  // Expiry date (YYYY-MM-DD) - will calculate RemainLife
 }
 
 // EquipmentDetailResponse represents a single equipment detail for GET by ID
