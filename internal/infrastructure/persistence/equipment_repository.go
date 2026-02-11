@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"log"
+	"math/rand"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/infrastructure/database"
 
@@ -329,4 +330,27 @@ func (r *EquipmentRepository) CountExpired(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return count, nil
+}
+func (r *EquipmentRepository) FindSimilarByIDCodePrefix(prefix string, limit int) ([]*entity.Equipment, error) {
+	var equipments []*entity.Equipment
+
+	// ดึงมาทั้งหมดที่ match prefix ก่อน
+	err := r.db.
+		Where("id_code LIKE ?", prefix+"%").
+		Find(&equipments).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// สุ่ม shuffle
+	rand.Shuffle(len(equipments), func(i, j int) {
+		equipments[i], equipments[j] = equipments[j], equipments[i]
+	})
+
+	// ตัดให้เหลือแค่ limit
+	if limit > 0 && len(equipments) > limit {
+		equipments = equipments[:limit]
+	}
+
+	return equipments, nil
 }

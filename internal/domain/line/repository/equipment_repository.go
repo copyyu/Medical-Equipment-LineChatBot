@@ -16,6 +16,7 @@ type EquipmentRepository interface {
 	GetMaintenanceRecords(equipmentID uint) ([]entity.MaintenanceRecord, error)
 	// CreateMaintenanceRecord creates a new maintenance record
 	CreateMaintenanceRecord(record *entity.MaintenanceRecord) error
+	FindSimilarByIDCodePrefix(prefix string, limit int) ([]*entity.Equipment, error)
 
 	// CRUD methods for Excel import
 	Create(ctx context.Context, equipment *entity.Equipment) error

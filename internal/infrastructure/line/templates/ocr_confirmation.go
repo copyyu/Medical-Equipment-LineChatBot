@@ -2,8 +2,13 @@ package templates
 
 import "fmt"
 
-// GetOCRConfirmationFlex returns a Flex Message for OCR confirmation
-// Shows detected serial number and asks user to confirm
+//
+// ===============================
+// OCR CONFIRMATION
+// ===============================
+
+// GetOCRConfirmationFlex
+// แสดงเลขที่ OCR อ่านได้ และให้ผู้ใช้ยืนยัน
 func GetOCRConfirmationFlex(detectedText string, imageURL string) map[string]interface{} {
 	return map[string]interface{}{
 		"type": "bubble",
@@ -14,29 +19,58 @@ func GetOCRConfirmationFlex(detectedText string, imageURL string) map[string]int
 			"backgroundColor": "#0367D3",
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "🔍 ตรวจสอบหมายเลขเครื่อง", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "🔍 ตรวจสอบหมายเลขเครื่อง",
+					"color":  "#FFFFFF",
+					"size":   "md",
+					"weight": "bold",
+				},
 			},
 		},
 		"body": map[string]interface{}{
-			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
+			"type":       "box",
+			"layout":     "vertical",
+			"spacing":    "md",
+			"paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": "ระบบอ่านได้เลข:", "size": "sm", "color": "#888888",
+					"type":  "text",
+					"text":  "ระบบอ่านได้เลข:",
+					"size":  "sm",
+					"color": "#888888",
 				},
 				map[string]interface{}{
-					"type": "text", "text": detectedText, "size": "xxl", "weight": "bold", "color": "#0367D3", "align": "center",
+					"type":   "text",
+					"text":   detectedText,
+					"size":   "xxl",
+					"weight": "bold",
+					"color":  "#0367D3",
+					"align":  "center",
 				},
-				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "ถูกต้องหรือไม่?", "size": "md", "weight": "bold", "align": "center", "margin": "md",
+					"type":   "separator",
+					"margin": "md",
+				},
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "ถูกต้องหรือไม่?",
+					"size":   "md",
+					"weight": "bold",
+					"align":  "center",
+					"margin": "md",
 				},
 			},
 		},
 		"footer": map[string]interface{}{
-			"type": "box", "layout": "horizontal", "spacing": "sm",
+			"type":    "box",
+			"layout":  "horizontal",
+			"spacing": "sm",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#4CAF50",
+					"type":  "button",
+					"style": "primary",
+					"color": "#4CAF50",
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "✅ ใช่ ถูกต้อง",
@@ -45,11 +79,12 @@ func GetOCRConfirmationFlex(detectedText string, imageURL string) map[string]int
 					},
 				},
 				map[string]interface{}{
-					"type": "button", "style": "secondary",
+					"type":  "button",
+					"style": "secondary",
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "❌ ไม่ใช่",
-						"data":        "action=ocr_confirm_no",
+						"data":        fmt.Sprintf("action=ocr_confirm_no&serial=%s", detectedText),
 						"displayText": "ไม่ใช่",
 					},
 				},
@@ -58,7 +93,89 @@ func GetOCRConfirmationFlex(detectedText string, imageURL string) map[string]int
 	}
 }
 
-// GetOCRNotFoundFlex returns a Flex Message when serial number is not found in DB
+//
+// ===============================
+// OCR SIMILAR SERIALS (NEW)
+// ===============================
+
+// GetOCRSimilarFlex
+// แสดงหมายเลขที่ใกล้เคียงจาก database เมื่อผู้ใช้กด "ไม่ใช่"
+func GetOCRSimilarFlex(detectedText string, suggestions []string) map[string]interface{} {
+
+	contents := []interface{}{
+		map[string]interface{}{
+			"type":  "text",
+			"text":  fmt.Sprintf("ระบบอ่านได้: %s", detectedText),
+			"size":  "sm",
+			"color": "#888888",
+		},
+		map[string]interface{}{
+			"type":   "text",
+			"text":   "หมายเลขที่ต้องการใช่เหล่านี้หรือไม่",
+			"size":   "md",
+			"weight": "bold",
+			"margin": "md",
+		},
+	}
+
+	for _, s := range suggestions {
+		contents = append(contents, map[string]interface{}{
+			"type":   "button",
+			"style":  "secondary",
+			"margin": "sm",
+			"action": map[string]interface{}{
+				"type":        "postback",
+				"label":       s,
+				"data":        fmt.Sprintf("action=ocr_select_serial&serial=%s", s),
+				"displayText": s,
+			},
+		})
+	}
+
+	contents = append(contents, map[string]interface{}{
+		"type":   "button",
+		"style":  "secondary",
+		"margin": "md",
+		"action": map[string]interface{}{
+			"type":        "postback",
+			"label":       "❓ ไม่มีในรายการ",
+			"data":        "action=ocr_no_match",
+			"displayText": "ไม่มีในรายการ",
+		},
+	})
+
+	return map[string]interface{}{
+		"type": "bubble",
+		"size": "kilo",
+		"header": map[string]interface{}{
+			"type":            "box",
+			"layout":          "vertical",
+			"backgroundColor": "#673AB7",
+			"paddingAll":      "12px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "🔎 หมายเลขที่ใกล้เคียง",
+					"color":  "#FFFFFF",
+					"weight": "bold",
+				},
+			},
+		},
+		"body": map[string]interface{}{
+			"type":     "box",
+			"layout":   "vertical",
+			"spacing":  "md",
+			"contents": contents,
+		},
+	}
+}
+
+//
+// ===============================
+// OCR NOT FOUND
+// ===============================
+
+// GetOCRNotFoundFlex
 func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 	return map[string]interface{}{
 		"type": "bubble",
@@ -69,36 +186,40 @@ func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 			"backgroundColor": "#FF9800",
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "⚠️ ไม่พบข้อมูล", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "⚠️ ไม่พบข้อมูล",
+					"color":  "#FFFFFF",
+					"weight": "bold",
+				},
 			},
 		},
 		"body": map[string]interface{}{
-			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
+			"type":    "box",
+			"layout":  "vertical",
+			"spacing": "md",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("ระบบอ่านได้: %s", detectedText), "size": "md", "wrap": true,
+					"type": "text",
+					"text": fmt.Sprintf("ระบบอ่านได้: %s", detectedText),
 				},
 				map[string]interface{}{
-					"type": "text", "text": "ไม่พบเครื่องมือนี้ในระบบ", "size": "sm", "color": "#888888", "wrap": true,
-				},
-				map[string]interface{}{"type": "separator", "margin": "md"},
-				map[string]interface{}{
-					"type": "text", "text": "กรุณาตรวจสอบข้อความแล้วส่งรูปภาพใหม่", "size": "sm", "align": "center", "margin": "md",
-				},
-			},
-		},
-		"footer": map[string]interface{}{
-			"type": "box", "layout": "vertical",
-			"contents": []interface{}{
-				map[string]interface{}{
-					"type": "text", "text": "กรุณาเลือกเมนูด้านล่างเพื่อทำรายการอื่น", "size": "xs", "color": "#888888", "align": "center",
+					"type":  "text",
+					"text":  "ไม่พบเครื่องมือนี้ในระบบ",
+					"size":  "sm",
+					"color": "#888888",
 				},
 			},
 		},
 	}
 }
 
-// GetOCRErrorFlex returns a Flex Message when OCR fails
+//
+// ===============================
+// OCR ERROR
+// ===============================
+
+// GetOCRErrorFlex
 func GetOCRErrorFlex() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "bubble",
@@ -109,32 +230,42 @@ func GetOCRErrorFlex() map[string]interface{} {
 			"backgroundColor": "#F44336",
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "❌ อ่านรูปไม่สำเร็จ", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "❌ อ่านรูปไม่สำเร็จ",
+					"color":  "#FFFFFF",
+					"weight": "bold",
+				},
 			},
 		},
 		"body": map[string]interface{}{
-			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
+			"type":    "box",
+			"layout":  "vertical",
+			"spacing": "md",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": "ระบบไม่สามารถอ่านหมายเลขจากรูปได้", "size": "sm", "wrap": true,
+					"type": "text",
+					"text": "ระบบไม่สามารถอ่านหมายเลขจากรูปได้",
+					"size": "sm",
 				},
 				map[string]interface{}{
-					"type": "text", "text": "กรุณาถ่ายรูปใหม่ให้เห็นตัวเลขชัดๆ", "size": "sm", "color": "#888888", "wrap": true, "margin": "md",
-				},
-			},
-		},
-		"footer": map[string]interface{}{
-			"type": "box", "layout": "vertical",
-			"contents": []interface{}{
-				map[string]interface{}{
-					"type": "text", "text": "กรุณาเลือกเมนูด้านล่างเพื่อทำรายการอื่น", "size": "xs", "color": "#888888", "align": "center",
+					"type":   "text",
+					"text":   "กรุณาถ่ายรูปใหม่ให้เห็นตัวเลขชัดๆ",
+					"size":   "sm",
+					"color":  "#888888",
+					"margin": "md",
 				},
 			},
 		},
 	}
 }
 
-// GetRetryPhotoFlex returns a message asking user to retake photo
+//
+// ===============================
+// RETRY PHOTO
+// ===============================
+
+// GetRetryPhotoFlex
 func GetRetryPhotoFlex() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "bubble",
@@ -145,25 +276,29 @@ func GetRetryPhotoFlex() map[string]interface{} {
 			"backgroundColor": "#5B9BD5",
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "📷 ส่งรูปใหม่", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "📷 ส่งรูปใหม่",
+					"color":  "#FFFFFF",
+					"weight": "bold",
+				},
 			},
 		},
 		"body": map[string]interface{}{
-			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
+			"type":    "box",
+			"layout":  "vertical",
+			"spacing": "md",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": "ขออภัยครับ รูปอาจไม่ชัด", "size": "md", "wrap": true,
+					"type": "text",
+					"text": "ขออภัยครับ รูปอาจไม่ชัด",
 				},
 				map[string]interface{}{
-					"type": "text", "text": "กรุณาถ่ายรูปใหม่ให้เห็นตัวเลขชัดๆ หน่อยครับ", "size": "sm", "color": "#888888", "wrap": true, "margin": "md",
-				},
-			},
-		},
-		"footer": map[string]interface{}{
-			"type": "box", "layout": "vertical",
-			"contents": []interface{}{
-				map[string]interface{}{
-					"type": "text", "text": "หรือเลือกเมนูด้านล่างเพื่อทำรายการอื่น", "size": "xs", "color": "#888888", "align": "center",
+					"type":   "text",
+					"text":   "กรุณาถ่ายรูปใหม่ให้เห็นตัวเลขชัดๆ หน่อยครับ",
+					"size":   "sm",
+					"color":  "#888888",
+					"margin": "md",
 				},
 			},
 		},
