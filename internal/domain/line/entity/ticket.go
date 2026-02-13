@@ -11,7 +11,7 @@ import (
 type TicketStatus string
 
 const (
-	TicketStatusInProgress      TicketStatus = "in_progress"           // กำลังดำเนินการ
+	TicketStatusInProcess       TicketStatus = "in_process"            // กำลังดำเนินการ
 	TicketStatusCompleted       TicketStatus = "return_equipment_back" // ส่งคืนเครื่องแล้ว (งานเสร็จ)
 	TicketStatusSendToOutsource TicketStatus = "send_to_outsource"     // ส่งซ่อมภายนอก
 )
@@ -19,7 +19,7 @@ const (
 // GetStatusText returns Thai text for ticket status
 func (s TicketStatus) GetStatusText() string {
 	switch s {
-	case TicketStatusInProgress:
+	case TicketStatusInProcess:
 		return "กำลังดำเนินการ"
 	case TicketStatusCompleted:
 		return "ส่งคืนเครื่องแล้ว"
@@ -33,7 +33,7 @@ func (s TicketStatus) GetStatusText() string {
 // GetColor returns hex color for ticket status
 func (s TicketStatus) GetColor() string {
 	switch s {
-	case TicketStatusInProgress:
+	case TicketStatusInProcess:
 		return "#42A5F5" // Blue
 	case TicketStatusCompleted:
 		return "#66BB6A" // Green
@@ -110,7 +110,7 @@ type Ticket struct {
 	ReporterPhotoURL *string `gorm:"size:500" json:"reporter_photo_url"`
 
 	// Status Field
-	Status TicketStatus `gorm:"size:50;default:'in_progress'" json:"status"`
+	Status TicketStatus `gorm:"size:50;default:'in_process'" json:"status"`
 
 	// Timestamps
 	ReportedAt  time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP" json:"reported_at"`

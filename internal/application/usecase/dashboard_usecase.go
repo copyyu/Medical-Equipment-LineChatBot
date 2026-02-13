@@ -88,7 +88,7 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 
 	// Build Ticket Status Counts
 	ticketStatusCounts := []dto.TicketStatusCount{
-		{Status: "in_progress", Count: inProgress},
+		{Status: "in_process", Count: inProgress},
 		{Status: "return_equipment_back", Count: completed},
 		{Status: "send_to_outsource", Count: sendToOutsource},
 	}

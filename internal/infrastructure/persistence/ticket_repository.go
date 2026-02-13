@@ -71,7 +71,7 @@ func (r *TicketRepository) UpdateTicketStatus(ticketID uint, newStatus entity.Ti
 
 		// Update timestamps
 		now := time.Now()
-		if newStatus == entity.TicketStatusInProgress && ticket.StartedAt == nil {
+		if newStatus == entity.TicketStatusInProcess && ticket.StartedAt == nil {
 			ticket.StartedAt = &now
 		} else if newStatus == entity.TicketStatusCompleted && ticket.CompletedAt == nil {
 			ticket.CompletedAt = &now
@@ -194,7 +194,7 @@ func (r *TicketRepository) GetTicketStats() (total, inProgress, completed, sendT
 	for _, res := range results {
 		total += res.Count
 		switch res.Status {
-		case entity.TicketStatusInProgress:
+		case entity.TicketStatusInProcess:
 			inProgress = res.Count
 		case entity.TicketStatusCompleted:
 			completed = res.Count
@@ -226,7 +226,7 @@ func (r *TicketRepository) FindPendingTicketByEquipmentAndUser(equipmentID uint,
 	err := r.db.Preload("Category").
 		Where("equipment_id = ?", equipmentID).
 		Where("reporter_line_id = ?", lineUserID).
-		Where("status IN ?", []entity.TicketStatus{entity.TicketStatusInProgress}).
+		Where("status IN ?", []entity.TicketStatus{entity.TicketStatusInProcess}).
 		First(&ticket).Error
 
 	if err == gorm.ErrRecordNotFound {
