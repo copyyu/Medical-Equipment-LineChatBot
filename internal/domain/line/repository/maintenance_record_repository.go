@@ -19,8 +19,6 @@ type MaintenanceRecordRepository interface {
 	// Aggregate Query Operations (for Dashboard)
 	Count(ctx context.Context) (int64, error)
 	CountByType(ctx context.Context) (map[string]int64, error)
-	CountByStatus(ctx context.Context) (map[entity.JobStatus]int64, error) // นับจำนวนงานซ่อมแยกตาม Status
 	GetRecent(ctx context.Context, limit int) ([]entity.MaintenanceRecord, error)
 	GetTotalCostByEquipmentID(ctx context.Context, equipmentID uint) (float64, error)
-	GetCMCountByEquipmentID(ctx context.Context, equipmentID uint) (int64, error)
 }

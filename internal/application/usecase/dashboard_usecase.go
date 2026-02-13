@@ -16,15 +16,18 @@ type DashboardUsecase interface {
 type dashboardUsecase struct {
 	equipmentRepo   repository.EquipmentRepository
 	maintenanceRepo repository.MaintenanceRecordRepository
+	ticketRepo      repository.TicketRepository
 }
 
 func NewDashboardUsecase(
 	equipmentRepo repository.EquipmentRepository,
 	maintenanceRepo repository.MaintenanceRecordRepository,
+	ticketRepo repository.TicketRepository,
 ) DashboardUsecase {
 	return &dashboardUsecase{
 		equipmentRepo:   equipmentRepo,
 		maintenanceRepo: maintenanceRepo,
+		ticketRepo:      ticketRepo,
 	}
 }
 
@@ -60,14 +63,14 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 		return nil, err
 	}
 
-	// 6. Get maintenance count by Job Status
-	jobStatusMap, err := u.maintenanceRepo.CountByStatus(ctx)
+	// 6. Get ticket stats (using TicketStatus)
+	_, inProgress, completed, sendToOutsource, err := u.ticketRepo.GetTicketStats()
 	if err != nil {
 		return nil, err
 	}
 
-	// 7. Get recent maintenance jobs
-	recentMaintenance, err := u.maintenanceRepo.GetRecent(ctx, 5)
+	// 7. Get recent maintenance jobs (from Tickets)
+	recentTickets, err := u.ticketRepo.GetRecentTickets(5)
 	if err != nil {
 		return nil, err
 	}
@@ -83,40 +86,46 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 		{Status: "plan_to_replace", Count: assetStatusMap[entity.AssetStatusPlanToReplace]},
 	}
 
-	// Build Job Status Counts
-	jobCounts := []dto.JobStatusCount{
-		{Status: "in_process", Count: jobStatusMap[entity.JobStatusInProcess]},
-		{Status: "return_equipment_back", Count: jobStatusMap[entity.JobStatusReturnEquipmentBack]},
-		{Status: "send_to_outsource", Count: jobStatusMap[entity.JobStatusSendToOutsource]},
+	// Build Ticket Status Counts
+	ticketStatusCounts := []dto.TicketStatusCount{
+		{Status: "in_progress", Count: inProgress},
+		{Status: "return_equipment_back", Count: completed},
+		{Status: "send_to_outsource", Count: sendToOutsource},
 	}
 
 	// Build recent jobs list
 	recentJobs := make([]dto.RecentJobResponse, 0)
-	for _, m := range recentMaintenance {
+	for _, t := range recentTickets {
 		equipmentName := ""
-		if m.Equipment.Model.ModelName != "" {
-			equipmentName = m.Equipment.Model.ModelName + " #" + m.Equipment.IDCode
+		if t.Equipment != nil {
+			if t.Equipment.Model.ModelName != "" {
+				equipmentName = t.Equipment.Model.ModelName + " #" + t.Equipment.IDCode
+			} else {
+				equipmentName = t.Equipment.IDCode
+			}
 		} else {
-			equipmentName = m.Equipment.IDCode
+			equipmentName = "Unknown Equipment"
 		}
 
+		assignee := "ยังไม่ได้มอบหมาย"
+
 		recentJobs = append(recentJobs, dto.RecentJobResponse{
-			ID:            formatJobID(m.ID),
+			ID:            t.TicketNo, // Use TicketNo instead of generated JOB-ID
 			EquipmentName: equipmentName,
-			Status:        string(m.Status),
-			Assignee:      getAssignee(m.Technician),
-			UpdatedAt:     formatTimeAgo(m.UpdatedAt),
+			Status:        string(t.Status), // Use TicketStatus
+			Assignee:      assignee,
+			UpdatedAt:     formatTimeAgo(t.UpdatedAt),
 		})
 	}
 
 	return &dto.DashboardSummaryResponse{
-		TotalEquipment:    totalEquipment,
-		RentalEquipment:   expiredEquipment, // ✅ ใส่ค่า expiredEquipment ลงไปใน field นี้เพื่อให้ Frontend แสดงผล
-		NearExpiry:        nearExpiry,
-		TotalMaintenance:  totalMaintenance,
-		AssetStatusCounts: assetStatusCounts,
-		JobStatusCounts:   jobCounts,
-		RecentJobs:        recentJobs,
+		TotalEquipment:     totalEquipment,
+		RentalEquipment:    expiredEquipment, // ✅ ใส่ค่า expiredEquipment ลงไปใน field นี้เพื่อให้ Frontend แสดงผล
+		NearExpiry:         nearExpiry,
+		TotalMaintenance:   totalMaintenance,
+		AssetStatusCounts:  assetStatusCounts,
+		TicketStatusCounts: ticketStatusCounts,
+		RecentJobs:         recentJobs,
 	}, nil
 }
 

@@ -20,6 +20,7 @@ const (
 	ModeReportProblem  SessionMode = "report_problem"   // แจ้งปัญหา/เช็กสถานะ
 	ModeTrackStatus    SessionMode = "track_status"     // ติดตามสถานะ
 	ModeInputIssueDesc SessionMode = "input_issue_desc" // รอพิมพ์รายละเอียดปัญหา
+	ModeSelectCategory SessionMode = "select_category"  // รอเลือกหมวดหมู่
 )
 
 // OCRSession stores pending OCR result for a user
@@ -28,6 +29,7 @@ type OCRSession struct {
 	SerialNumber string
 	ImageURL     string
 	Timestamp    time.Time
+	CategoryID   uint
 }
 
 // SessionStore manages user sessions in memory
