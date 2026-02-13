@@ -3,7 +3,7 @@ package templates
 import "fmt"
 
 // GetIssueInputFlex returns a Flex Message asking whether to input issue description or skip
-func GetIssueInputFlex(serialNumber string) map[string]interface{} {
+func GetIssueInputFlex(serialNumber string, categoryID uint) map[string]interface{} {
 	return map[string]interface{}{
 		"type": "bubble",
 		"size": "kilo",
@@ -36,7 +36,7 @@ func GetIssueInputFlex(serialNumber string) map[string]interface{} {
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "✏️ พิมพ์รายละเอียด",
-						"data":        fmt.Sprintf("action=input_issue_desc&serial=%s", serialNumber),
+						"data":        fmt.Sprintf("action=input_issue_desc&serial=%s&category_id=%d", serialNumber, categoryID),
 						"displayText": "พิมพ์รายละเอียดปัญหา",
 					},
 				},
@@ -45,7 +45,7 @@ func GetIssueInputFlex(serialNumber string) map[string]interface{} {
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "⏭️ ข้าม (ไม่ระบุ)",
-						"data":        fmt.Sprintf("action=submit_issue&serial=%s&desc=", serialNumber),
+						"data":        fmt.Sprintf("action=submit_issue&serial=%s&category_id=%d&desc=", serialNumber, categoryID),
 						"displayText": "ข้ามการระบุรายละเอียด",
 					},
 				},
