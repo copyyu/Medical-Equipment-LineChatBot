@@ -1,11 +1,12 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/url"
+	"strconv"
 	"strings"
-	"time"
 
 	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/domain/constants"
@@ -26,6 +27,7 @@ type MessageUseCase struct {
 	ocrClient      *client.OCRClient
 	sessionStore   *session.SessionStore
 	messageService *service.MessageService
+	ticketUseCase  *TicketUseCase
 }
 
 // NewMessageUseCase creates a new message use case
@@ -35,6 +37,7 @@ func NewMessageUseCase(
 	ocrClient *client.OCRClient,
 	sessionStore *session.SessionStore,
 	messageService *service.MessageService,
+	ticketUseCase *TicketUseCase,
 ) *MessageUseCase {
 	return &MessageUseCase{
 		lineRepo:       lineRepo,
@@ -42,6 +45,7 @@ func NewMessageUseCase(
 		ocrClient:      ocrClient,
 		sessionStore:   sessionStore,
 		messageService: messageService,
+		ticketUseCase:  ticketUseCase,
 	}
 }
 
@@ -148,37 +152,57 @@ func (uc *MessageUseCase) handleInputIssueDescInput(msg *model.IncomingMessage, 
 	// Sanitize input
 	description := SanitizeInput(text)
 
-	// Create maintenance record
-	err := uc.createMaintenanceRecord(session.SerialNumber, description)
+	// Get user profile for ticket creation
+	displayName := ""
+	photoURL := ""
+
+	var profile *model.UserProfile
+	var err error
+
+	switch msg.SourceType {
+	case "group":
+		profile, err = uc.lineRepo.GetGroupMemberProfile(msg.GroupID, msg.UserID)
+	case "room":
+		profile, err = uc.lineRepo.GetRoomMemberProfile(msg.GroupID, msg.UserID)
+	default:
+		profile, err = uc.lineRepo.GetProfile(msg.UserID)
+	}
+
 	if err != nil {
-		log.Printf("❌ Failed to create maintenance record: %v", err)
-		uc.sessionStore.Delete(msg.UserID)
+		log.Printf("❌ Failed to get user profile: %v", err)
+		displayName = "LINE User"
+	} else if profile != nil {
+		displayName = profile.DisplayName
+		photoURL = profile.PictureURL
+	} else {
+		displayName = "LINE User"
+	}
+
+	// Create ticket with category from session
+	ticket, err := uc.ticketUseCase.CreateTicketFromLINE(
+		session.SerialNumber,
+		description,
+		msg.UserID,
+		displayName,
+		photoURL,
+		session.CategoryID,
+	)
+
+	// Clear session first
+	uc.sessionStore.Delete(msg.UserID)
+
+	if err != nil {
+		// Check if it's a duplicate ticket error
+		if err == ErrDuplicateTicket && ticket != nil {
+			log.Printf("⚠️ Duplicate ticket found: %s", ticket.TicketNo)
+			return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "พบรายการซ้ำ", templates.GetDuplicateTicketFlex(ticket.TicketNo, session.SerialNumber, ticket.Status.GetStatusText()))
+		}
+		log.Printf("❌ Failed to create ticket: %v", err)
 		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgIssueReportFailed)
 	}
 
-	// Clear session and show success
-	uc.sessionStore.Delete(msg.UserID)
-	return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "บันทึกสำเร็จ", templates.GetIssueSuccessFlex(session.SerialNumber))
-}
-
-// createMaintenanceRecord creates a new maintenance record for equipment
-func (uc *MessageUseCase) createMaintenanceRecord(serialOrCode, description string) error {
-	// Find equipment first
-	equipment, err := uc.equipmentRepo.FindBySerialOrCode(serialOrCode)
-	if err != nil || equipment == nil {
-		return fmt.Errorf("equipment not found: %s", serialOrCode)
-	}
-
-	// Create maintenance record
-	record := &entity.MaintenanceRecord{
-		EquipmentID:     equipment.ID,
-		MaintenanceType: entity.MaintenanceCM, // CM = Corrective Maintenance (ซ่อมแซม)
-		MaintenanceDate: time.Now(),
-		Description:     description,
-		Status:          entity.JobStatusInProcess,
-	}
-
-	return uc.equipmentRepo.CreateMaintenanceRecord(record)
+	// Show success with ticket info
+	return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "สร้าง Ticket สำเร็จ", templates.GetTicketCreatedFlex(ticket))
 }
 
 // HandleImageMessage handles incoming image message - processes OCR
@@ -312,19 +336,50 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case ActionStartReportIssue:
-		// Show issue input menu (พิมพ์รายละเอียด/ข้าม)
+		// Show category selection menu first
 		if serial != "" {
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งปัญหา", templates.GetIssueInputFlex(serial))
+			categories, err := uc.ticketUseCase.GetTicketCategories(context.Background())
+			if err != nil {
+				log.Printf("❌ Failed to get categories: %v", err)
+				// Fallback: skip category selection and go to issue input with default category
+				return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งปัญหา", templates.GetIssueInputFlex(serial, 0))
+			}
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกหมวดหมู่", templates.GetCategorySelectionFlex(serial, categories))
+		}
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
+
+	case ActionConfirmCategory:
+		// User selected a category, show issue input
+		if serial != "" {
+			categoryIDStr := params.Get("category_id")
+			categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งปัญหา", templates.GetIssueInputFlex(serial, uint(categoryID)))
 		}
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case ActionInputIssueDesc:
 		// Set session mode to wait for issue description
 		if serial != "" {
-			uc.sessionStore.Set(event.Source.(webhook.UserSource).UserId, &session.OCRSession{
-				Mode:         session.ModeInputIssueDesc,
-				SerialNumber: serial,
-			})
+			categoryIDStr := params.Get("category_id")
+			categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
+
+			var userID string
+			switch source := event.Source.(type) {
+			case webhook.UserSource:
+				userID = source.UserId
+			case webhook.GroupSource:
+				userID = source.UserId
+			case webhook.RoomSource:
+				userID = source.UserId
+			}
+
+			if userID != "" {
+				uc.sessionStore.Set(userID, &session.OCRSession{
+					Mode:         session.ModeInputIssueDesc,
+					SerialNumber: serial,
+					CategoryID:   uint(categoryID),
+				})
+			}
 			return uc.lineRepo.ReplyMessage(replyToken, constants.MsgInputIssueDesc)
 		}
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
@@ -333,12 +388,68 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		// Submit issue without description (skip)
 		if serial != "" {
 			desc := params.Get("desc") // empty for skip
-			err := uc.createMaintenanceRecord(serial, desc)
+			categoryIDStr := params.Get("category_id")
+			categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
+			userID := ""
+			var groupID, sourceType string
+
+			switch source := event.Source.(type) {
+			case webhook.UserSource:
+				userID = source.UserId
+				sourceType = "user"
+			case webhook.GroupSource:
+				userID = source.UserId
+				groupID = source.GroupId
+				sourceType = "group"
+			case webhook.RoomSource:
+				userID = source.UserId
+				groupID = source.RoomId
+				sourceType = "room"
+			}
+
+			displayName := ""
+			photoURL := ""
+
+			var profile *model.UserProfile
+			var err error
+
+			switch sourceType {
+			case "group":
+				profile, err = uc.lineRepo.GetGroupMemberProfile(groupID, userID)
+			case "room":
+				profile, err = uc.lineRepo.GetRoomMemberProfile(groupID, userID)
+			default:
+				profile, err = uc.lineRepo.GetProfile(userID)
+			}
+
 			if err != nil {
-				log.Printf("❌ Failed to create maintenance record: %v", err)
+				log.Printf("❌ Failed to get user profile: %v", err)
+				displayName = "LINE User"
+			} else if profile != nil {
+				displayName = profile.DisplayName
+				photoURL = profile.PictureURL
+			} else {
+				displayName = "LINE User"
+			}
+
+			ticket, err := uc.ticketUseCase.CreateTicketFromLINE(
+				serial,
+				desc,
+				userID,
+				displayName,
+				photoURL,
+				uint(categoryID),
+			)
+			if err != nil {
+				// Check if it's a duplicate ticket error
+				if err == ErrDuplicateTicket && ticket != nil {
+					log.Printf("⚠️ Duplicate ticket found: %s", ticket.TicketNo)
+					return uc.lineRepo.ReplyFlexMessage(replyToken, "พบรายการซ้ำ", templates.GetDuplicateTicketFlex(ticket.TicketNo, serial, ticket.Status.GetStatusText()))
+				}
+				log.Printf("❌ Failed to create ticket: %v", err)
 				return uc.lineRepo.ReplyMessage(replyToken, constants.MsgIssueReportFailed)
 			}
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "บันทึกสำเร็จ", templates.GetIssueSuccessFlex(serial))
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "สร้าง Ticket สำเร็จ", templates.GetTicketCreatedFlex(ticket))
 		}
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
