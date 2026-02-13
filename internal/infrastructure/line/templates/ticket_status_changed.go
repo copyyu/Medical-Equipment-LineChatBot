@@ -224,7 +224,7 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 // getStatusEmoji returns emoji for status (local to this file)
 func getStatusEmoji(status entity.TicketStatus) string {
 	switch status {
-	case entity.TicketStatusInProgress:
+	case entity.TicketStatusInProcess:
 		return "🔧"
 	case entity.TicketStatusCompleted:
 		return "✅"

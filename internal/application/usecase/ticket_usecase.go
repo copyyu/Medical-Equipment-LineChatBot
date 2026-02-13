@@ -202,7 +202,7 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 
 		// Update timestamps
 		now := time.Now()
-		if newStatus == entity.TicketStatusInProgress && ticket.StartedAt == nil {
+		if newStatus == entity.TicketStatusInProcess && ticket.StartedAt == nil {
 			ticket.StartedAt = &now
 		} else if newStatus == entity.TicketStatusCompleted && ticket.CompletedAt == nil {
 			ticket.CompletedAt = &now
@@ -267,7 +267,7 @@ func (uc *TicketUseCase) GetTicketStats(ctx context.Context) (*dto.TicketStatsRe
 
 	return &dto.TicketStatsResponse{
 		Total:           total,
-		InProgress:      inProgress,
+		InProcess:       inProgress,
 		Completed:       completed,
 		SendToOutsource: sendToOutsource,
 	}, nil
@@ -384,7 +384,7 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 		ReporterLineID:   &lineUserID,
 		ReporterPhotoURL: &linePhotoURL,
 		DepartmentID:     &equipment.DepartmentID,
-		Status:           entity.TicketStatusInProgress,
+		Status:           entity.TicketStatusInProcess,
 		ReportedAt:       time.Now(),
 	}
 
