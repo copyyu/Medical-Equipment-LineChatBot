@@ -18,7 +18,6 @@ const (
 	ActionInputIssueDesc   = "input_issue_desc"    // รอพิมพ์รายละเอียด
 	ActionSubmitIssue      = "submit_issue"        // บันทึกปัญหา
 	ActionOCRRetake        = "ocr_retake"
-	ActionConfirmCategory  = "confirm_category" // ยืนยันหมวดหมู่ที่เลือก
 )
 
 // Validation constants
