@@ -100,12 +100,14 @@ func InitializeApp() (*Application, func(), error) {
 	ticketRepo := persistence.NewTicketRepository(database.GetDB())
 	ticketCategoryRepo := persistence.NewTicketCategoryRepository(database.GetDB())
 	ticketHistoryRepo := persistence.NewTicketHistoryRepository(database.GetDB())
+	ticketNotifyService := service.NewTicketNotificationService(lineRepo, ticketRepo)
 	ticketUseCase := usecase.NewTicketUseCase(
 		lineRepo,
 		equipmentRepo,
 		ticketRepo,
 		ticketCategoryRepo,
 		ticketHistoryRepo,
+		ticketNotifyService,
 	)
 
 	messageUseCase := usecase.NewMessageUseCase(
