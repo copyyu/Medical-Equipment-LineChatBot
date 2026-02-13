@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"medical-webhook/internal/application/dto"
+	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	"medical-webhook/internal/infrastructure/line/templates"
@@ -218,6 +219,23 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 		})
 	}
 
+	// Track if status changed for notification
+	statusChanged := false
+	var oldStatusValue entity.TicketStatus
+	var newStatusValue entity.TicketStatus
+	var statusNote string
+	for _, change := range changes {
+		if change.Action == entity.ActionStatusChanged {
+			statusChanged = true
+			oldStatusValue = entity.TicketStatus(*change.OldValue)
+			newStatusValue = entity.TicketStatus(*change.NewValue)
+			if change.Note != nil {
+				statusNote = *change.Note
+			}
+			break
+		}
+	}
+
 	// Update ticket in DB
 	if err := uc.ticketRepo.UpdateTicket(ticket); err != nil {
 		return err
@@ -226,6 +244,15 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 	// Save history records
 	for _, history := range changes {
 		_ = uc.historyRepo.CreateTicketHistory(&history)
+	}
+
+	// Send LINE notification if status changed (fire-and-forget)
+	if statusChanged && uc.notifyService != nil {
+		go func() {
+			if err := uc.notifyService.NotifyStatusChange(ticket.ID, oldStatusValue, newStatusValue, statusNote); err != nil {
+				log.Printf("⚠️ Failed to send status change notification for ticket %s: %v", ticket.TicketNo, err)
+			}
+		}()
 	}
 
 	return nil
@@ -257,6 +284,7 @@ type TicketUseCase struct {
 	ticketRepo    repository.TicketRepository
 	categoryRepo  repository.TicketCategoryRepository
 	historyRepo   repository.TicketHistoryRepository
+	notifyService *service.TicketNotificationService
 }
 
 // NewTicketUseCase creates a new ticket use case
@@ -266,6 +294,7 @@ func NewTicketUseCase(
 	ticketRepo repository.TicketRepository,
 	categoryRepo repository.TicketCategoryRepository,
 	historyRepo repository.TicketHistoryRepository,
+	notifyService *service.TicketNotificationService,
 ) *TicketUseCase {
 	return &TicketUseCase{
 		lineRepo:      lineRepo,
@@ -273,6 +302,7 @@ func NewTicketUseCase(
 		ticketRepo:    ticketRepo,
 		categoryRepo:  categoryRepo,
 		historyRepo:   historyRepo,
+		notifyService: notifyService,
 	}
 }
 
