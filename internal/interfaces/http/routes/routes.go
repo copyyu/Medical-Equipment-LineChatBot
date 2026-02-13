@@ -12,7 +12,8 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 	equipmentImportHandler *handlers.EquipmentImportHandler,
 	adminHandler *handlers.AdminHandler,
 	dashboardHandler *handlers.DashboardHandler,
-	equipmentHandler *handlers.EquipmentHandler) {
+	equipmentHandler *handlers.EquipmentHandler,
+	ticketHandler *handlers.TicketHandler) {
 	// Root endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -42,6 +43,9 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 
 	// Setup equipment routes
 	SetupEquipmentRoutes(app, equipmentHandler)
+
+	// Setup ticket routes
+	SetupTicketRoutes(app, ticketHandler)
 
 	// 404 handler (must be last)
 	app.Use(func(c *fiber.Ctx) error {

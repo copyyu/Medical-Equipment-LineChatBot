@@ -27,6 +27,7 @@ type Application struct {
 	EquipmentImportHandler *handlers.EquipmentImportHandler
 	AdminHandler           *handlers.AdminHandler
 	EquipmentHandler       *handlers.EquipmentHandler
+	TicketHandler          *handlers.TicketHandler
 }
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
@@ -96,12 +97,24 @@ func InitializeApp() (*Application, func(), error) {
 	)
 
 	// Initialize use cases (Application Layer)
+	ticketRepo := persistence.NewTicketRepository(database.GetDB())
+	ticketCategoryRepo := persistence.NewTicketCategoryRepository(database.GetDB())
+	ticketHistoryRepo := persistence.NewTicketHistoryRepository(database.GetDB())
+	ticketUseCase := usecase.NewTicketUseCase(
+		lineRepo,
+		equipmentRepo,
+		ticketRepo,
+		ticketCategoryRepo,
+		ticketHistoryRepo,
+	)
+
 	messageUseCase := usecase.NewMessageUseCase(
 		lineRepo,
 		equipmentRepo,
 		ocrClient,
 		sessionStore,
 		messageService,
+		ticketUseCase,
 	)
 	notificationUseCase := usecase.NewNotificationUseCase(
 		notificationRepo,
@@ -126,6 +139,7 @@ func InitializeApp() (*Application, func(), error) {
 	dashboardUseCase := usecase.NewDashboardUsecase(
 		equipmentRepo,
 		maintenanceRepo,
+		ticketRepo,
 	)
 
 	// Initialize equipment usecase for equipment list (using service layer)
@@ -138,6 +152,7 @@ func InitializeApp() (*Application, func(), error) {
 	adminHandler := handlers.NewAdminHandler(adminUseCase)
 	dashboardHandler := handlers.NewDashboardHandler(dashboardUseCase)
 	equipmentHandler := handlers.NewEquipmentHandler(equipmentUseCase)
+	ticketHandler := handlers.NewTicketHandler(ticketUseCase)
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
@@ -158,7 +173,7 @@ func InitializeApp() (*Application, func(), error) {
 	middleware.FiberMiddleware(app)
 
 	// Register Routes
-	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler)
+	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler)
 
 	// Initialize และ Start Notification Scheduler
 	notificationScheduler := scheduler.NewNotificationScheduler(notificationUseCase)
@@ -190,6 +205,7 @@ func InitializeApp() (*Application, func(), error) {
 		EquipmentImportHandler: equipmentImportHandler,
 		AdminHandler:           adminHandler,
 		EquipmentHandler:       equipmentHandler,
+		TicketHandler:          ticketHandler,
 	}, cleanup, nil
 }
 

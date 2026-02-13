@@ -93,15 +93,28 @@ func (h *WebhookHandler) handleMessageEvent(event webhook.MessageEvent) {
 		replyToken = event.ReplyToken
 	}
 
-	var userID string
-	if source, ok := event.Source.(webhook.UserSource); ok {
+	var userID, groupID, sourceType string
+
+	switch source := event.Source.(type) {
+	case webhook.UserSource:
 		userID = source.UserId
+		sourceType = "user"
+	case webhook.GroupSource:
+		userID = source.UserId
+		groupID = source.GroupId
+		sourceType = "group"
+	case webhook.RoomSource:
+		userID = source.UserId
+		groupID = source.RoomId
+		sourceType = "room"
 	}
 
 	switch msg := event.Message.(type) {
 	case webhook.TextMessageContent:
 		incomingMsg := &model.IncomingMessage{
 			UserID:      userID,
+			GroupID:     groupID,
+			SourceType:  sourceType,
 			MessageType: model.MessageTypeText,
 			Text:        msg.Text,
 			ReplyToken:  replyToken,
@@ -111,6 +124,8 @@ func (h *WebhookHandler) handleMessageEvent(event webhook.MessageEvent) {
 	case webhook.ImageMessageContent:
 		incomingMsg := &model.IncomingMessage{
 			UserID:      userID,
+			GroupID:     groupID,
+			SourceType:  sourceType,
 			MessageType: model.MessageTypeImage,
 			ImageID:     msg.Id,
 			ReplyToken:  replyToken,
@@ -120,6 +135,8 @@ func (h *WebhookHandler) handleMessageEvent(event webhook.MessageEvent) {
 	case webhook.LocationMessageContent:
 		incomingMsg := &model.IncomingMessage{
 			UserID:      userID,
+			GroupID:     groupID,
+			SourceType:  sourceType,
 			MessageType: model.MessageTypeLocation,
 			Location: &model.Location{
 				Latitude:  msg.Latitude,
