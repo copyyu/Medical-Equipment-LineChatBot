@@ -9,17 +9,7 @@ import (
 type MaintenanceType string
 
 const (
-	MaintenanceCM MaintenanceType = "CM" // Corrective Maintenance (ซ่อมแซม)
 	MaintenancePM MaintenanceType = "PM" // Preventive Maintenance (บำรุงรักษา)
-)
-
-// JobStatus represents the status of maintenance job
-type JobStatus string
-
-const (
-	JobStatusInProcess           JobStatus = "in_process"            // กำลังดำเนินการ
-	JobStatusReturnEquipmentBack JobStatus = "return_equipment_back" // ส่งคืนแล้ว (Job Closed)
-	JobStatusSendToOutsource     JobStatus = "send_to_outsource"     // ส่งซ่อมภายนอก
 )
 
 type MaintenanceRecord struct {
@@ -30,10 +20,12 @@ type MaintenanceRecord struct {
 	Cost            float64         `gorm:"type:decimal(15,2);default:0" json:"cost"` // ใช้สำหรับคำนวณ Total of Cost
 	Description     string          `gorm:"type:text" json:"description"`
 	Technician      string          `gorm:"size:100" json:"technician"`
-	Status          JobStatus       `gorm:"size:50;default:in_process" json:"status"` // Job Status
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt  `gorm:"index" json:"-"`
+
+	// Status field removed as it is moved to Ticket entity
+
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Relations
 	Equipment Equipment `gorm:"foreignKey:EquipmentID" json:"equipment,omitempty"`
