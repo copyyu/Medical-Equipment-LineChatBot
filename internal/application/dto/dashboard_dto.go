@@ -2,13 +2,13 @@ package dto
 
 // DashboardSummaryResponse represents the main dashboard statistics
 type DashboardSummaryResponse struct {
-	TotalEquipment    int64               `json:"total_equipment"`
-	RentalEquipment   int64               `json:"rental_equipment"`
-	NearExpiry        int64               `json:"near_expiry"`
-	TotalMaintenance  int64               `json:"total_maintenance"`
-	AssetStatusCounts []AssetStatusCount  `json:"asset_status_counts"`
-	JobStatusCounts   []JobStatusCount    `json:"job_status_counts"`
-	RecentJobs        []RecentJobResponse `json:"recent_jobs"`
+	TotalEquipment     int64               `json:"total_equipment"`
+	RentalEquipment    int64               `json:"rental_equipment"`
+	NearExpiry         int64               `json:"near_expiry"`
+	TotalMaintenance   int64               `json:"total_maintenance"`
+	AssetStatusCounts  []AssetStatusCount  `json:"asset_status_counts"`
+	TicketStatusCounts []TicketStatusCount `json:"ticket_status_counts"`
+	RecentJobs         []RecentJobResponse `json:"recent_jobs"`
 }
 
 // AssetStatusCount represents equipment count by status
@@ -18,7 +18,7 @@ type AssetStatusCount struct {
 }
 
 // JobStatusCount represents maintenance job count by status
-type JobStatusCount struct {
+type TicketStatusCount struct {
 	Status string `json:"status"`
 	Count  int64  `json:"count"`
 }
