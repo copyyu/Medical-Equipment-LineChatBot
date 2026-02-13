@@ -56,10 +56,15 @@ func Connect(cfg *config.Config) error {
 		&entity.NotificationSetting{},
 		&entity.Admin{},
 		&entity.AdminSession{},
+		&entity.Ticket{},
+		&entity.TicketCategory{},
+		&entity.TicketHistory{},
 	)
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
+
+	SeedTicketCategories(db)
 
 	return nil
 }
