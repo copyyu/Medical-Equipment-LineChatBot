@@ -11,6 +11,8 @@ const (
 // IncomingMessage represents an incoming LINE message
 type IncomingMessage struct {
 	UserID      string
+	GroupID     string
+	SourceType  string
 	MessageType MessageType
 	Text        string
 	ImageID     string
