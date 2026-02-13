@@ -6,6 +6,8 @@ import (
 	"log"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
+
+	"gorm.io/gorm"
 )
 
 type EquipmentService interface {
@@ -290,4 +292,15 @@ func (s *equipmentService) validateEquipment(equipment *entity.Equipment) error 
 		return errors.New("equipment department ID is required")
 	}
 	return nil
+}
+func FindSimilarByIDCode(db *gorm.DB, idCode string) ([]*entity.Equipment, error) {
+	prefix := idCode[:6] // SSH017
+
+	var equipments []*entity.Equipment
+	err := db.
+		Where("id_code LIKE ?", prefix+"%").
+		Order("id_code").
+		Find(&equipments).Error
+
+	return equipments, err
 }
