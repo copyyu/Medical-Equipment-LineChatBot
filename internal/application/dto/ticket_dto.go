@@ -99,7 +99,7 @@ type TicketHistoryDTO struct {
 type UpdateTicketRequest struct {
 	CategoryID  *uint   `json:"category_id"`
 	Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high urgent"`
-	Status      *string `json:"status" validate:"omitempty,oneof=in_progress return_equipment_back send_to_outsource"`
+	Status      *string `json:"status" validate:"omitempty,oneof=in_process return_equipment_back send_to_outsource"`
 	Description *string `json:"description"`
 	Note        string  `json:"note"` // For history log
 }
@@ -107,7 +107,7 @@ type UpdateTicketRequest struct {
 // TicketStatsResponse represents ticket statistics
 type TicketStatsResponse struct {
 	Total           int64 `json:"total"`
-	InProgress      int64 `json:"in_progress"`
+	InProcess       int64 `json:"in_process"`
 	Completed       int64 `json:"completed"`
 	SendToOutsource int64 `json:"send_to_outsource"`
 }

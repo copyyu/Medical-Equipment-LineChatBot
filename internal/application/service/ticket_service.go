@@ -135,7 +135,7 @@ func (s *TicketNotificationService) NotifyTicketCompleted(ticketID uint) error {
 // Helper function to get emoji for status
 func getStatusEmoji(status entity.TicketStatus) string {
 	switch status {
-	case entity.TicketStatusInProgress:
+	case entity.TicketStatusInProcess:
 		return "🔧"
 	case entity.TicketStatusCompleted:
 		return "✅"
