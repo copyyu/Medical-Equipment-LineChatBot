@@ -7,126 +7,39 @@ import (
 )
 
 // GetTicketStatusChangedFlex returns flex message for ticket status change notification
-// This is sent as a push message to the reporter when admin changes ticket status
 func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus entity.TicketStatus, note string) map[string]interface{} {
 	newStatusColor := newStatus.GetColor()
 	newStatusText := newStatus.GetStatusText()
 	oldStatusText := oldStatus.GetStatusText()
-	oldStatusColor := oldStatus.GetColor()
 
 	// Build body contents
 	bodyContents := []interface{}{
-		// Ticket number
-		map[string]interface{}{
-			"type":   "text",
-			"text":   ticket.TicketNo,
-			"size":   "xxl",
-			"weight": "bold",
-			"color":  "#333333",
-			"margin": "none",
-		},
 		// Equipment name
 		map[string]interface{}{
 			"type":   "text",
 			"text":   getEquipmentName(ticket),
-			"size":   "md",
-			"color":  "#666666",
+			"size":   "lg",
+			"weight": "bold",
 			"wrap":   true,
-			"margin": "sm",
+			"margin": "none",
 		},
 		// Separator
 		map[string]interface{}{
 			"type":   "separator",
 			"margin": "lg",
 		},
-		// Status transition section
+		// Status transition info rows
 		map[string]interface{}{
 			"type":    "box",
 			"layout":  "vertical",
 			"margin":  "lg",
-			"spacing": "md",
+			"spacing": "sm",
 			"contents": []interface{}{
-				// "สถานะเปลี่ยนจาก" label
-				map[string]interface{}{
-					"type":   "text",
-					"text":   "สถานะเปลี่ยนจาก",
-					"size":   "sm",
-					"color":  "#999999",
-					"margin": "none",
-				},
-				// Old → New status row
-				map[string]interface{}{
-					"type":    "box",
-					"layout":  "horizontal",
-					"margin":  "sm",
-					"spacing": "md",
-					"contents": []interface{}{
-						// Old status badge
-						map[string]interface{}{
-							"type":            "box",
-							"layout":          "vertical",
-							"cornerRadius":    "8px",
-							"backgroundColor": oldStatusColor + "20",
-							"paddingAll":      "8px",
-							"flex":            0,
-							"contents": []interface{}{
-								map[string]interface{}{
-									"type":   "text",
-									"text":   oldStatusText,
-									"size":   "sm",
-									"color":  oldStatusColor,
-									"weight": "bold",
-									"align":  "center",
-								},
-							},
-						},
-						// Arrow
-						map[string]interface{}{
-							"type":    "box",
-							"layout":  "vertical",
-							"flex":    0,
-							"gravity": "center",
-							"contents": []interface{}{
-								map[string]interface{}{
-									"type":   "text",
-									"text":   "→",
-									"size":   "lg",
-									"color":  "#999999",
-									"weight": "bold",
-									"align":  "center",
-								},
-							},
-						},
-						// New status badge
-						map[string]interface{}{
-							"type":            "box",
-							"layout":          "vertical",
-							"cornerRadius":    "8px",
-							"backgroundColor": newStatusColor + "30",
-							"paddingAll":      "8px",
-							"flex":            0,
-							"contents": []interface{}{
-								map[string]interface{}{
-									"type":   "text",
-									"text":   newStatusText,
-									"size":   "sm",
-									"color":  newStatusColor,
-									"weight": "bold",
-									"align":  "center",
-								},
-							},
-						},
-					},
-				},
+				createInfoRow("สถานะเดิม", oldStatusText, "#999999"),
+				createInfoRow("สถานะใหม่", newStatusText, newStatusColor),
+				createInfoRow("อัปเดตเมื่อ", time.Now().Format("2006-01-02 15:04"), "#666666"),
 			},
 		},
-		// Separator
-		map[string]interface{}{
-			"type":   "separator",
-			"margin": "lg",
-		},
-		// Updated at
-		createInfoRow("อัปเดตเมื่อ", time.Now().Format("2006-01-02 15:04"), "#666666"),
 	}
 
 	// Add note if provided
@@ -137,27 +50,12 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 				"margin": "lg",
 			},
 			map[string]interface{}{
-				"type":    "box",
-				"layout":  "horizontal",
-				"margin":  "lg",
-				"spacing": "sm",
-				"contents": []interface{}{
-					map[string]interface{}{
-						"type":  "text",
-						"text":  "📝",
-						"size":  "sm",
-						"flex":  0,
-						"align": "start",
-					},
-					map[string]interface{}{
-						"type":  "text",
-						"text":  note,
-						"size":  "sm",
-						"color": "#666666",
-						"wrap":  true,
-						"flex":  1,
-					},
-				},
+				"type":   "text",
+				"text":   fmt.Sprintf("📝 %s", note),
+				"size":   "sm",
+				"color":  "#666666",
+				"wrap":   true,
+				"margin": "lg",
 			},
 		)
 	}
@@ -172,14 +70,14 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
-					"text":   fmt.Sprintf("%s อัปเดตสถานะ Ticket", getStatusEmoji(newStatus)),
+					"text":   fmt.Sprintf("%s อัปเดตสถานะ Ticket", getStatusChangeEmoji(newStatus)),
 					"weight": "bold",
 					"size":   "lg",
 					"color":  "#FFFFFF",
 				},
 				map[string]interface{}{
 					"type":   "text",
-					"text":   newStatusText,
+					"text":   ticket.TicketNo,
 					"size":   "sm",
 					"color":  "#FFFFFF",
 					"margin": "sm",
@@ -221,8 +119,8 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 	}
 }
 
-// getStatusEmoji returns emoji for status (local to this file)
-func getStatusEmoji(status entity.TicketStatus) string {
+// getStatusChangeEmoji returns emoji for status
+func getStatusChangeEmoji(status entity.TicketStatus) string {
 	switch status {
 	case entity.TicketStatusInProcess:
 		return "🔧"

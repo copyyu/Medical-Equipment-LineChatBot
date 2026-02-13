@@ -33,19 +33,19 @@ func (s *TicketNotificationService) NotifyStatusChange(ticketID uint, oldStatus,
 
 	// Check if ticket has LINE user ID
 	if ticket.ReporterLineID == nil || *ticket.ReporterLineID == "" {
-		log.Printf("⚠️ Ticket %s has no LINE user ID, skip notification", ticket.TicketNo)
+		log.Printf("Ticket %s has no LINE user ID, skip notification", ticket.TicketNo)
 		return nil
 	}
 
 	// Send Flex Message with status transition
 	flexMsg := templates.GetTicketStatusChangedFlex(ticket, oldStatus, newStatus, note)
-	err = s.lineRepo.PushFlexMessage(*ticket.ReporterLineID, "🔔 อัปเดตสถานะ Ticket", flexMsg)
+	err = s.lineRepo.PushFlexMessage(*ticket.ReporterLineID, "อัปเดตสถานะ Ticket", flexMsg)
 	if err != nil {
-		log.Printf("❌ Failed to send status change flex notification for ticket %s: %v", ticket.TicketNo, err)
+		log.Printf("Failed to send status change notification for ticket %s: %v", ticket.TicketNo, err)
 		return err
 	}
 
-	log.Printf("✅ Sent status change notification to user %s for ticket %s (%s → %s)",
+	log.Printf("Sent status change notification to %s for ticket %s (%s → %s)",
 		*ticket.ReporterLineID, ticket.TicketNo, oldStatus.GetStatusText(), newStatus.GetStatusText())
 	return nil
 }

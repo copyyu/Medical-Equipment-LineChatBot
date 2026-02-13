@@ -250,7 +250,7 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 	if statusChanged && uc.notifyService != nil {
 		go func() {
 			if err := uc.notifyService.NotifyStatusChange(ticket.ID, oldStatusValue, newStatusValue, statusNote); err != nil {
-				log.Printf("⚠️ Failed to send status change notification for ticket %s: %v", ticket.TicketNo, err)
+				log.Printf("Failed to send status change notification for ticket %s: %v", ticket.TicketNo, err)
 			}
 		}()
 	}
