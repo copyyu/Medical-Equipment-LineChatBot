@@ -10,4 +10,7 @@ type LineRepository interface {
 	PushFlexMessage(userID, altText string, flexContent map[string]interface{}) error
 	BroadcastMessage(text string) error
 	GetImageContent(messageID string) ([]byte, error) // Download image from LINE
+	GetProfile(userID string) (*model.UserProfile, error)
+	GetGroupMemberProfile(groupID, userID string) (*model.UserProfile, error)
+	GetRoomMemberProfile(roomID, userID string) (*model.UserProfile, error)
 }
