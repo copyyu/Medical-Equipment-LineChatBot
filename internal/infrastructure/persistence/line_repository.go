@@ -190,3 +190,45 @@ func (r *LineRepository) GetImageContent(messageID string) ([]byte, error) {
 	log.Printf("Downloaded image: %d bytes", len(imageBytes))
 	return imageBytes, nil
 }
+
+func (r *LineRepository) GetProfile(userID string) (*model.UserProfile, error) {
+	profile, err := r.client.Bot.GetProfile(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.UserProfile{
+		UserID:        profile.UserId,
+		DisplayName:   profile.DisplayName,
+		PictureURL:    profile.PictureUrl,
+		StatusMessage: profile.StatusMessage,
+	}, nil
+}
+
+func (r *LineRepository) GetGroupMemberProfile(groupID, userID string) (*model.UserProfile, error) {
+	profile, err := r.client.Bot.GetGroupMemberProfile(groupID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.UserProfile{
+		UserID:        profile.UserId,
+		DisplayName:   profile.DisplayName,
+		PictureURL:    profile.PictureUrl,
+		StatusMessage: "", // GroupMemberProfileResponse might not have status message
+	}, nil
+}
+
+func (r *LineRepository) GetRoomMemberProfile(roomID, userID string) (*model.UserProfile, error) {
+	profile, err := r.client.Bot.GetRoomMemberProfile(roomID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.UserProfile{
+		UserID:        profile.UserId,
+		DisplayName:   profile.DisplayName,
+		PictureURL:    profile.PictureUrl,
+		StatusMessage: "", // RoomMemberProfileResponse might not have status message
+	}, nil
+}
