@@ -1,11 +1,8 @@
 package usecase
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"net/url"
-	"strconv"
 	"strings"
 
 	"medical-webhook/internal/application/service"
@@ -16,8 +13,6 @@ import (
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/line/templates"
 	"medical-webhook/internal/infrastructure/session"
-
-	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
 )
 
 // MessageUseCase orchestrates message processing flow
@@ -73,8 +68,16 @@ func (uc *MessageUseCase) handleRichMenuCommand(msg *model.IncomingMessage, text
 		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgReportProblem)
 
 	case strings.Contains(text, "ติดตามสถานะ"):
-		uc.sessionStore.Set(msg.UserID, &session.OCRSession{Mode: session.ModeTrackStatus})
-		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgTrackStatus)
+		// Directly show user's tickets
+		tickets, err := uc.ticketUseCase.GetUserTickets(msg.UserID)
+		if err != nil {
+			log.Printf("❌ GetUserTickets error: %v", err)
+			return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+		}
+		if len(tickets) == 0 {
+			return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 คุณยังไม่มีรายการแจ้งปัญหาค่ะ\n\nหากต้องการแจ้งปัญหา กรุณากดเมนู \"แจ้งปัญหา / เช็กสถานะ\" ค่ะ")
+		}
+		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "รายการแจ้งปัญหาของคุณ", templates.GetMyTicketsFlex(tickets))
 
 	case strings.Contains(text, "เปลี่ยนเครื่อง"):
 		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "แจ้งเปลี่ยนเครื่อง", uc.messageService.GetEquipmentChangeFlex("https://www.google.com/"))
@@ -136,9 +139,37 @@ func (uc *MessageUseCase) handleReportProblemInput(msg *model.IncomingMessage, t
 
 // handleTrackStatusInput handles user input when in track status mode.
 func (uc *MessageUseCase) handleTrackStatusInput(msg *model.IncomingMessage, text string) error {
-	// Sanitize input before using
 	sanitizedText := SanitizeInput(text)
-	return uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 ระบบได้รับข้อมูล: "+sanitizedText+"\nกำลังตรวจสอบสถานะให้ค่ะ")
+
+	// Check if input looks like a ticket number (TK- or REQ-)
+	upperText := strings.ToUpper(sanitizedText)
+	if strings.HasPrefix(upperText, "TK-") || strings.HasPrefix(upperText, "REQ-") {
+		// Look up specific ticket by number
+		ticket, err := uc.ticketUseCase.GetTicketByNo(upperText, msg.UserID)
+		if err != nil {
+			log.Printf("❌ Ticket lookup error: %v", err)
+			uc.sessionStore.Delete(msg.UserID)
+			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่พบ Ticket หมายเลข: "+sanitizedText+"\nกรุณาตรวจสอบหมายเลขอีกครั้งค่ะ")
+		}
+		uc.sessionStore.Delete(msg.UserID)
+		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "สถานะ Ticket", templates.GetTicketStatusFlex(ticket))
+	}
+
+	// Otherwise, try to show all user's tickets
+	tickets, err := uc.ticketUseCase.GetUserTickets(msg.UserID)
+	if err != nil {
+		log.Printf("❌ GetUserTickets error: %v", err)
+		uc.sessionStore.Delete(msg.UserID)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+	}
+
+	uc.sessionStore.Delete(msg.UserID)
+
+	if len(tickets) == 0 {
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 คุณยังไม่มีรายการแจ้งปัญหาค่ะ")
+	}
+
+	return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "รายการแจ้งปัญหาของคุณ", templates.GetMyTicketsFlex(tickets))
 }
 
 // handleInputIssueDescInput handles user input when waiting for issue description.
@@ -299,304 +330,6 @@ func (uc *MessageUseCase) HandleLocationMessage(msg *model.IncomingMessage) erro
 	return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgLocationReceived)
 }
 
-// HandlePostbackEvent handles postback events from Flex Message buttons
-func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error {
-	data := event.Postback.Data
-	replyToken := event.ReplyToken
-	log.Printf("📤 Processing postback: %s", data)
-
-	// Parse postback data
-	params, _ := url.ParseQuery(data)
-	action := params.Get("action")
-	serial := params.Get("serial")
-
-	// Get user ID
-	var userID string
-	if source, ok := event.Source.(webhook.UserSource); ok {
-		userID = source.UserId
-	}
-
-	switch action {
-	case ActionMainMenu:
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-
-	case ActionRequestChange:
-		return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งเปลี่ยนเครื่อง", uc.messageService.GetEquipmentChangeFlex("https://www.google.com/"))
-
-	case ActionReportProblem:
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgReportProblem)
-
-	case ActionTrackStatus:
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgTrackStatus)
-
-	case ActionContactStaff:
-		return uc.lineRepo.ReplyFlexMessage(replyToken, "ติดต่อเจ้าหน้าที่", uc.messageService.GetContactStaffFlex())
-
-	case ActionOCRConfirmYes:
-		// User confirmed OCR result - show action menu (ดูข้อมูล/แจ้งปัญหา)
-		if serial != "" {
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกการดำเนินการ", templates.GetActionMenuFlex(serial))
-		}
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-
-	case ActionOCRConfirmNo:
-		if serial == "" {
-			return uc.lineRepo.ReplyFlexMessage(
-				replyToken,
-				"ส่งรูปใหม่",
-				templates.GetRetryPhotoFlex(),
-			)
-		}
-
-		prefix := serial
-		if len(serial) >= 6 {
-			prefix = serial[:6] // SSH017
-		}
-
-		equipments, err := uc.equipmentRepo.FindSimilarByIDCodePrefix(prefix, 3)
-		if err != nil {
-			log.Printf("❌ FindSimilarByIDCodePrefix error: %v", err)
-			return uc.lineRepo.ReplyFlexMessage(
-				replyToken,
-				"ส่งรูปใหม่",
-				templates.GetRetryPhotoFlex(),
-			)
-		}
-
-		if len(equipments) == 0 {
-			log.Printf("⚠️ No similar equipment for prefix: %s", prefix)
-			return uc.lineRepo.ReplyFlexMessage(
-				replyToken,
-				"ไม่พบข้อมูลใกล้เคียง",
-				templates.GetRetryPhotoFlex(),
-			)
-		}
-
-		log.Printf("✅ Found %d similar equipments for prefix: %s", len(equipments), prefix)
-
-		return uc.lineRepo.ReplyFlexMessage(
-			replyToken,
-			"พบข้อมูลใกล้เคียง",
-			templates.GetSimilarEquipmentFlex(serial, equipments),
-		)
-
-	case ActionOCRRetake:
-		// รีเซ็ตสถานะและให้ผู้ใช้ถ่ายรูปใหม่
-		if userID != "" {
-			uc.sessionStore.Set(userID, &session.OCRSession{Mode: session.ModeReportProblem})
-			log.Printf("📸 User %s requested to retake photo", userID)
-		}
-		return uc.lineRepo.ReplyMessage(replyToken, "กรุณาถ่ายรูปบาร์โค้ดหรือหมายเลขอุปกรณ์ใหม่อีกครั้ง 📸")
-
-	case ActionViewRepairHist:
-		return uc.handleViewRepairHistory(replyToken, serial)
-
-	case ActionViewLifecycle:
-		return uc.handleViewLifecycle(replyToken, serial)
-
-	case ActionViewSpecs:
-		return uc.handleViewSpecs(replyToken, serial)
-
-	// New handlers for report issue flow
-	case ActionShowActionMenu:
-		// Show action menu (ดูข้อมูล/แจ้งปัญหา)
-		if serial != "" {
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกการดำเนินการ", templates.GetActionMenuFlex(serial))
-		}
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-
-	case ActionViewEquipInfo:
-		// Go to equipment info menu (existing)
-		if serial != "" {
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(serial))
-		}
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-
-	case ActionStartReportIssue:
-		// Show category selection menu first
-		if serial != "" {
-			categories, err := uc.ticketUseCase.GetTicketCategories(context.Background())
-			if err != nil {
-				log.Printf("❌ Failed to get categories: %v", err)
-				// Fallback: skip category selection and go to issue input with default category
-				return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งปัญหา", templates.GetIssueInputFlex(serial, 0))
-			}
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกหมวดหมู่", templates.GetCategorySelectionFlex(serial, categories))
-		}
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-
-	case ActionConfirmCategory:
-		// User selected a category, show issue input
-		if serial != "" {
-			categoryIDStr := params.Get("category_id")
-			categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งปัญหา", templates.GetIssueInputFlex(serial, uint(categoryID)))
-		}
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-
-	case ActionInputIssueDesc:
-		// Set session mode to wait for issue description
-		if serial != "" {
-			categoryIDStr := params.Get("category_id")
-			categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
-
-			var userID string
-			switch source := event.Source.(type) {
-			case webhook.UserSource:
-				userID = source.UserId
-			case webhook.GroupSource:
-				userID = source.UserId
-			case webhook.RoomSource:
-				userID = source.UserId
-			}
-
-			if userID != "" {
-				uc.sessionStore.Set(userID, &session.OCRSession{
-					Mode:         session.ModeInputIssueDesc,
-					SerialNumber: serial,
-					CategoryID:   uint(categoryID),
-				})
-			}
-			return uc.lineRepo.ReplyMessage(replyToken, constants.MsgInputIssueDesc)
-		}
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-
-	case ActionSubmitIssue:
-		// Submit issue without description (skip)
-		if serial != "" {
-			desc := params.Get("desc") // empty for skip
-			categoryIDStr := params.Get("category_id")
-			categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
-			userID := ""
-			var groupID, sourceType string
-
-			switch source := event.Source.(type) {
-			case webhook.UserSource:
-				userID = source.UserId
-				sourceType = "user"
-			case webhook.GroupSource:
-				userID = source.UserId
-				groupID = source.GroupId
-				sourceType = "group"
-			case webhook.RoomSource:
-				userID = source.UserId
-				groupID = source.RoomId
-				sourceType = "room"
-			}
-
-			displayName := ""
-			photoURL := ""
-
-			var profile *model.UserProfile
-			var err error
-
-			switch sourceType {
-			case "group":
-				profile, err = uc.lineRepo.GetGroupMemberProfile(groupID, userID)
-			case "room":
-				profile, err = uc.lineRepo.GetRoomMemberProfile(groupID, userID)
-			default:
-				profile, err = uc.lineRepo.GetProfile(userID)
-			}
-
-			if err != nil {
-				log.Printf("❌ Failed to get user profile: %v", err)
-				displayName = "LINE User"
-			} else if profile != nil {
-				displayName = profile.DisplayName
-				photoURL = profile.PictureURL
-			} else {
-				displayName = "LINE User"
-			}
-
-			ticket, err := uc.ticketUseCase.CreateTicketFromLINE(
-				serial,
-				desc,
-				userID,
-				displayName,
-				photoURL,
-				uint(categoryID),
-			)
-			if err != nil {
-				// Check if it's a duplicate ticket error
-				if err == ErrDuplicateTicket && ticket != nil {
-					log.Printf("⚠️ Duplicate ticket found: %s", ticket.TicketNo)
-					return uc.lineRepo.ReplyFlexMessage(replyToken, "พบรายการซ้ำ", templates.GetDuplicateTicketFlex(ticket.TicketNo, serial, ticket.Status.GetStatusText()))
-				}
-				log.Printf("❌ Failed to create ticket: %v", err)
-				return uc.lineRepo.ReplyMessage(replyToken, constants.MsgIssueReportFailed)
-			}
-			return uc.lineRepo.ReplyFlexMessage(replyToken, "สร้าง Ticket สำเร็จ", templates.GetTicketCreatedFlex(ticket))
-		}
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-
-	default:
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
-	}
-}
-
-// handleViewRepairHistory sends repair history for equipment
-func (uc *MessageUseCase) handleViewRepairHistory(replyToken, serial string) error {
-	equipment, err := uc.equipmentRepo.FindBySerialOrCode(serial)
-	if err != nil || equipment == nil {
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgEquipmentNotFound)
-	}
-
-	records, err := uc.equipmentRepo.GetMaintenanceRecords(equipment.ID)
-	if err != nil {
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgRepairHistoryFail)
-	}
-
-	// Convert to map format for template
-	recordMaps := make([]map[string]interface{}, len(records))
-	for i, r := range records {
-		recordMaps[i] = map[string]interface{}{
-			"date":        r.MaintenanceDate.Format("2006-01-02"),
-			"type":        string(r.MaintenanceType),
-			"description": r.Description,
-			"cost":        r.Cost,
-		}
-	}
-
-	return uc.lineRepo.ReplyFlexMessage(replyToken, "ประวัติการซ่อม", templates.GetRepairHistoryFlex(serial, recordMaps))
-}
-
-// handleViewLifecycle sends lifecycle info for equipment
-func (uc *MessageUseCase) handleViewLifecycle(replyToken, serial string) error {
-	equipment, err := uc.equipmentRepo.FindBySerialOrCode(serial)
-	if err != nil || equipment == nil {
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgEquipmentNotFound)
-	}
-
-	data := map[string]interface{}{
-		"equipment_age":    equipment.EquipmentAge,
-		"life_expectancy":  equipment.LifeExpectancy,
-		"remain_life":      equipment.RemainLife,
-		"useful_percent":   equipment.UsefulLifetimePercent,
-		"replacement_year": getReplacementYear(equipment.ReplacementYear),
-	}
-
-	return uc.lineRepo.ReplyFlexMessage(replyToken, "อายุ/วงจรชีวิต", templates.GetLifecycleFlex(serial, data))
-}
-
-// handleViewSpecs sends specs info for equipment
-func (uc *MessageUseCase) handleViewSpecs(replyToken, serial string) error {
-	equipment, err := uc.equipmentRepo.FindBySerialOrCode(serial)
-	if err != nil || equipment == nil {
-		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgEquipmentNotFound)
-	}
-
-	data := map[string]interface{}{
-		"model_name":   getModelName(equipment),
-		"brand":        getBrandName(equipment),
-		"department":   getDepartmentName(equipment),
-		"receive_date": getReceiveDate(equipment),
-		"price":        equipment.PurchasePrice,
-	}
-
-	return uc.lineRepo.ReplyFlexMessage(replyToken, "สเปกเครื่อง", templates.GetSpecsFlex(serial, data))
-}
-
 // SendWelcomeMessage sends welcome message to new follower
 func (uc *MessageUseCase) SendWelcomeMessage(userID string) error {
 	log.Printf("👋 Sending welcome to user: %s", userID)
@@ -606,7 +339,7 @@ func (uc *MessageUseCase) SendWelcomeMessage(userID string) error {
 	})
 }
 
-// Helper functions
+// Helper functions for equipment data formatting
 func getReplacementYear(year *int) string {
 	if year == nil {
 		return "N/A"

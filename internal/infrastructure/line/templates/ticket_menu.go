@@ -228,67 +228,267 @@ func GetMyTicketsFlex(tickets []entity.Ticket) map[string]interface{} {
 
 	for i := 0; i < maxTickets; i++ {
 		ticket := tickets[i]
-		statusColor := ticket.Status.GetColor()
-		statusText := ticket.Status.GetStatusText()
+		jobStatusColor := ticket.Status.GetColor()
+		jobStatusText := ticket.Status.GetStatusText()
+		priorityText := ticket.Priority.GetPriorityText()
+		priorityColor := ticket.Priority.GetColor()
+
+		// Get asset status from equipment relation
+		assetStatusText := "ไม่ทราบ"
+		assetStatusColor := "#78909C"
+		equipmentCode := ""
+		if ticket.Equipment != nil {
+			assetStatusText = ticket.Equipment.Status.GetStatusText()
+			assetStatusColor = ticket.Equipment.Status.GetColor()
+			equipmentCode = ticket.Equipment.IDCode
+		}
+
+		// Category name
+		categoryName := "ไม่ระบุ"
+		if ticket.Category.Name != "" {
+			categoryName = ticket.Category.Name
+		}
+
+		// Equipment display name
+		equipName := getEquipmentName(&ticket)
+
+		// Build body contents
+		bodyContents := []interface{}{
+			// Equipment name
+			map[string]interface{}{
+				"type":   "text",
+				"text":   equipName,
+				"weight": "bold",
+				"size":   "md",
+				"wrap":   true,
+				"color":  "#333333",
+			},
+		}
+
+		// Equipment code (if available)
+		if equipmentCode != "" {
+			bodyContents = append(bodyContents, map[string]interface{}{
+				"type":   "text",
+				"text":   fmt.Sprintf("🏷️ %s", equipmentCode),
+				"size":   "xs",
+				"color":  "#0367D3",
+				"margin": "sm",
+			})
+		}
+
+		// Separator
+		bodyContents = append(bodyContents, map[string]interface{}{
+			"type":   "separator",
+			"margin": "lg",
+		})
+
+		// Status badges section
+		bodyContents = append(bodyContents,
+			// Job Status row
+			map[string]interface{}{
+				"type":    "box",
+				"layout":  "horizontal",
+				"margin":  "lg",
+				"spacing": "sm",
+				"contents": []interface{}{
+					map[string]interface{}{
+						"type":  "text",
+						"text":  "📋 สถานะงาน",
+						"size":  "xs",
+						"color": "#888888",
+						"flex":  4,
+					},
+					map[string]interface{}{
+						"type":            "box",
+						"layout":          "vertical",
+						"flex":            5,
+						"cornerRadius":    "4px",
+						"backgroundColor": jobStatusColor,
+						"paddingAll":      "4px",
+						"contents": []interface{}{
+							map[string]interface{}{
+								"type":  "text",
+								"text":  jobStatusText,
+								"size":  "xs",
+								"color": "#FFFFFF",
+								"align": "center",
+							},
+						},
+					},
+				},
+			},
+			// Asset Status row
+			map[string]interface{}{
+				"type":    "box",
+				"layout":  "horizontal",
+				"margin":  "sm",
+				"spacing": "sm",
+				"contents": []interface{}{
+					map[string]interface{}{
+						"type":  "text",
+						"text":  "🔧 สถานะเครื่อง",
+						"size":  "xs",
+						"color": "#888888",
+						"flex":  4,
+					},
+					map[string]interface{}{
+						"type":            "box",
+						"layout":          "vertical",
+						"flex":            5,
+						"cornerRadius":    "4px",
+						"backgroundColor": assetStatusColor,
+						"paddingAll":      "4px",
+						"contents": []interface{}{
+							map[string]interface{}{
+								"type":  "text",
+								"text":  assetStatusText,
+								"size":  "xs",
+								"color": "#FFFFFF",
+								"align": "center",
+							},
+						},
+					},
+				},
+			},
+		)
+
+		// Separator
+		bodyContents = append(bodyContents, map[string]interface{}{
+			"type":   "separator",
+			"margin": "lg",
+		})
+
+		// Info rows: category, priority, date
+		bodyContents = append(bodyContents,
+			// Category
+			map[string]interface{}{
+				"type":    "box",
+				"layout":  "horizontal",
+				"margin":  "lg",
+				"spacing": "sm",
+				"contents": []interface{}{
+					map[string]interface{}{
+						"type":  "text",
+						"text":  "หมวดหมู่",
+						"size":  "xs",
+						"color": "#888888",
+						"flex":  4,
+					},
+					map[string]interface{}{
+						"type":   "text",
+						"text":   categoryName,
+						"size":   "xs",
+						"color":  "#333333",
+						"flex":   5,
+						"weight": "bold",
+					},
+				},
+			},
+			// Priority
+			map[string]interface{}{
+				"type":    "box",
+				"layout":  "horizontal",
+				"margin":  "sm",
+				"spacing": "sm",
+				"contents": []interface{}{
+					map[string]interface{}{
+						"type":  "text",
+						"text":  "ความสำคัญ",
+						"size":  "xs",
+						"color": "#888888",
+						"flex":  4,
+					},
+					map[string]interface{}{
+						"type":   "text",
+						"text":   fmt.Sprintf("● %s", priorityText),
+						"size":   "xs",
+						"color":  priorityColor,
+						"flex":   5,
+						"weight": "bold",
+					},
+				},
+			},
+			// Date
+			map[string]interface{}{
+				"type":    "box",
+				"layout":  "horizontal",
+				"margin":  "sm",
+				"spacing": "sm",
+				"contents": []interface{}{
+					map[string]interface{}{
+						"type":  "text",
+						"text":  "วันที่แจ้ง",
+						"size":  "xs",
+						"color": "#888888",
+						"flex":  4,
+					},
+					map[string]interface{}{
+						"type":  "text",
+						"text":  ticket.ReportedAt.Format("02/01/2006 15:04"),
+						"size":  "xs",
+						"color": "#333333",
+						"flex":  5,
+					},
+				},
+			},
+		)
 
 		bubble := map[string]interface{}{
 			"type": "bubble",
-			"size": "micro",
+			"size": "kilo",
 			"header": map[string]interface{}{
 				"type":            "box",
-				"layout":          "vertical",
-				"backgroundColor": statusColor,
-				"paddingAll":      "10px",
+				"layout":          "horizontal",
+				"backgroundColor": jobStatusColor,
+				"paddingAll":      "15px",
 				"contents": []interface{}{
 					map[string]interface{}{
 						"type":   "text",
-						"text":   ticket.TicketNo,
+						"text":   fmt.Sprintf("🔧 %s", ticket.TicketNo),
 						"weight": "bold",
 						"size":   "sm",
 						"color":  "#FFFFFF",
+						"flex":   6,
+					},
+					map[string]interface{}{
+						"type":            "box",
+						"layout":          "vertical",
+						"flex":            4,
+						"cornerRadius":    "12px",
+						"backgroundColor": "#FFFFFF33",
+						"paddingAll":      "4px",
+						"contents": []interface{}{
+							map[string]interface{}{
+								"type":  "text",
+								"text":  jobStatusText,
+								"size":  "xxs",
+								"color": "#FFFFFF",
+								"align": "center",
+							},
+						},
 					},
 				},
 			},
 			"body": map[string]interface{}{
 				"type":       "box",
 				"layout":     "vertical",
-				"paddingAll": "10px",
-				"contents": []interface{}{
-					map[string]interface{}{
-						"type":     "text",
-						"text":     getEquipmentName(&ticket),
-						"size":     "sm",
-						"weight":   "bold",
-						"wrap":     true,
-						"maxLines": 2,
-					},
-					map[string]interface{}{
-						"type":   "text",
-						"text":   statusText,
-						"size":   "xs",
-						"color":  statusColor,
-						"margin": "sm",
-					},
-					map[string]interface{}{
-						"type":   "text",
-						"text":   ticket.ReportedAt.Format("2006-01-02"),
-						"size":   "xs",
-						"color":  "#999999",
-						"margin": "sm",
-					},
-				},
+				"paddingAll": "15px",
+				"contents":   bodyContents,
 			},
 			"footer": map[string]interface{}{
 				"type":       "box",
 				"layout":     "vertical",
-				"paddingAll": "0px",
+				"paddingAll": "10px",
+				"spacing":    "sm",
 				"contents": []interface{}{
 					map[string]interface{}{
-						"type":  "button",
-						"style": "link",
+						"type":   "button",
+						"style":  "primary",
+						"color":  jobStatusColor,
+						"height": "sm",
 						"action": map[string]interface{}{
 							"type":  "postback",
-							"label": "ดูรายละเอียด",
+							"label": "📄 ดูรายละเอียด",
 							"data":  fmt.Sprintf("action=view_ticket&ticket_no=%s", ticket.TicketNo),
 						},
 					},

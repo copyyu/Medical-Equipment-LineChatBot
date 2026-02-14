@@ -19,6 +19,50 @@ const (
 	AssetStatusPlanToReplace     AssetStatus = "plan_to_replace"      // รอเปลี่ยนใหม่
 )
 
+// GetStatusText returns Thai text for asset status
+func (s AssetStatus) GetStatusText() string {
+	switch s {
+	case AssetStatusActive:
+		return "ใช้งานอยู่"
+	case AssetStatusDefective:
+		return "ชำรุด"
+	case AssetStatusWaitDecom:
+		return "รอปลดระวาง"
+	case AssetStatusDecommission:
+		return "ปลดระวางแล้ว"
+	case AssetStatusActiveReadyToSell:
+		return "พร้อมขาย"
+	case AssetStatusMissing:
+		return "สูญหาย"
+	case AssetStatusPlanToReplace:
+		return "รอเปลี่ยนใหม่"
+	default:
+		return "ไม่ทราบสถานะ"
+	}
+}
+
+// GetColor returns hex color for asset status
+func (s AssetStatus) GetColor() string {
+	switch s {
+	case AssetStatusActive:
+		return "#4CAF50" // Green
+	case AssetStatusDefective:
+		return "#EF5350" // Red
+	case AssetStatusWaitDecom:
+		return "#FFA726" // Orange
+	case AssetStatusDecommission:
+		return "#78909C" // Grey
+	case AssetStatusActiveReadyToSell:
+		return "#42A5F5" // Blue
+	case AssetStatusMissing:
+		return "#E53935" // Dark Red
+	case AssetStatusPlanToReplace:
+		return "#AB47BC" // Purple
+	default:
+		return "#78909C" // Grey
+	}
+}
+
 type Equipment struct {
 	ID           uint    `gorm:"primaryKey" json:"id"`
 	IDCode       string  `gorm:"size:100;uniqueIndex" json:"id_code"`

@@ -280,12 +280,15 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 	return equipments, nil
 }
 
-// CountNearExpiry returns count of equipments with remain_life <= 1 year
+// CountNearExpiry returns count of equipments with dynamic remain_life between 0 and 1 year
+// Uses PostgreSQL: life_expectancy - (NOW()::date - receive_date::date) / 365.25
 func (r *EquipmentRepository) CountNearExpiry(ctx context.Context) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&entity.Equipment{}).
-		Where("remain_life <= ?", 1.0).
+		Where("receive_date IS NOT NULL AND life_expectancy > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 1").
 		Count(&count).Error
 	if err != nil {
 		log.Printf("Error counting near expiry equipments: %v", err)
@@ -318,11 +321,15 @@ func (r *EquipmentRepository) CountByStatus(ctx context.Context) (map[entity.Ass
 	}
 	return counts, nil
 }
+
+// CountExpired returns count of equipments with dynamic remain_life <= 0
+// Uses PostgreSQL: life_expectancy - (NOW()::date - receive_date::date) / 365.25
 func (r *EquipmentRepository) CountExpired(ctx context.Context) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&entity.Equipment{}).
-		Where("remain_life <= ?", 0). // เงื่อนไข: อายุน้อยกว่าหรือเท่ากับ 0
+		Where("receive_date IS NOT NULL AND life_expectancy > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 0").
 		Count(&count).Error
 
 	if err != nil {

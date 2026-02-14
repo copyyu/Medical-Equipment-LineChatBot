@@ -163,23 +163,21 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 		if err == nil {
 			// Calculate RemainLife from expiry date
 			now := time.Now()
-			yearsRemaining := expiryDate.Year() - now.Year()
-			if expiryDate.YearDay() < now.YearDay() {
-				yearsRemaining-- // Adjust if expiry date has passed this year
-			}
-			// Convert to float64 with decimal for partial year
-			remainLife := float64(yearsRemaining)
-			if yearsRemaining >= 0 {
-				// Add fractional year based on days remaining
-				daysInYear := 365.25
-				daysRemaining := expiryDate.Sub(now).Hours() / 24
-				remainLife = daysRemaining / daysInYear
-			}
+			daysInYear := 365.25
+			daysRemaining := expiryDate.Sub(now).Hours() / 24
+			remainLife := daysRemaining / daysInYear
 			equipment.RemainLife = remainLife
 
 			// Update ReplacementYear based on expiry date
 			replacementYear := expiryDate.Year()
 			equipment.ReplacementYear = &replacementYear
+
+			// Update LifeExpectancy based on new expiry date and receive date
+			// So the mapper's dynamic calculation (LifeExpectancy - equipmentAge) stays correct
+			if equipment.ReceiveDate != nil {
+				newLifeExpectancy := expiryDate.Sub(*equipment.ReceiveDate).Hours() / (24 * daysInYear)
+				equipment.LifeExpectancy = newLifeExpectancy
+			}
 
 			// Auto-update status based on new RemainLife
 			equipment.Status = u.calculateStatus(remainLife)
@@ -404,9 +402,8 @@ func (u *equipmentUsecase) validateCreateRequest(req dto.CreateEquipmentRequest)
 // calculateStatus determines the asset status based on remain_life
 func (u *equipmentUsecase) calculateStatus(remainLife float64) entity.AssetStatus {
 	if remainLife <= 0 {
-		return entity.AssetStatusPlanToReplace // Expired
-	} else if remainLife <= 1 {
-		return entity.AssetStatusPlanToReplace // Near Expiry (Warning)
+		return entity.AssetStatusPlanToReplace // หมดอายุแล้ว → รอเปลี่ยนใหม่
 	}
-	return entity.AssetStatusActive // Active
+	// ใกล้หมดอายุ (0 < remainLife <= 1) หรือปกติ → ยังใช้งานอยู่
+	return entity.AssetStatusActive
 }

@@ -3,6 +3,7 @@ package persistence
 import (
 	"fmt"
 	"medical-webhook/internal/domain/line/entity"
+	"medical-webhook/internal/utils/ptr"
 	"time"
 
 	"gorm.io/gorm"
@@ -87,10 +88,10 @@ func (r *TicketRepository) UpdateTicketStatus(ticketID uint, newStatus entity.Ti
 			history := &entity.TicketHistory{
 				TicketID: ticketID,
 				Action:   entity.ActionStatusChanged,
-				Field:    stringPtr("status"),
-				OldValue: stringPtr(string(oldStatus)),
-				NewValue: stringPtr(string(newStatus)),
-				Note:     stringPtr(note),
+				Field:    ptr.StringPtr("status"),
+				OldValue: ptr.StringPtr(string(oldStatus)),
+				NewValue: ptr.StringPtr(string(newStatus)),
+				Note:     ptr.StringPtr(note),
 				IsSystem: true,
 			}
 			if err := tx.Create(history).Error; err != nil {
@@ -110,11 +111,6 @@ func (r *TicketRepository) GetTicketsByLineUserID(lineUserID string) ([]entity.T
 		Order("created_at DESC").
 		Find(&tickets).Error
 	return tickets, err
-}
-
-// Helper function
-func stringPtr(s string) *string {
-	return &s
 }
 
 func (r *TicketRepository) GetLatestTicketNumber(year int) (string, error) {
