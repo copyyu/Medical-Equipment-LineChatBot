@@ -12,7 +12,40 @@ import (
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	"medical-webhook/internal/infrastructure/line/templates"
+	"medical-webhook/internal/utils/ptr"
 )
+
+// TicketUseCase handles ticket-related business logic
+type TicketUseCase struct {
+	lineRepo      repository.LineRepository
+	equipmentRepo repository.EquipmentRepository
+	ticketRepo    repository.TicketRepository
+	categoryRepo  repository.TicketCategoryRepository
+	historyRepo   repository.TicketHistoryRepository
+	notifyService *service.TicketNotificationService
+}
+
+// NewTicketUseCase creates a new ticket use case
+func NewTicketUseCase(
+	lineRepo repository.LineRepository,
+	equipmentRepo repository.EquipmentRepository,
+	ticketRepo repository.TicketRepository,
+	categoryRepo repository.TicketCategoryRepository,
+	historyRepo repository.TicketHistoryRepository,
+	notifyService *service.TicketNotificationService,
+) *TicketUseCase {
+	return &TicketUseCase{
+		lineRepo:      lineRepo,
+		equipmentRepo: equipmentRepo,
+		ticketRepo:    ticketRepo,
+		categoryRepo:  categoryRepo,
+		historyRepo:   historyRepo,
+		notifyService: notifyService,
+	}
+}
+
+// ErrDuplicateTicket is returned when user already has a pending ticket for this equipment
+var ErrDuplicateTicket = fmt.Errorf("duplicate ticket exists")
 
 // GetTicketList returns paginated ticket list
 func (uc *TicketUseCase) GetTicketList(ctx context.Context, req dto.TicketListRequest) (*dto.TicketListResponse, error) {
@@ -168,10 +201,10 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 		changes = append(changes, entity.TicketHistory{
 			TicketID: ticket.ID,
 			Action:   entity.ActionUpdated,
-			Field:    stringPtr("priority"),
-			OldValue: stringPtr(oldVal),
+			Field:    ptr.StringPtr("priority"),
+			OldValue: ptr.StringPtr(oldVal),
 			NewValue: req.Priority,
-			Note:     stringPtr(req.Note),
+			Note:     ptr.StringPtr(req.Note),
 			IsSystem: false,
 		})
 	}
@@ -186,10 +219,10 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 		changes = append(changes, entity.TicketHistory{
 			TicketID: ticket.ID,
 			Action:   entity.ActionUpdated,
-			Field:    stringPtr("description"),
-			OldValue: stringPtr(oldVal),
+			Field:    ptr.StringPtr("description"),
+			OldValue: ptr.StringPtr(oldVal),
 			NewValue: req.Description,
-			Note:     stringPtr(req.Note),
+			Note:     ptr.StringPtr(req.Note),
 			IsSystem: false,
 		})
 	}
@@ -211,10 +244,10 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 		changes = append(changes, entity.TicketHistory{
 			TicketID: ticket.ID,
 			Action:   entity.ActionStatusChanged,
-			Field:    stringPtr("status"),
-			OldValue: stringPtr(oldVal),
+			Field:    ptr.StringPtr("status"),
+			OldValue: ptr.StringPtr(oldVal),
 			NewValue: req.Status,
-			Note:     stringPtr(req.Note),
+			Note:     ptr.StringPtr(req.Note),
 			IsSystem: false, // or true if we consider this system action? But it is triggered by user/admin
 		})
 	}
@@ -276,38 +309,6 @@ func (uc *TicketUseCase) GetTicketStats(ctx context.Context) (*dto.TicketStatsRe
 func (uc *TicketUseCase) GetTicketCategories(ctx context.Context) ([]entity.TicketCategory, error) {
 	return uc.categoryRepo.GetTicketCategories()
 }
-
-// TicketUseCase handles ticket-related business logic
-type TicketUseCase struct {
-	lineRepo      repository.LineRepository
-	equipmentRepo repository.EquipmentRepository
-	ticketRepo    repository.TicketRepository
-	categoryRepo  repository.TicketCategoryRepository
-	historyRepo   repository.TicketHistoryRepository
-	notifyService *service.TicketNotificationService
-}
-
-// NewTicketUseCase creates a new ticket use case
-func NewTicketUseCase(
-	lineRepo repository.LineRepository,
-	equipmentRepo repository.EquipmentRepository,
-	ticketRepo repository.TicketRepository,
-	categoryRepo repository.TicketCategoryRepository,
-	historyRepo repository.TicketHistoryRepository,
-	notifyService *service.TicketNotificationService,
-) *TicketUseCase {
-	return &TicketUseCase{
-		lineRepo:      lineRepo,
-		equipmentRepo: equipmentRepo,
-		ticketRepo:    ticketRepo,
-		categoryRepo:  categoryRepo,
-		historyRepo:   historyRepo,
-		notifyService: notifyService,
-	}
-}
-
-// ErrDuplicateTicket is returned when user already has a pending ticket for this equipment
-var ErrDuplicateTicket = fmt.Errorf("duplicate ticket exists")
 
 // CreateTicketFromLINE creates a ticket from LINE report
 func (uc *TicketUseCase) CreateTicketFromLINE(
@@ -397,7 +398,7 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 	history := &entity.TicketHistory{
 		TicketID: ticket.ID,
 		Action:   entity.ActionCreated,
-		Note:     stringPtr("สร้างจาก LINE โดย " + lineDisplayName),
+		Note:     ptr.StringPtr("สร้างจาก LINE โดย " + lineDisplayName),
 		IsSystem: true,
 	}
 	_ = uc.historyRepo.CreateTicketHistory(history)
@@ -450,11 +451,6 @@ func (uc *TicketUseCase) SendMyTicketsMessage(replyToken string, tickets []entit
 
 	flexMsg := templates.GetMyTicketsFlex(tickets)
 	return uc.lineRepo.ReplyFlexMessage(replyToken, "รายการ Ticket ของคุณ", flexMsg)
-}
-
-// Helper function
-func stringPtr(s string) *string {
-	return &s
 }
 
 // generateTicketNumberFromDB generates a unique ticket number using DB sequence

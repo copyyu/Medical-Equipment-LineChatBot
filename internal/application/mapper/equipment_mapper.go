@@ -1,4 +1,3 @@
-// domain/line/dto/equipment_mapper.go
 package mapper
 
 import (
