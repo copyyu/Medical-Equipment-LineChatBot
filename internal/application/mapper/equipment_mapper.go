@@ -179,32 +179,35 @@ func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.
 		location = entity.Department.Name
 	}
 
-	// Calculate expiry date based on replacement year
+	// Calculate expiry and remain_life dynamically based on current date
 	expiry := ""
 	isExpiring := false
-	currentYear := time.Now().Year()
+	now := time.Now()
+	currentYear := now.Year()
 
+	// Dynamic remain_life calculation: use today's date
+	dynamicRemainLife := entity.RemainLife // fallback to stored value
+
+	if entity.ReceiveDate != nil && entity.LifeExpectancy > 0 {
+		// Primary: equipment_age = (today - receive_date) in fractional years
+		equipmentAge := now.Sub(*entity.ReceiveDate).Hours() / (24 * 365.25)
+		dynamicRemainLife = entity.LifeExpectancy - equipmentAge
+	}
+
+	// Calculate expiry year for display
 	if entity.ReplacementYear != nil {
 		expiry = formatYear(*entity.ReplacementYear)
-		// Check if expiring (<= 1 year includes both expired and near expiry)
-		if entity.RemainLife <= 1 {
-			isExpiring = true
-		}
-	} else if entity.LifeExpectancy > 0 && entity.EquipmentAge > 0 {
-		// Calculate based on life expectancy and age
-		remainLife := entity.LifeExpectancy - entity.EquipmentAge
-		expiryYear := currentYear + int(remainLife)
+	} else if entity.ReceiveDate != nil && entity.LifeExpectancy > 0 {
+		expiryYear := entity.ReceiveDate.Year() + int(entity.LifeExpectancy)
 		expiry = formatYear(expiryYear)
-		if remainLife <= 1 {
-			isExpiring = true
-		}
 	} else if entity.RemainLife > 0 {
-		// Fallback: Calculate based on remain life
 		expiryYear := currentYear + int(entity.RemainLife)
 		expiry = formatYear(expiryYear)
-		if entity.RemainLife <= 1 {
-			isExpiring = true
-		}
+	}
+
+	// Set isExpiring based on dynamic remain_life
+	if dynamicRemainLife <= 1 {
+		isExpiring = true
 	}
 
 	// Get last check date from latest maintenance record
@@ -227,7 +230,7 @@ func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.
 		LastCheck:  lastCheck,
 		Expiry:     expiry,
 		IsExpiring: isExpiring,
-		RemainLife: entity.RemainLife,
+		RemainLife: dynamicRemainLife,
 	}
 }
 
