@@ -15,6 +15,7 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 	dashboardHandler *handlers.DashboardHandler,
 	equipmentHandler *handlers.EquipmentHandler,
 	ticketHandler *handlers.TicketHandler,
+	activityLogHandler *handlers.ActivityLogHandler,
 	adminUsecase usecase.AdminUsecase) {
 	// Root endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -50,6 +51,9 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 
 	// Setup ticket routes
 	SetupTicketRoutes(app, ticketHandler, adminUsecase)
+
+	// Setup activity log routes
+	SetupActivityLogRoutes(app, activityLogHandler, adminUsecase)
 
 	// 404 handler (must be last)
 	app.Use(func(c *fiber.Ctx) error {

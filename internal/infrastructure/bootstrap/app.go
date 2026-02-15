@@ -28,6 +28,7 @@ type Application struct {
 	AdminHandler           *handlers.AdminHandler
 	EquipmentHandler       *handlers.EquipmentHandler
 	TicketHandler          *handlers.TicketHandler
+	ActivityLogHandler     *handlers.ActivityLogHandler
 }
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
@@ -147,6 +148,9 @@ func InitializeApp() (*Application, func(), error) {
 	// Initialize equipment usecase for equipment list (using service layer)
 	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentService)
 
+	// Initialize activity log usecase (reuses ticketHistoryRepo)
+	activityLogUseCase := usecase.NewActivityLogUseCase(ticketHistoryRepo)
+
 	// Initialize handlers (Interface Layer)
 	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
@@ -155,6 +159,7 @@ func InitializeApp() (*Application, func(), error) {
 	dashboardHandler := handlers.NewDashboardHandler(dashboardUseCase)
 	equipmentHandler := handlers.NewEquipmentHandler(equipmentUseCase)
 	ticketHandler := handlers.NewTicketHandler(ticketUseCase)
+	activityLogHandler := handlers.NewActivityLogHandler(activityLogUseCase)
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
@@ -175,7 +180,7 @@ func InitializeApp() (*Application, func(), error) {
 	middleware.FiberMiddleware(app)
 
 	// Register Routes
-	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler, adminUseCase)
+	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler, activityLogHandler, adminUseCase)
 
 	// Initialize และ Start Notification Scheduler
 	notificationScheduler := scheduler.NewNotificationScheduler(notificationUseCase)
@@ -208,6 +213,7 @@ func InitializeApp() (*Application, func(), error) {
 		AdminHandler:           adminHandler,
 		EquipmentHandler:       equipmentHandler,
 		TicketHandler:          ticketHandler,
+		ActivityLogHandler:     activityLogHandler,
 	}, cleanup, nil
 }
 
