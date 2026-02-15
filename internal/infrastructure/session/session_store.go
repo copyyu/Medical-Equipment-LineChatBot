@@ -17,7 +17,7 @@ type SessionMode string
 
 const (
 	ModeNone           SessionMode = ""
-	ModeReportProblem  SessionMode = "report_problem"   // แจ้งปัญหา/เช็กสถานะ
+	ModeReportProblem  SessionMode = "report_problem"   // แจ้งปัญหา/เช็คสถานะ
 	ModeTrackStatus    SessionMode = "track_status"     // ติดตามสถานะ
 	ModeInputIssueDesc SessionMode = "input_issue_desc" // รอพิมพ์รายละเอียดปัญหา
 	ModeSelectCategory SessionMode = "select_category"  // รอเลือกหมวดหมู่

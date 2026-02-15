@@ -1,7 +1,6 @@
 package constants
 
 // Postback action constants - action ที่ใช้ใน postback data
-// Used by both usecase layer (routing) and templates (generating postback URIs)
 const (
 	ActionMainMenu         = "main_menu"
 	ActionRequestChange    = "request_change"
@@ -13,12 +12,14 @@ const (
 	ActionViewRepairHist   = "view_repair_history"
 	ActionViewLifecycle    = "view_lifecycle"
 	ActionViewSpecs        = "view_specs"
-	ActionShowActionMenu   = "show_action_menu"    // แสดงเมนูเลือก (ดูข้อมูล/แจ้งปัญหา)
-	ActionViewEquipInfo    = "view_equipment_info" // ไปหน้าข้อมูลเครื่อง
-	ActionStartReportIssue = "start_report_issue"  // เริ่มแจ้งปัญหา
-	ActionInputIssueDesc   = "input_issue_desc"    // รอพิมพ์รายละเอียด
-	ActionSubmitIssue      = "submit_issue"        // บันทึกปัญหา
+	ActionShowActionMenu   = "show_action_menu"
+	ActionViewEquipInfo    = "view_equipment_info"
+	ActionStartReportIssue = "start_report_issue"
+	ActionInputIssueDesc   = "input_issue_desc"
+	ActionSubmitIssue      = "submit_issue"
 	ActionOCRRetake        = "ocr_retake"
 	ActionConfirmCategory  = "confirm_category"
 	ActionMyTickets        = "my_tickets"
+	ActionStartReportMode  = "start_report_mode"
+	ActionViewEquipExpiry  = "view_equipment_expiry"
 )

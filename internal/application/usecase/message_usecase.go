@@ -63,9 +63,9 @@ func (uc *MessageUseCase) HandleTextMessage(msg *model.IncomingMessage) error {
 // Returns (true, error) if command was handled, (false, nil) if not a Rich Menu command.
 func (uc *MessageUseCase) handleRichMenuCommand(msg *model.IncomingMessage, text string) (bool, error) {
 	switch {
-	case strings.Contains(text, "แจ้งปัญหา") || strings.Contains(text, "เช็กสถานะ"):
-		uc.sessionStore.Set(msg.UserID, &session.OCRSession{Mode: session.ModeReportProblem})
-		return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgReportProblem)
+	case strings.Contains(text, "แจ้งปัญหา") || strings.Contains(text, "เช็คสถานะ"):
+		// แสดง sub-menu ให้เลือก: แจ้งปัญหา / ดูเครื่องใกล้หมดอายุ
+		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เลือกบริการ", templates.GetReportMenuFlex())
 
 	case strings.Contains(text, "ติดตามสถานะ"):
 		// Directly show user's tickets
@@ -75,7 +75,7 @@ func (uc *MessageUseCase) handleRichMenuCommand(msg *model.IncomingMessage, text
 			return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
 		if len(tickets) == 0 {
-			return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 คุณยังไม่มีรายการแจ้งปัญหาค่ะ\n\nหากต้องการแจ้งปัญหา กรุณากดเมนู \"แจ้งปัญหา / เช็กสถานะ\" ค่ะ")
+			return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 คุณยังไม่มีรายการแจ้งปัญหาค่ะ\n\nหากต้องการแจ้งปัญหา กรุณากดเมนู \"แจ้งปัญหา / เช็คสถานะ\" ค่ะ")
 		}
 		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "รายการแจ้งปัญหาของคุณ", templates.GetMyTicketsFlex(tickets))
 
