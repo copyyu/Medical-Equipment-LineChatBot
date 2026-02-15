@@ -275,8 +275,9 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 	}
 
 	// Save history records
-	for _, history := range changes {
-		_ = uc.historyRepo.CreateTicketHistory(&history)
+	for i := range changes {
+		changes[i].ChangedBy = req.ChangedBy
+		_ = uc.historyRepo.CreateTicketHistory(&changes[i])
 	}
 
 	// Send LINE notification if status changed (fire-and-forget)
