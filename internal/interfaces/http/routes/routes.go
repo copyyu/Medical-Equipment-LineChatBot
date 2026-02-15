@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/interfaces/http/handlers"
 
 	"github.com/gofiber/fiber/v2"
@@ -13,7 +14,8 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 	adminHandler *handlers.AdminHandler,
 	dashboardHandler *handlers.DashboardHandler,
 	equipmentHandler *handlers.EquipmentHandler,
-	ticketHandler *handlers.TicketHandler) {
+	ticketHandler *handlers.TicketHandler,
+	adminUsecase usecase.AdminUsecase) {
 	// Root endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -23,29 +25,31 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 		})
 	})
 
-	// Setup health routes
+	// Setup health routes (public)
 	SetupHealthRoutes(app)
 
-	// Setup webhook routes
+	// Setup webhook routes (public - verified by LINE channel secret)
 	SetupWebhookRoutes(app, webhookHandler)
 
+	// Setup admin routes (login = public, rest = protected)
+	SetupAdminRoutes(app, adminHandler, adminUsecase)
+
+	// ===== Protected routes (require auth) =====
+
 	// Setup notifications routes
-	SetupNotificationRoutes(app, notificationHandler)
+	SetupNotificationRoutes(app, notificationHandler, adminUsecase)
 
 	// Setup equipmentImport routes
-	SetupEquipmentImportRoutes(app, equipmentImportHandler)
-
-	// Setup admin routes (login, register, etc.)
-	SetupAdminRoutes(app, adminHandler)
+	SetupEquipmentImportRoutes(app, equipmentImportHandler, adminUsecase)
 
 	// Setup dashboard routes
-	SetupDashboardRoutes(app, dashboardHandler)
+	SetupDashboardRoutes(app, dashboardHandler, adminUsecase)
 
 	// Setup equipment routes
-	SetupEquipmentRoutes(app, equipmentHandler)
+	SetupEquipmentRoutes(app, equipmentHandler, adminUsecase)
 
 	// Setup ticket routes
-	SetupTicketRoutes(app, ticketHandler)
+	SetupTicketRoutes(app, ticketHandler, adminUsecase)
 
 	// 404 handler (must be last)
 	app.Use(func(c *fiber.Ctx) error {

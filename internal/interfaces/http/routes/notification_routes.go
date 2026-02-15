@@ -1,23 +1,25 @@
 package routes
 
 import (
+	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/interfaces/http/handlers"
+	"medical-webhook/internal/interfaces/http/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-// SetupNotificationRoutes configures notification endpoints
-func SetupNotificationRoutes(app *fiber.App, notificationHandler *handlers.NotificationHandler) {
-	// api := app.Group("/api/v1")
-	// notifications := api.Group("/notifications")
+// SetupNotificationRoutes - protected routes for notifications
+func SetupNotificationRoutes(app *fiber.App, notificationHandler *handlers.NotificationHandler, adminUsecase usecase.AdminUsecase) {
+	// Notification routes - protected
+	notifGroup := app.Group("", middleware.AuthMiddleware(adminUsecase))
 
 	// Manual trigger endpoints
-	app.Post("/send/june", notificationHandler.SendJuneAlerts)
-	app.Post("/send/august", notificationHandler.SendAugustAlerts)
+	notifGroup.Post("/send/june", notificationHandler.SendJuneAlerts)
+	notifGroup.Post("/send/august", notificationHandler.SendAugustAlerts)
 
 	// Summary
-	app.Get("/summary", notificationHandler.GetSummary)
+	notifGroup.Get("/summary", notificationHandler.GetSummary)
 
 	// Settings
-	app.Put("/settings", notificationHandler.UpdateSettings)
+	notifGroup.Put("/settings", notificationHandler.UpdateSettings)
 }

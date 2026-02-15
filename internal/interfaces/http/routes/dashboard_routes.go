@@ -1,18 +1,17 @@
 package routes
 
 import (
+	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/interfaces/http/handlers"
+	"medical-webhook/internal/interfaces/http/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupDashboardRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler) {
-	// API routes
+func SetupDashboardRoutes(app *fiber.App, dashboardHandler *handlers.DashboardHandler, adminUsecase usecase.AdminUsecase) {
 	api := app.Group("/api")
 
-	// Dashboard routes
-	dashboard := api.Group("/dashboard")
-
-	// Public routes (can add auth middleware later if needed)
+	// Dashboard routes - protected
+	dashboard := api.Group("/dashboard", middleware.AuthMiddleware(adminUsecase))
 	dashboard.Get("/summary", dashboardHandler.GetSummary)
 }

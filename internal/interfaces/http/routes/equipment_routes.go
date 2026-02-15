@@ -1,17 +1,18 @@
 package routes
 
 import (
+	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/interfaces/http/handlers"
+	"medical-webhook/internal/interfaces/http/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupEquipmentRoutes(app *fiber.App, equipmentHandler *handlers.EquipmentHandler) {
-	// API routes
+func SetupEquipmentRoutes(app *fiber.App, equipmentHandler *handlers.EquipmentHandler, adminUsecase usecase.AdminUsecase) {
 	api := app.Group("/api")
 
-	// Equipment routes
-	equipment := api.Group("/equipment")
+	// Equipment routes - protected
+	equipment := api.Group("/equipment", middleware.AuthMiddleware(adminUsecase))
 
 	// GET /api/equipment - Get paginated equipment list
 	equipment.Get("/", equipmentHandler.GetList)
