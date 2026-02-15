@@ -97,6 +97,7 @@ type TicketHistoryDTO struct {
 
 // UpdateTicketRequest represents ticket update request
 type UpdateTicketRequest struct {
+	ChangedBy   string  `json:"-"` // Set by handler from auth context
 	CategoryID  *uint   `json:"category_id"`
 	Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high urgent"`
 	Status      *string `json:"status" validate:"omitempty,oneof=in_process return_equipment_back send_to_outsource"`

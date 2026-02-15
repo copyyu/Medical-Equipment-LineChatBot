@@ -66,6 +66,11 @@ func (h *TicketHandler) UpdateTicket(c *fiber.Ctx) error {
 		return errors.BadRequest(c, "Invalid request body")
 	}
 
+	// Inject admin username from auth context
+	if username, ok := c.Locals("admin_username").(string); ok {
+		req.ChangedBy = username
+	}
+
 	if err := h.ticketUseCase.UpdateTicket(c.Context(), uint(id), req); err != nil {
 		return errors.Error(c, err)
 	}
