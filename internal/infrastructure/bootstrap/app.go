@@ -30,89 +30,6 @@ type Application struct {
 	TicketHandler          *handlers.TicketHandler
 }
 
-// repositories holds all infrastructure repository instances
-type repositories struct {
-	line              *persistence.LineRepository
-	notification      *persistence.NotificationRepository
-	equipment         *persistence.EquipmentRepository
-	brand             *persistence.BrandRepository
-	equipmentCategory *persistence.EquipmentCategoryRepository
-	department        *persistence.DepartmentRepository
-	equipmentModel    *persistence.EquipmentModelRepository
-	admin             *persistence.AdminRepository
-	adminSession      *persistence.AdminSessionRepository
-	ticket            *persistence.TicketRepository
-	ticketCategory    *persistence.TicketCategoryRepository
-	ticketHistory     *persistence.TicketHistoryRepository
-	maintenance       *persistence.MaintenanceRecordRepository
-}
-
-// initRepositories creates all repository instances
-func initRepositories(lineClient *client.Client) *repositories {
-	return &repositories{
-		line:              persistence.NewLineRepository(lineClient),
-		notification:      persistence.NewNotificationRepository(database.GetDB()),
-		equipment:         persistence.NewEquipmentRepository(),
-		brand:             persistence.NewBrandRepository(),
-		equipmentCategory: persistence.NewEquipmentCategoryRepository(),
-		department:        persistence.NewDepartmentRepository(),
-		equipmentModel:    persistence.NewEquipmentModelRepository(),
-		admin:             persistence.NewAdminRepository(),
-		adminSession:      persistence.NewAdminSessionRepository(),
-		ticket:            persistence.NewTicketRepository(database.GetDB()),
-		ticketCategory:    persistence.NewTicketCategoryRepository(database.GetDB()),
-		ticketHistory:     persistence.NewTicketHistoryRepository(database.GetDB()),
-		maintenance:       persistence.NewMaintenanceRecordRepository(),
-	}
-}
-
-// initUseCases creates all use case instances
-func initUseCases(
-	repos *repositories,
-	cfg *config.Config,
-	ocrClient *client.OCRClient,
-	sessionStore *session.SessionStore,
-) (
-	*usecase.TicketUseCase,
-	*usecase.MessageUseCase,
-	*usecase.NotificationUseCase,
-	usecase.EquipmentImportUseCase,
-	usecase.AdminUsecase,
-	usecase.DashboardUsecase,
-	usecase.EquipmentUsecase,
-
-) {
-	equipmentMapper := mapper.NewEquipmentMapper()
-
-	// Services
-	messageService := service.NewMessageService(cfg.Contact)
-	notificationService := service.NewNotificationService()
-	excelParserService := service.NewExcelParserService()
-	masterDataService := service.NewMasterDataService(
-		repos.brand, repos.equipmentCategory, repos.department, repos.equipmentModel, equipmentMapper,
-	)
-	adminService := service.NewAdminService(repos.admin, repos.adminSession)
-	equipmentService := service.NewEquipmentService(
-		repos.equipment, repos.brand, repos.equipmentCategory, repos.department, repos.equipmentModel,
-	)
-	ticketNotifyService := service.NewTicketNotificationService(repos.line, repos.ticket)
-
-	// Use cases
-	ticketUC := usecase.NewTicketUseCase(
-		repos.line, repos.equipment, repos.ticket, repos.ticketCategory, repos.ticketHistory, ticketNotifyService,
-	)
-	messageUC := usecase.NewMessageUseCase(
-		repos.line, repos.equipment, ocrClient, sessionStore, messageService, ticketUC,
-	)
-	notificationUC := usecase.NewNotificationUseCase(repos.notification, notificationService, repos.line)
-	equipmentImportUC := usecase.NewEquipmentImportUseCase(repos.equipment, excelParserService, masterDataService, equipmentMapper)
-	adminUC := usecase.NewAdminUsecase(adminService)
-	dashboardUC := usecase.NewDashboardUsecase(repos.equipment, repos.maintenance, repos.ticket)
-	equipmentUC := usecase.NewEquipmentUsecase(equipmentService)
-
-	return ticketUC, messageUC, notificationUC, equipmentImportUC, adminUC, dashboardUC, equipmentUC
-}
-
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
 func InitializeApp() (*Application, func(), error) {
 	// Load configuration
@@ -138,21 +55,106 @@ func InitializeApp() (*Application, func(), error) {
 		log.Println("OCR_API_URL not configured, OCR features disabled")
 	}
 
+	// Initialize repositories (Infrastructure Layer)
+	lineRepo := persistence.NewLineRepository(lineClient)
+	notificationRepo := persistence.NewNotificationRepository(database.GetDB())
+	equipmentRepo := persistence.NewEquipmentRepository()
+	brandRepo := persistence.NewBrandRepository()
+	equipmentCategoryRepo := persistence.NewEquipmentCategoryRepository()
+	departmentRepo := persistence.NewDepartmentRepository()
+	equipmentModelRepo := persistence.NewEquipmentModelRepository()
+	adminRepo := persistence.NewAdminRepository()
+	adminSessionRepo := persistence.NewAdminSessionRepository()
+
 	// Initialize session store for OCR confirmations
 	sessionStore := session.NewSessionStore()
 
-	// Initialize all layers
-	repos := initRepositories(lineClient)
-	ticketUC, messageUC, notificationUC, equipmentImportUC, adminUC, dashboardUC, equipmentUC := initUseCases(repos, cfg, ocrClient, sessionStore)
+	equipmentMapper := mapper.NewEquipmentMapper()
+
+	// Initialize services (Domain Layer)
+	messageService := service.NewMessageService(cfg.Contact)
+	notificationService := service.NewNotificationService()
+	excelParserService := service.NewExcelParserService()
+	masterDataService := service.NewMasterDataService(
+		brandRepo,
+		equipmentCategoryRepo,
+		departmentRepo,
+		equipmentModelRepo,
+		equipmentMapper,
+	)
+
+	adminService := service.NewAdminService(
+		adminRepo,
+		adminSessionRepo,
+	)
+
+	equipmentService := service.NewEquipmentService(
+		equipmentRepo,
+		brandRepo,
+		equipmentCategoryRepo,
+		departmentRepo,
+		equipmentModelRepo,
+	)
+
+	// Initialize use cases (Application Layer)
+	ticketRepo := persistence.NewTicketRepository(database.GetDB())
+	ticketCategoryRepo := persistence.NewTicketCategoryRepository(database.GetDB())
+	ticketHistoryRepo := persistence.NewTicketHistoryRepository(database.GetDB())
+	ticketNotifyService := service.NewTicketNotificationService(lineRepo, ticketRepo)
+	ticketUseCase := usecase.NewTicketUseCase(
+		lineRepo,
+		equipmentRepo,
+		ticketRepo,
+		ticketCategoryRepo,
+		ticketHistoryRepo,
+		ticketNotifyService,
+	)
+
+	messageUseCase := usecase.NewMessageUseCase(
+		lineRepo,
+		equipmentRepo,
+		ocrClient,
+		sessionStore,
+		messageService,
+		ticketUseCase,
+	)
+	notificationUseCase := usecase.NewNotificationUseCase(
+		notificationRepo,
+		notificationService,
+		lineRepo,
+	)
+
+	equipmentImportUseCase := usecase.NewEquipmentImportUseCase(
+		equipmentRepo,
+		excelParserService,
+		masterDataService,
+		equipmentMapper,
+	)
+
+	adminUseCase := usecase.NewAdminUsecase(
+		adminService,
+	)
+
+	// Initialize maintenance repository for dashboard
+	maintenanceRepo := persistence.NewMaintenanceRecordRepository()
+
+	dashboardUseCase := usecase.NewDashboardUsecase(
+		equipmentRepo,
+		maintenanceRepo,
+		ticketRepo,
+	)
+
+	// Initialize equipment usecase for equipment list (using service layer)
+	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentService)
 
 	// Initialize handlers (Interface Layer)
-	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUC)
-	notificationHandler := handlers.NewNotificationHandler(notificationUC)
-	equipmentImportHandler := handlers.NewEquipmentImportHandler(equipmentImportUC)
-	adminHandler := handlers.NewAdminHandler(adminUC)
-	dashboardHandler := handlers.NewDashboardHandler(dashboardUC)
-	equipmentHandler := handlers.NewEquipmentHandler(equipmentUC)
-	ticketHandler := handlers.NewTicketHandler(ticketUC)
+	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
+	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
+	equipmentImportHandler := handlers.NewEquipmentImportHandler(equipmentImportUseCase)
+	adminHandler := handlers.NewAdminHandler(adminUseCase)
+	dashboardHandler := handlers.NewDashboardHandler(dashboardUseCase)
+	equipmentHandler := handlers.NewEquipmentHandler(equipmentUseCase)
+	ticketHandler := handlers.NewTicketHandler(ticketUseCase)
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
@@ -175,17 +177,19 @@ func InitializeApp() (*Application, func(), error) {
 	// Register Routes
 	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler)
 
-	// Initialize and Start Notification Scheduler
-	notificationScheduler := scheduler.NewNotificationScheduler(notificationUC)
+	// Initialize และ Start Notification Scheduler
+	notificationScheduler := scheduler.NewNotificationScheduler(notificationUseCase)
 	notificationScheduler.Start()
 	log.Println("Notification scheduler started")
 
 	// Cleanup function
 	cleanup := func() {
 		log.Println("Shutting down gracefully...")
+		// Stop scheduler
 		if notificationScheduler != nil {
 			notificationScheduler.Stop()
 		}
+		// Close session store (stops cleanup goroutine)
 		if sessionStore != nil {
 			sessionStore.Close()
 		}
