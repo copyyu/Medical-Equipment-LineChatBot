@@ -194,6 +194,29 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		}
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
+	case constants.ActionStartReportMode:
+		if userID != "" {
+			uc.sessionStore.Set(userID, &session.OCRSession{Mode: session.ModeReportProblem})
+		}
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgReportProblem)
+
+	case constants.ActionViewEquipExpiry:
+		ctx := context.Background()
+		expired, err := uc.equipmentRepo.FindExpired(ctx, 10)
+		if err != nil {
+			log.Printf("❌ FindExpired error: %v", err)
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+		}
+		nearExpiry, err := uc.equipmentRepo.FindNearExpiry(ctx, 10)
+		if err != nil {
+			log.Printf("❌ FindNearExpiry error: %v", err)
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+		}
+		if len(expired) == 0 && len(nearExpiry) == 0 {
+			return uc.lineRepo.ReplyMessage(replyToken, "✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในขณะนี้ค่ะ")
+		}
+		return uc.lineRepo.ReplyFlexMessage(replyToken, "เครื่องมือหมดอายุ/ใกล้หมดอายุ", templates.GetEquipmentExpiryFlex(expired, nearExpiry))
+
 	default:
 		log.Printf("⚠️ Unhandled postback action: %s", action)
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
