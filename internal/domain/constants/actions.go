@@ -18,6 +18,7 @@ const (
 	ActionInputIssueDesc   = "input_issue_desc"
 	ActionSubmitIssue      = "submit_issue"
 	ActionOCRRetake        = "ocr_retake"
+	ActionOCRSimilarSelect = "ocr_similar_select"
 	ActionConfirmCategory  = "confirm_category"
 	ActionMyTickets        = "my_tickets"
 	ActionStartReportMode  = "start_report_mode"

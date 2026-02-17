@@ -188,7 +188,7 @@ func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
-					"text":   "⚠️ ไม่พบข้อมูล",
+					"text":   "⚠️ ไม่พบในฐานระบบ",
 					"color":  "#FFFFFF",
 					"weight": "bold",
 				},
@@ -200,13 +200,18 @@ func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 			"spacing": "md",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text",
-					"text": fmt.Sprintf("ระบบอ่านได้: %s", detectedText),
+					"type":   "text",
+					"text":   detectedText,
+					"size":   "xl",
+					"weight": "bold",
+					"align":  "center",
+					"color":  "#333333",
 				},
 				map[string]interface{}{
 					"type":  "text",
-					"text":  "ไม่พบเครื่องมือนี้ในระบบ",
+					"text":  "ไม่พบในฐานระบบ หรือภาพไม่ชัด กรุณาส่งภาพมาใหม่",
 					"size":  "sm",
+					"wrap":  true,
 					"color": "#888888",
 				},
 			},

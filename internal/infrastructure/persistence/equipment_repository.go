@@ -410,3 +410,58 @@ func (r *EquipmentRepository) FindSimilarByIDCodePrefix(prefix string, limit int
 
 	return equipments, nil
 }
+
+// FindBestMatch finds the single most similar equipment by id_code using pg_trgm trigram similarity.
+// Returns the best matching equipment, similarity percentage (0-100), and error.
+// This handles OCR misread characters (e.g., SSH12345 → SSH123S5) robustly.
+func (r *EquipmentRepository) FindBestMatch(query string) (*entity.Equipment, int, error) {
+	var result struct {
+		entity.Equipment
+		Sim float64 `gorm:"column:sim"`
+	}
+
+	err := r.db.
+		Table("equipments").
+		Select("equipments.*, similarity(id_code, ?) AS sim", query).
+		Where("similarity(id_code, ?) > 0.3", query).
+		Where("deleted_at IS NULL").
+		Order("sim DESC").
+		Limit(1).
+		Scan(&result).Error
+
+	if err != nil {
+		log.Printf("❌ FindBestMatch error: %v", err)
+		return nil, 0, err
+	}
+
+	if result.ID == 0 {
+		log.Printf("⚠️ No match found for query: %s", query)
+		return nil, 0, nil
+	}
+
+	pct := int(result.Sim * 100)
+	log.Printf("✅ Best match: %s (similarity: %d%%) for query: %s", result.IDCode, pct, query)
+	return &result.Equipment, pct, nil
+}
+
+// FindSimilarSorted finds similar equipment by prefix, sorted by pg_trgm similarity (most similar first).
+func (r *EquipmentRepository) FindSimilarSorted(query string, limit int) ([]*entity.Equipment, error) {
+	prefix := query
+	if len(query) >= 6 {
+		prefix = query[:6]
+	}
+
+	var equipments []*entity.Equipment
+	err := r.db.
+		Where("id_code LIKE ? AND deleted_at IS NULL", prefix+"%").
+		Order("similarity(id_code, '" + query + "') DESC").
+		Limit(limit).
+		Find(&equipments).Error
+
+	if err != nil {
+		log.Printf("❌ FindSimilarSorted error: %v", err)
+		return nil, err
+	}
+
+	return equipments, nil
+}

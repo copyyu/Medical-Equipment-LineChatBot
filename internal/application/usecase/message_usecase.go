@@ -284,35 +284,8 @@ func (uc *MessageUseCase) HandleImageMessage(msg *model.IncomingMessage) error {
 	}
 
 	if equipment == nil {
-		// Equipment not found in DB - แสดงข้อมูลใกล้เคียง
 		log.Printf("⚠️ Equipment not found: %s", detectedText)
-
-		// ดึง prefix (เช่น SSH045 จาก SSH04598)
-		prefix := detectedText
-		if len(detectedText) >= 6 {
-			prefix = detectedText[:6]
-		}
-
-		// ค้นหาอุปกรณ์ที่ใกล้เคียง
-		equipments, err := uc.equipmentRepo.FindSimilarByIDCodePrefix(prefix, 5)
-		if err != nil {
-			log.Printf("❌ FindSimilarByIDCodePrefix error: %v", err)
-			return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ไม่พบข้อมูล", templates.GetOCRNotFoundFlex(detectedText))
-		}
-
-		if len(equipments) == 0 {
-			log.Printf("⚠️ No similar equipment for prefix: %s", prefix)
-			return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ไม่พบข้อมูล", templates.GetOCRNotFoundFlex(detectedText))
-		}
-
-		log.Printf("✅ Found %d similar equipments for OCR result: %s", len(equipments), detectedText)
-
-		// แสดงรายการใกล้เคียงให้ผู้ใช้เลือก
-		return uc.lineRepo.ReplyFlexMessage(
-			msg.ReplyToken,
-			"พบข้อมูลใกล้เคียง",
-			templates.GetSimilarEquipmentFlex(detectedText, equipments),
-		)
+		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ไม่พบในฐานระบบ", templates.GetOCRNotFoundFlex(detectedText))
 	}
 
 	// Step 5: Store session for confirmation
