@@ -17,6 +17,11 @@ type EquipmentRepository interface {
 	// CreateMaintenanceRecord creates a new maintenance record
 	CreateMaintenanceRecord(record *entity.MaintenanceRecord) error
 	FindSimilarByIDCodePrefix(prefix string, limit int) ([]*entity.Equipment, error)
+	// FindBestMatch finds the single most similar equipment by id_code using trigram similarity
+	// Returns equipment, similarity percentage (0-100), and error
+	FindBestMatch(query string) (*entity.Equipment, int, error)
+	// FindSimilarSorted finds similar equipment by prefix, sorted by similarity to the full query
+	FindSimilarSorted(query string, limit int) ([]*entity.Equipment, error)
 
 	// CRUD methods for Excel import
 	Create(ctx context.Context, equipment *entity.Equipment) error

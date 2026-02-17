@@ -63,14 +63,9 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 			)
 		}
 
-		prefix := serial
-		if len(serial) >= 6 {
-			prefix = serial[:6] // SSH017
-		}
-
-		equipments, err := uc.equipmentRepo.FindSimilarByIDCodePrefix(prefix, 3)
+		equipments, err := uc.equipmentRepo.FindSimilarSorted(serial, 5)
 		if err != nil {
-			log.Printf("❌ FindSimilarByIDCodePrefix error: %v", err)
+			log.Printf("❌ FindSimilarSorted error: %v", err)
 			return uc.lineRepo.ReplyFlexMessage(
 				replyToken,
 				"ส่งรูปใหม่",
@@ -79,20 +74,35 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		}
 
 		if len(equipments) == 0 {
-			log.Printf("⚠️ No similar equipment for prefix: %s", prefix)
+			log.Printf("⚠️ No similar equipment for: %s", serial)
 			return uc.lineRepo.ReplyFlexMessage(
 				replyToken,
-				"ไม่พบข้อมูลใกล้เคียง",
-				templates.GetRetryPhotoFlex(),
+				"ไม่พบในฐานระบบ",
+				templates.GetOCRNotFoundFlex(serial),
 			)
 		}
 
-		log.Printf("✅ Found %d similar equipments for prefix: %s", len(equipments), prefix)
+		log.Printf("✅ Found %d similar equipments (sorted) for: %s", len(equipments), serial)
 
 		return uc.lineRepo.ReplyFlexMessage(
 			replyToken,
 			"พบข้อมูลใกล้เคียง",
-			templates.GetSimilarEquipmentFlex(serial, equipments),
+			templates.GetSimilarEquipmentListFlex(serial, equipments),
+		)
+
+	case constants.ActionOCRSimilarSelect:
+		// ผู้ใช้เลือกจากรายการใกล้เคียง → ถามยืนยันก่อน
+		original := params.Get("original")
+		if serial == "" {
+			return uc.lineRepo.ReplyMessage(replyToken, "ไม่พบหมายเลขที่เลือก กรุณาลองใหม่")
+		}
+
+		log.Printf("📋 User selected similar equipment: %s (original OCR: %s)", serial, original)
+
+		return uc.lineRepo.ReplyFlexMessage(
+			replyToken,
+			"ยืนยันเปลี่ยนหมายเลข",
+			templates.GetSimilarConfirmFlex(serial, original),
 		)
 
 	case constants.ActionOCRRetake:
