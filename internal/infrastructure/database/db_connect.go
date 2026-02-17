@@ -45,11 +45,6 @@ func Connect(cfg *config.Config) error {
 
 	log.Println("Connected to PostgreSQL successfully!")
 
-	// Enable pg_trgm extension for fuzzy text matching (similarity search)
-	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_trgm").Error; err != nil {
-		log.Printf("⚠️ Failed to create pg_trgm extension: %v (fuzzy search may not work)", err)
-	}
-
 	err = db.AutoMigrate(
 		&entity.Brand{},
 		&entity.Department{},
