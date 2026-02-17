@@ -101,8 +101,8 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 					"color": newStatusColor,
 					"action": map[string]interface{}{
 						"type":  "postback",
-						"label": "ดูรายละเอียด",
-						"data":  fmt.Sprintf("action=view_ticket&ticket_no=%s", ticket.TicketNo),
+						"label": "รายการของฉัน",
+						"data":  "action=my_tickets",
 					},
 				},
 				map[string]interface{}{
@@ -110,8 +110,8 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 					"style": "link",
 					"action": map[string]interface{}{
 						"type":  "postback",
-						"label": "รายการของฉัน",
-						"data":  "action=my_tickets",
+						"label": "กลับเมนูหลัก",
+						"data":  "action=main_menu",
 					},
 				},
 			},
