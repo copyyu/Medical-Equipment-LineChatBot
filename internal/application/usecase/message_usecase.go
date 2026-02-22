@@ -19,6 +19,7 @@ import (
 type MessageUseCase struct {
 	lineRepo       repository.LineRepository
 	equipmentRepo  repository.EquipmentRepository
+	departmentRepo repository.DepartmentRepository
 	ocrClient      *client.OCRClient
 	sessionStore   *session.SessionStore
 	messageService *service.MessageService
@@ -29,6 +30,7 @@ type MessageUseCase struct {
 func NewMessageUseCase(
 	lineRepo repository.LineRepository,
 	equipmentRepo repository.EquipmentRepository,
+	departmentRepo repository.DepartmentRepository,
 	ocrClient *client.OCRClient,
 	sessionStore *session.SessionStore,
 	messageService *service.MessageService,
@@ -37,6 +39,7 @@ func NewMessageUseCase(
 	return &MessageUseCase{
 		lineRepo:       lineRepo,
 		equipmentRepo:  equipmentRepo,
+		departmentRepo: departmentRepo,
 		ocrClient:      ocrClient,
 		sessionStore:   sessionStore,
 		messageService: messageService,

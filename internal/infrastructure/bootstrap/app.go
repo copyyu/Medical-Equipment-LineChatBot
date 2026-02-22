@@ -114,6 +114,7 @@ func InitializeApp() (*Application, func(), error) {
 	messageUseCase := usecase.NewMessageUseCase(
 		lineRepo,
 		equipmentRepo,
+		departmentRepo,
 		ocrClient,
 		sessionStore,
 		messageService,

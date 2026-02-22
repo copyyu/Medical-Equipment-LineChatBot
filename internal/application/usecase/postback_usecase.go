@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/url"
 	"strconv"
@@ -211,21 +212,49 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgReportProblem)
 
 	case constants.ActionViewEquipExpiry:
+		// แสดงรายการแผนกให้เลือกก่อน
 		ctx := context.Background()
-		expired, err := uc.equipmentRepo.FindExpired(ctx, 10)
+		departments, err := uc.departmentRepo.FindAll(ctx)
 		if err != nil {
-			log.Printf("❌ FindExpired error: %v", err)
+			log.Printf("❌ FindAll departments error: %v", err)
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลแผนกได้ กรุณาลองใหม่ค่ะ")
+		}
+		if len(departments) == 0 {
+			return uc.lineRepo.ReplyMessage(replyToken, "⚠️ ไม่พบข้อมูลแผนกในระบบค่ะ")
+		}
+		return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกแผนก", templates.GetDepartmentSelectionWithInputFlex(departments))
+
+	case constants.ActionViewEquipExpiryByDept:
+		// แสดงเครื่องใกล้หมดอายุของแผนกที่เลือก
+		ctx := context.Background()
+		departmentIDStr := params.Get("department_id")
+		departmentID, err := strconv.ParseUint(departmentIDStr, 10, 32)
+		if err != nil {
+			log.Printf("❌ Invalid department_id: %v", err)
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ รหัสแผนกไม่ถูกต้องค่ะ")
+		}
+
+		// ดึงชื่อแผนกเพื่อแสดงใน header
+		dept, err := uc.departmentRepo.FindByID(ctx, uint(departmentID))
+		if err != nil || dept == nil {
+			log.Printf("❌ Department not found: %v", err)
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่พบแผนกที่เลือกค่ะ")
+		}
+
+		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, uint(departmentID), 10)
+		if err != nil {
+			log.Printf("❌ FindExpiredByDepartment error: %v", err)
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
-		nearExpiry, err := uc.equipmentRepo.FindNearExpiry(ctx, 10)
+		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, uint(departmentID), 10)
 		if err != nil {
-			log.Printf("❌ FindNearExpiry error: %v", err)
+			log.Printf("❌ FindNearExpiryByDepartment error: %v", err)
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
 		if len(expired) == 0 && len(nearExpiry) == 0 {
-			return uc.lineRepo.ReplyMessage(replyToken, "✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในขณะนี้ค่ะ")
+			return uc.lineRepo.ReplyMessage(replyToken, fmt.Sprintf("✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในแผนก %s ค่ะ", dept.Name))
 		}
-		return uc.lineRepo.ReplyFlexMessage(replyToken, "เครื่องมือหมดอายุ/ใกล้หมดอายุ", templates.GetEquipmentExpiryFlex(expired, nearExpiry))
+		return uc.lineRepo.ReplyFlexMessage(replyToken, fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name), templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name))
 
 	default:
 		log.Printf("⚠️ Unhandled postback action: %s", action)
