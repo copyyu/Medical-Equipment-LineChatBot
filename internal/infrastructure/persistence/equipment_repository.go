@@ -387,6 +387,58 @@ func (r *EquipmentRepository) FindNearExpiry(ctx context.Context, limit int) ([]
 	log.Printf("Found %d near expiry equipments", len(equipments))
 	return equipments, nil
 }
+
+// FindExpiredByDepartment returns expired equipments filtered by department ID
+func (r *EquipmentRepository) FindExpiredByDepartment(ctx context.Context, departmentID uint, limit int) ([]entity.Equipment, error) {
+	var equipments []entity.Equipment
+	query := r.db.WithContext(ctx).
+		Preload("Model").
+		Preload("Model.Brand").
+		Preload("Department").
+		Where("department_id = ?", departmentID).
+		Where("receive_date IS NOT NULL AND life_expectancy > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 0").
+		Order("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) ASC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	err := query.Find(&equipments).Error
+	if err != nil {
+		log.Printf("Error finding expired equipments by department: %v", err)
+		return nil, err
+	}
+	log.Printf("Found %d expired equipments for department %d", len(equipments), departmentID)
+	return equipments, nil
+}
+
+// FindNearExpiryByDepartment returns near-expiry equipments filtered by department ID
+func (r *EquipmentRepository) FindNearExpiryByDepartment(ctx context.Context, departmentID uint, limit int) ([]entity.Equipment, error) {
+	var equipments []entity.Equipment
+	query := r.db.WithContext(ctx).
+		Preload("Model").
+		Preload("Model.Brand").
+		Preload("Department").
+		Where("department_id = ?", departmentID).
+		Where("receive_date IS NOT NULL AND life_expectancy > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 1").
+		Order("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) ASC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	err := query.Find(&equipments).Error
+	if err != nil {
+		log.Printf("Error finding near expiry equipments by department: %v", err)
+		return nil, err
+	}
+	log.Printf("Found %d near expiry equipments for department %d", len(equipments), departmentID)
+	return equipments, nil
+}
+
 func (r *EquipmentRepository) FindSimilarByIDCodePrefix(prefix string, limit int) ([]*entity.Equipment, error) {
 	var equipments []*entity.Equipment
 

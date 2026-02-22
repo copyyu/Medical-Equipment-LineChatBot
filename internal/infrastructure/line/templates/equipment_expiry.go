@@ -146,3 +146,49 @@ func buildEquipmentRow(num int, e entity.Equipment) map[string]interface{} {
 		},
 	}
 }
+
+// GetEquipmentExpiryByDeptFlex returns Flex Message for equipment expiry filtered by department
+func GetEquipmentExpiryByDeptFlex(expired []entity.Equipment, nearExpiry []entity.Equipment, deptName string) map[string]interface{} {
+	thisYear := time.Now().Year()
+	nextYear := thisYear + 1
+
+	bodyContents := []interface{}{}
+
+	// Section 1: หมดอายุภายในปีนี้
+	bodyContents = append(bodyContents, buildSectionHeader(
+		fmt.Sprintf("🔴 หมดอายุภายในปี %d", thisYear), "#E53935"))
+	bodyContents = append(bodyContents, buildEquipmentList(expired)...)
+	bodyContents = append(bodyContents, map[string]interface{}{"type": "separator", "margin": "lg"})
+
+	// Section 2: หมดอายุปีหน้า
+	bodyContents = append(bodyContents, buildSectionHeader(
+		fmt.Sprintf("🟡 หมดอายุปี %d", nextYear), "#FF9800"))
+	bodyContents = append(bodyContents, buildEquipmentList(nearExpiry)...)
+
+	return map[string]interface{}{
+		"type": "bubble", "size": "mega",
+		"header": map[string]interface{}{
+			"type": "box", "layout": "vertical",
+			"backgroundColor": "#1B5E20", "paddingAll": "15px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type": "text", "text": "📋 เครื่องใกล้หมดอายุ",
+					"color": "#FFFFFF", "size": "lg", "weight": "bold",
+				},
+				map[string]interface{}{
+					"type": "text", "text": fmt.Sprintf("แผนก: %s", deptName),
+					"color": "#FFFFFFCC", "size": "sm",
+				},
+				map[string]interface{}{
+					"type": "text", "text": fmt.Sprintf("📅 ข้อมูล ณ %s", time.Now().Format("02/01/2006")),
+					"color": "#FFFFFFCC", "size": "xs",
+				},
+			},
+		},
+		"body": map[string]interface{}{
+			"type": "box", "layout": "vertical",
+			"spacing": "sm", "paddingAll": "12px",
+			"contents": bodyContents,
+		},
+	}
+}
