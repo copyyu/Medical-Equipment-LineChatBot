@@ -116,3 +116,19 @@ func (r *DepartmentRepository) FindOrCreate(ctx context.Context, name string) (*
 	}
 	return newDept, nil
 }
+
+// SearchByNameLike searches departments by keyword using LIKE
+func (r *DepartmentRepository) SearchByNameLike(ctx context.Context, keyword string, limit int) ([]entity.Department, error) {
+	var departments []entity.Department
+	err := r.db.WithContext(ctx).
+		Where("name LIKE ?", "%"+keyword+"%").
+		Order("name ASC").
+		Limit(limit).
+		Find(&departments).Error
+	if err != nil {
+		log.Printf("Error searching departments by keyword '%s': %v", keyword, err)
+		return nil, err
+	}
+	log.Printf("Found %d departments matching '%s'", len(departments), keyword)
+	return departments, nil
+}

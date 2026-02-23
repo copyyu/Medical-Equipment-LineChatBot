@@ -14,4 +14,5 @@ type DepartmentRepository interface {
 	Update(ctx context.Context, department *entity.Department) error
 	Delete(ctx context.Context, id uint) error
 	FindOrCreate(ctx context.Context, name string) (*entity.Department, error)
+	SearchByNameLike(ctx context.Context, keyword string, limit int) ([]entity.Department, error)
 }
