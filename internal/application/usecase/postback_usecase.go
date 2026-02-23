@@ -249,12 +249,12 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่พบแผนกที่เลือกค่ะ")
 		}
 
-		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, uint(departmentID), 10)
+		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, uint(departmentID), 999)
 		if err != nil {
 			log.Printf("❌ FindExpiredByDepartment error: %v", err)
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
-		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, uint(departmentID), 10)
+		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, uint(departmentID), 999)
 		if err != nil {
 			log.Printf("❌ FindNearExpiryByDepartment error: %v", err)
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
@@ -262,7 +262,7 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		if len(expired) == 0 && len(nearExpiry) == 0 {
 			return uc.lineRepo.ReplyMessage(replyToken, fmt.Sprintf("✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในแผนก %s ค่ะ", dept.Name))
 		}
-		return uc.lineRepo.ReplyFlexMessage(replyToken, fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name), templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name))
+		return uc.lineRepo.ReplyFlexMessage(replyToken, fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name), templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name, uint(departmentID), uc.baseURL))
 
 	default:
 		log.Printf("⚠️ Unhandled postback action: %s", action)
