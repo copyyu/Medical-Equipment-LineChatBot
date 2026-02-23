@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -110,6 +111,8 @@ func (uc *MessageUseCase) handleUserInput(msg *model.IncomingMessage, text strin
 		return uc.handleTrackStatusInput(msg, text)
 	case session.ModeInputIssueDesc:
 		return uc.handleInputIssueDescInput(msg, text)
+	case session.ModeSelectDeptForExpiry:
+		return uc.handleSelectDeptForExpiryInput(msg, text)
 	default:
 		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgSelectMenuFirst)
 	}
@@ -313,6 +316,50 @@ func (uc *MessageUseCase) SendWelcomeMessage(userID string) error {
 		To:   userID,
 		Text: constants.MsgWelcome,
 	})
+}
+
+// handleSelectDeptForExpiryInput handles user text input to search department by name.
+func (uc *MessageUseCase) handleSelectDeptForExpiryInput(msg *model.IncomingMessage, text string) error {
+	ctx := context.Background()
+	sanitizedText := SanitizeInput(text)
+
+	// ค้นหาแผนกที่ตรงกับ keyword
+	departments, err := uc.departmentRepo.SearchByNameLike(ctx, sanitizedText, 10)
+	if err != nil {
+		log.Printf("❌ SearchByNameLike error: %v", err)
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถค้นหาแผนกได้ กรุณาลองใหม่ค่ะ")
+	}
+
+	if len(departments) == 0 {
+		// ไม่เจอแผนก — ไม่ลบ session ให้ลองพิมพ์ใหม่ได้
+		return uc.lineRepo.ReplyMessage(msg.ReplyToken, constants.MsgDeptNotFound)
+	}
+
+	if len(departments) == 1 {
+		// เจอแผนกเดียว → แสดงเครื่องใกล้หมดอายุเลย
+		uc.sessionStore.Delete(msg.UserID)
+		dept := departments[0]
+
+		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, dept.ID, 10)
+		if err != nil {
+			log.Printf("❌ FindExpiredByDepartment error: %v", err)
+			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+		}
+		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, dept.ID, 10)
+		if err != nil {
+			log.Printf("❌ FindNearExpiryByDepartment error: %v", err)
+			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+		}
+
+		if len(expired) == 0 && len(nearExpiry) == 0 {
+			return uc.lineRepo.ReplyMessage(msg.ReplyToken, fmt.Sprintf("✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในแผนก %s ค่ะ", dept.Name))
+		}
+		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name), templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name))
+	}
+
+	// เจอหลายแผนก → แสดง Flex ให้เลือก
+	// ยังไม่ลบ session เผื่อ user อยากพิมพ์ใหม่ (session จะหมดอายุเองหรือถูกลบเมื่อเลือกแผนกผ่าน postback)
+	return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "ผลค้นหาแผนก", templates.GetDepartmentSelectionWithInputFlex(departments))
 }
 
 // Helper functions for equipment data formatting

@@ -222,10 +222,18 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		if len(departments) == 0 {
 			return uc.lineRepo.ReplyMessage(replyToken, "⚠️ ไม่พบข้อมูลแผนกในระบบค่ะ")
 		}
+		// Set session เพื่อรับ text input ชื่อแผนก
+		if userID != "" {
+			uc.sessionStore.Set(userID, &session.OCRSession{Mode: session.ModeSelectDeptForExpiry})
+		}
 		return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกแผนก", templates.GetDepartmentSelectionWithInputFlex(departments))
 
 	case constants.ActionViewEquipExpiryByDept:
 		// แสดงเครื่องใกล้หมดอายุของแผนกที่เลือก
+		// ลบ session เพราะ user เลือกแผนกแล้ว
+		if userID != "" {
+			uc.sessionStore.Delete(userID)
+		}
 		ctx := context.Background()
 		departmentIDStr := params.Get("department_id")
 		departmentID, err := strconv.ParseUint(departmentIDStr, 10, 32)
