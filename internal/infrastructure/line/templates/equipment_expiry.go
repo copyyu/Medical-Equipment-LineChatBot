@@ -35,7 +35,7 @@ func GetEquipmentExpiryFlex(expired []entity.Equipment, nearExpiry []entity.Equi
 					"color": "#FFFFFF", "size": "lg", "weight": "bold",
 				},
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("� ข้อมูล ณ %s", time.Now().Format("02/01/2006")),
+					"type": "text", "text": fmt.Sprintf("ข้อมูล ณ %s", time.Now().Format("02/01/2006")),
 					"color": "#FFFFFFCC", "size": "xs",
 				},
 			},
