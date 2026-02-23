@@ -24,12 +24,12 @@ func GetDepartmentSelectionFlex(departments []entity.Department) map[string]inte
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#1B5E20",
+			"backgroundColor": ColorPrimaryDark,
 			"paddingAll":      "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type": "text", "text": "🏥 เลือกแผนก",
-					"color": "#FFFFFF", "size": "lg", "weight": "bold",
+					"color": ColorWhite, "size": "lg", "weight": "bold",
 				},
 				map[string]interface{}{
 					"type": "text", "text": "เลือกแผนกเพื่อดูเครื่องใกล้หมดอายุ",
@@ -59,14 +59,29 @@ func GetDepartmentSelectionWithInputFlex(departments []entity.Department) map[st
 	return buildCarouselWithInput(allButtons, departments)
 }
 
+// deptColorPalette — สีแยกแผนก สุ่มวนไม่ซ้ำ (10 สี)
+var deptColorPalette = []string{
+	"#00897B", // Teal
+	"#5C6BC0", // Indigo
+	"#43A047", // Green
+	"#F4511E", // Deep Orange
+	"#1E88E5", // Blue
+	"#8E24AA", // Purple
+	"#00ACC1", // Cyan
+	"#FB8C00", // Orange
+	"#3949AB", // Dark Indigo
+	"#D81B60", // Pink
+}
+
 // buildDeptButtons creates postback button elements for each department
 func buildDeptButtons(departments []entity.Department) []interface{} {
 	buttons := []interface{}{}
-	for _, dept := range departments {
+	for i, dept := range departments {
+		color := deptColorPalette[i%len(deptColorPalette)]
 		buttons = append(buttons, map[string]interface{}{
 			"type":   "button",
-			"style":  "secondary",
-			"color":  "#4CAF50",
+			"style":  "primary",
+			"color":  color,
 			"height": "sm",
 			"action": map[string]interface{}{
 				"type":        "postback",
@@ -86,7 +101,7 @@ func buildSingleBubbleWithInput(buttons []interface{}) map[string]interface{} {
 			"type":  "text",
 			"text":  "เลือกแผนกจากรายการด้านล่าง หรือพิมพ์ชื่อแผนก",
 			"size":  "xs",
-			"color": "#666666",
+			"color": ColorTextLight,
 			"wrap":  true,
 		},
 		map[string]interface{}{
@@ -102,12 +117,12 @@ func buildSingleBubbleWithInput(buttons []interface{}) map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#1B5E20",
+			"backgroundColor": ColorPrimaryDark,
 			"paddingAll":      "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type": "text", "text": "🏥 เลือกแผนกของคุณ",
-					"color": "#FFFFFF", "size": "lg", "weight": "bold",
+					"color": ColorWhite, "size": "lg", "weight": "bold",
 				},
 				map[string]interface{}{
 					"type": "text", "text": "เพื่อดูเครื่องมือใกล้หมดอายุในแผนก",
@@ -126,7 +141,7 @@ func buildSingleBubbleWithInput(buttons []interface{}) map[string]interface{} {
 					"type":  "text",
 					"text":  "💡 หากไม่พบแผนกของคุณ พิมพ์ชื่อแผนกได้เลยค่ะ",
 					"size":  "xxs",
-					"color": "#888888",
+					"color": ColorTextLight,
 					"align": "center",
 					"wrap":  true,
 				},
@@ -176,7 +191,7 @@ func buildCarouselBubble(buttons []interface{}, isFirst, isLast bool, page, tota
 	headerContents := []interface{}{
 		map[string]interface{}{
 			"type": "text", "text": headerText,
-			"color": "#FFFFFF", "size": "lg", "weight": "bold",
+			"color": ColorWhite, "size": "lg", "weight": "bold",
 		},
 	}
 
@@ -190,7 +205,7 @@ func buildCarouselBubble(buttons []interface{}, isFirst, isLast bool, page, tota
 	bubble["header"] = map[string]interface{}{
 		"type":            "box",
 		"layout":          "vertical",
-		"backgroundColor": "#1B5E20",
+		"backgroundColor": ColorPrimaryDark,
 		"paddingAll":      "15px",
 		"contents":        headerContents,
 	}
@@ -203,7 +218,7 @@ func buildCarouselBubble(buttons []interface{}, isFirst, isLast bool, page, tota
 				"type":  "text",
 				"text":  "กดเลือกแผนก หรือพิมพ์ชื่อแผนกได้เลยค่ะ",
 				"size":  "xs",
-				"color": "#666666",
+				"color": ColorTextLight,
 				"wrap":  true,
 			},
 			map[string]interface{}{
@@ -228,7 +243,7 @@ func buildCarouselBubble(buttons []interface{}, isFirst, isLast bool, page, tota
 					"type":  "text",
 					"text":  "💡 หากไม่พบแผนกของคุณ พิมพ์ชื่อแผนกได้เลยค่ะ",
 					"size":  "xxs",
-					"color": "#888888",
+					"color": ColorTextLight,
 					"align": "center",
 					"wrap":  true,
 				},

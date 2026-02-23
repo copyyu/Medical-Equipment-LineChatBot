@@ -1,14 +1,19 @@
 package templates
 
-// Color constants for consistent branding
+// Hospital Theme Color Palette 🏥
+// โทน Teal/Blue-Green — สื่อถึงความสะอาด สงบ น่าเชื่อถือ
 const (
-	ColorPrimary   = "#0367D3"
-	ColorSecondary = "#B8D4F0"
-	ColorOrange    = "#FF9800"
-	ColorGreen     = "#4CAF50"
-	ColorBlue      = "#5B9BD5"
-	ColorGray      = "#AAAAAA"
-	ColorRed       = "#C62828"
-	ColorRedLight  = "#FFEBEE"
-	ColorWhite     = "#FFFFFF"
+	ColorPrimary     = "#00897B" // Teal — header หลัก
+	ColorPrimaryDark = "#00695C" // Dark Teal — header เข้ม
+	ColorAccent      = "#1976D2" // Blue — links, ID codes
+	ColorSuccess     = "#2E7D32" // Green — สำเร็จ, ยืนยัน
+	ColorWarning     = "#F57F17" // Amber — เตือน
+	ColorDanger      = "#C62828" // Red — error, ฉุกเฉิน
+	ColorInfo        = "#283593" // Indigo — OCR, ค้นหา
+	ColorNeutral     = "#546E7A" // Blue Grey — ปุ่มรอง
+	ColorText        = "#37474F" // Dark — body text
+	ColorTextLight   = "#78909C" // Grey — sub text
+	ColorBgAlt       = "#ECEFF1" // Light grey — alt rows
+	ColorWhite       = "#FFFFFF"
+	ColorDangerLight = "#FFEBEE" // Light red — emergency bg
 )

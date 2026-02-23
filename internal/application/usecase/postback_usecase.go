@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"time"
 
 	"medical-webhook/internal/domain/constants"
 	"medical-webhook/internal/domain/line/model"
@@ -229,8 +230,7 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกแผนก", templates.GetDepartmentSelectionWithInputFlex(departments))
 
 	case constants.ActionViewEquipExpiryByDept:
-		// แสดงเครื่องใกล้หมดอายุของแผนกที่เลือก
-		// ลบ session เพราะ user เลือกแผนกแล้ว
+		// เลือกแผนกแล้ว → ดึงข้อมูล → แสดง year filter ให้เลือก
 		if userID != "" {
 			uc.sessionStore.Delete(userID)
 		}
@@ -242,7 +242,6 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ รหัสแผนกไม่ถูกต้องค่ะ")
 		}
 
-		// ดึงชื่อแผนกเพื่อแสดงใน header
 		dept, err := uc.departmentRepo.FindByID(ctx, uint(departmentID))
 		if err != nil || dept == nil {
 			log.Printf("❌ Department not found: %v", err)
@@ -262,7 +261,57 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		if len(expired) == 0 && len(nearExpiry) == 0 {
 			return uc.lineRepo.ReplyMessage(replyToken, fmt.Sprintf("✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในแผนก %s ค่ะ", dept.Name))
 		}
-		return uc.lineRepo.ReplyFlexMessage(replyToken, fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name), templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name, uint(departmentID), uc.baseURL))
+		// แสดง year filter ให้เลือก ปีนี้ / ปีหน้า / ทั้งหมด
+		return uc.lineRepo.ReplyFlexMessage(replyToken,
+			fmt.Sprintf("เครื่องใกล้หมดอายุ - %s", dept.Name),
+			templates.GetExpiryYearFilterFlex(dept.Name, uint(departmentID), len(expired), len(nearExpiry)))
+
+	case constants.ActionViewExpiryFiltered:
+		// แสดงผลเครื่องหมดอายุตาม filter ที่เลือก (this_year / next_year / all)
+		ctx := context.Background()
+		departmentIDStr := params.Get("department_id")
+		departmentID, err := strconv.ParseUint(departmentIDStr, 10, 32)
+		if err != nil {
+			log.Printf("❌ Invalid department_id: %v", err)
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ รหัสแผนกไม่ถูกต้องค่ะ")
+		}
+		filter := params.Get("filter")
+
+		dept, err := uc.departmentRepo.FindByID(ctx, uint(departmentID))
+		if err != nil || dept == nil {
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่พบแผนกที่เลือกค่ะ")
+		}
+
+		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, uint(departmentID), 999)
+		if err != nil {
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+		}
+		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, uint(departmentID), 999)
+		if err != nil {
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+		}
+
+		thisYear := time.Now().Year()
+		nextYear := thisYear + 1
+
+		switch filter {
+		case "this_year":
+			return uc.lineRepo.ReplyFlexMessage(replyToken,
+				fmt.Sprintf("หมดอายุปี %d - %s", thisYear, dept.Name),
+				templates.GetEquipmentExpiryFilteredFlex(expired,
+					fmt.Sprintf("🔴 หมดอายุภายในปี %d", thisYear), templates.ColorDanger,
+					dept.Name, uint(departmentID), uc.baseURL, "this_year"))
+		case "next_year":
+			return uc.lineRepo.ReplyFlexMessage(replyToken,
+				fmt.Sprintf("หมดอายุปี %d - %s", nextYear, dept.Name),
+				templates.GetEquipmentExpiryFilteredFlex(nearExpiry,
+					fmt.Sprintf("🟡 หมดอายุปี %d", nextYear), templates.ColorWarning,
+					dept.Name, uint(departmentID), uc.baseURL, "next_year"))
+		default: // "all"
+			return uc.lineRepo.ReplyFlexMessage(replyToken,
+				fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name),
+				templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name, uint(departmentID), uc.baseURL))
+		}
 
 	default:
 		log.Printf("⚠️ Unhandled postback action: %s", action)

@@ -2,7 +2,10 @@ package templates
 
 import (
 	"fmt"
+	"log"
 	"medical-webhook/internal/domain/line/entity"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -18,11 +21,11 @@ func GetEquipmentExpiryFlex(expired []entity.Equipment, nearExpiry []entity.Equi
 
 	bodyContents := []interface{}{}
 	bodyContents = append(bodyContents, buildSectionHeader(
-		fmt.Sprintf("🔴 หมดอายุภายในปี %d", thisYear), "#E53935"))
+		fmt.Sprintf("🔴 หมดอายุภายในปี %d", thisYear), ColorDanger))
 	bodyContents = append(bodyContents, buildEquipmentList(expired, lineDisplayLimit)...)
 	bodyContents = append(bodyContents, map[string]interface{}{"type": "separator", "margin": "lg"})
 	bodyContents = append(bodyContents, buildSectionHeader(
-		fmt.Sprintf("🟡 หมดอายุปี %d", nextYear), "#FF9800"))
+		fmt.Sprintf("🟡 หมดอายุปี %d", nextYear), ColorWarning))
 	bodyContents = append(bodyContents, buildEquipmentList(nearExpiry, lineDisplayLimit)...)
 
 	return map[string]interface{}{
@@ -47,11 +50,11 @@ func GetEquipmentExpiryByDeptFlex(expired []entity.Equipment, nearExpiry []entit
 
 	bodyContents := []interface{}{}
 	bodyContents = append(bodyContents, buildSectionHeader(
-		fmt.Sprintf("🔴 หมดอายุภายในปี %d", thisYear), "#E53935"))
+		fmt.Sprintf("🔴 หมดอายุภายในปี %d", thisYear), ColorDanger))
 	bodyContents = append(bodyContents, buildEquipmentList(expired, lineDisplayLimit)...)
 	bodyContents = append(bodyContents, map[string]interface{}{"type": "separator", "margin": "lg"})
 	bodyContents = append(bodyContents, buildSectionHeader(
-		fmt.Sprintf("🟡 หมดอายุปี %d", nextYear), "#FF9800"))
+		fmt.Sprintf("🟡 หมดอายุปี %d", nextYear), ColorWarning))
 	bodyContents = append(bodyContents, buildEquipmentList(nearExpiry, lineDisplayLimit)...)
 
 	return map[string]interface{}{
@@ -71,7 +74,7 @@ func buildExpiryHeader(title string, deptName string, totalCount int, now time.T
 	contents := []interface{}{
 		map[string]interface{}{
 			"type": "text", "text": title,
-			"color": "#FFFFFF", "size": "lg", "weight": "bold",
+			"color": ColorWhite, "size": "lg", "weight": "bold",
 		},
 	}
 	if deptName != "" {
@@ -93,7 +96,7 @@ func buildExpiryHeader(title string, deptName string, totalCount int, now time.T
 
 	return map[string]interface{}{
 		"type": "box", "layout": "vertical",
-		"backgroundColor": "#1B5E20", "paddingAll": "15px",
+		"backgroundColor": ColorPrimaryDark, "paddingAll": "15px",
 		"contents": contents,
 	}
 }
@@ -106,7 +109,7 @@ func buildSectionHeader(title string, color string) map[string]interface{} {
 		"contents": []interface{}{
 			map[string]interface{}{
 				"type": "text", "text": title,
-				"color": "#FFFFFF", "size": "sm", "weight": "bold",
+				"color": ColorWhite, "size": "sm", "weight": "bold",
 			},
 		},
 	}
@@ -119,7 +122,7 @@ func buildEquipmentList(equipments []entity.Equipment, displayLimit int) []inter
 	if len(equipments) == 0 {
 		items = append(items, map[string]interface{}{
 			"type": "text", "text": "✅ ไม่มีเครื่องในหมวดนี้",
-			"size": "xs", "color": "#4CAF50", "align": "center", "margin": "sm",
+			"size": "xs", "color": ColorSuccess, "align": "center", "margin": "sm",
 		})
 		return items
 	}
@@ -135,7 +138,7 @@ func buildEquipmentList(equipments []entity.Equipment, displayLimit int) []inter
 
 	items = append(items, map[string]interface{}{
 		"type": "text", "text": fmt.Sprintf("📊 รวม %d รายการ", len(equipments)),
-		"size": "xs", "color": "#888888", "margin": "sm",
+		"size": "xs", "color": ColorTextLight, "margin": "sm",
 	})
 
 	for i, e := range displayItems {
@@ -146,7 +149,7 @@ func buildEquipmentList(equipments []entity.Equipment, displayLimit int) []inter
 		items = append(items, map[string]interface{}{
 			"type": "text",
 			"text": fmt.Sprintf("...และอีก %d รายการ → กด Export Excel เพื่อดูทั้งหมด", remaining),
-			"size": "xxs", "color": "#E53935", "align": "center",
+			"size": "xxs", "color": ColorDanger, "align": "center",
 			"margin": "sm", "wrap": true,
 		})
 	}
@@ -162,28 +165,28 @@ func buildEquipmentRow(num int, e entity.Equipment) map[string]interface{} {
 	}
 
 	monthsText := "-"
-	monthsColor := "#888888"
+	monthsColor := ColorTextLight
 	if e.ReplacementYear != nil {
 		m := calcMonthsRemaining(*e.ReplacementYear)
 		if m <= 0 {
 			monthsText = fmt.Sprintf("%d ด.", m)
-			monthsColor = "#E53935"
+			monthsColor = ColorDanger
 		} else {
 			monthsText = fmt.Sprintf("%d ด.", m)
 			switch {
 			case m <= 3:
-				monthsColor = "#E53935"
+				monthsColor = ColorDanger
 			case m <= 6:
-				monthsColor = "#FF9800"
+				monthsColor = ColorWarning
 			default:
-				monthsColor = "#2196F3"
+				monthsColor = ColorAccent
 			}
 		}
 	}
 
-	bgColor := "#FFFFFF"
+	bgColor := ColorWhite
 	if num%2 == 0 {
-		bgColor = "#F5F5F5"
+		bgColor = ColorBgAlt
 	}
 
 	return map[string]interface{}{
@@ -195,7 +198,7 @@ func buildEquipmentRow(num int, e entity.Equipment) map[string]interface{} {
 				"contents": []interface{}{
 					map[string]interface{}{
 						"type": "text", "text": fmt.Sprintf("%d. %s", num, e.IDCode),
-						"size": "xs", "weight": "bold", "flex": 4,
+						"size": "xs", "weight": "bold", "flex": 4, "color": ColorText,
 					},
 					map[string]interface{}{
 						"type": "text", "text": monthsText,
@@ -205,7 +208,7 @@ func buildEquipmentRow(num int, e entity.Equipment) map[string]interface{} {
 			},
 			map[string]interface{}{
 				"type": "text", "text": fmt.Sprintf("   %s", modelName),
-				"size": "xxs", "color": "#666666",
+				"size": "xxs", "color": ColorTextLight,
 			},
 		},
 	}
@@ -217,6 +220,22 @@ func calcMonthsRemaining(replacementYear int) int {
 }
 
 func buildExportFooter(downloadURL string, totalCount int) map[string]interface{} {
+	// LINE API requires URI actions to have https:// scheme
+	parsedURL, err := url.Parse(downloadURL)
+	if err != nil || !strings.HasPrefix(parsedURL.Scheme, "http") || parsedURL.Host == "" {
+		log.Printf("⚠️ Invalid BASE_URL for export button (got: %q), skipping Export button", downloadURL)
+		return map[string]interface{}{
+			"type": "box", "layout": "vertical",
+			"paddingAll": "12px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type": "text", "text": "⚠️ ไม่สามารถ Export ได้ (กรุณาตั้งค่า BASE_URL)",
+					"size": "xxs", "color": ColorTextLight, "align": "center", "wrap": true,
+				},
+			},
+		}
+	}
+
 	label := "Export Excel"
 	return map[string]interface{}{
 		"type": "box", "layout": "vertical",
@@ -225,7 +244,7 @@ func buildExportFooter(downloadURL string, totalCount int) map[string]interface{
 			map[string]interface{}{
 				"type":   "button",
 				"style":  "primary",
-				"color":  "#1B5E20",
+				"color":  ColorPrimaryDark,
 				"height": "sm",
 				"action": map[string]interface{}{
 					"type":  "uri",
@@ -236,3 +255,28 @@ func buildExportFooter(downloadURL string, totalCount int) map[string]interface{
 		},
 	}
 }
+
+// GetEquipmentExpiryFilteredFlex - แสดง Flex เฉพาะรายการที่กรองแล้ว (single section)
+// sectionTitle เช่น "🔴 หมดอายุภายในปี 2026" หรือ "🟡 หมดอายุปี 2027"
+// sectionColor เช่น ColorDanger หรือ ColorWarning
+// filter เช่น "this_year" หรือ "next_year"
+func GetEquipmentExpiryFilteredFlex(items []entity.Equipment, sectionTitle string, sectionColor string, deptName string, departmentID uint, baseURL string, filter string) map[string]interface{} {
+	totalCount := len(items)
+	downloadURL := fmt.Sprintf("%s/notifications/export/expiry?dept_id=%d&filter=%s", baseURL, departmentID, filter)
+
+	bodyContents := []interface{}{}
+	bodyContents = append(bodyContents, buildSectionHeader(sectionTitle, sectionColor))
+	bodyContents = append(bodyContents, buildEquipmentList(items, lineDisplayLimit)...)
+
+	return map[string]interface{}{
+		"type": "bubble", "size": "mega",
+		"header": buildExpiryHeader("📋 เครื่องใกล้หมดอายุ", deptName, totalCount, time.Now()),
+		"body": map[string]interface{}{
+			"type": "box", "layout": "vertical",
+			"spacing": "sm", "paddingAll": "12px",
+			"contents": bodyContents,
+		},
+		"footer": buildExportFooter(downloadURL, totalCount),
+	}
+}
+

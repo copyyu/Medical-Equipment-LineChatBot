@@ -152,9 +152,9 @@ func (uc *NotificationUseCase) UpdateSettings(ctx context.Context, settingsDTO *
 	return uc.notificationRepo.UpdateSettings(ctx, settings)
 }
 
-// BuildExpiryExcel สร้างไฟล์ Excel เครื่องใกล้หมดอายุปีนี้และปีหน้า จัดกลุ่มตามปี พร้อม running number
+// BuildExpiryExcel สร้างไฟล์ Excel เครื่องใกล้หมดอายุ กรองตาม filter (this_year / next_year / all)
 // ถ้า departmentID == nil จะดึงทุกแผนก
-func (uc *NotificationUseCase) BuildExpiryExcel(ctx context.Context, departmentID *uint) ([]byte, string, error) {
+func (uc *NotificationUseCase) BuildExpiryExcel(ctx context.Context, departmentID *uint, filter string) ([]byte, string, error) {
 	const noLimit = 99999
 
 	now := time.Now()
@@ -349,30 +349,37 @@ func (uc *NotificationUseCase) BuildExpiryExcel(ctx context.Context, departmentI
 		row++
 	}
 
+	showThisYear := filter == "this_year" || filter == "all" || filter == ""
+	showNextYear := filter == "next_year" || filter == "all" || filter == ""
+
 	// Section 1: ปีนี้
-	writeYearHeader(fmt.Sprintf("🔴 ปีนี้ — ต้องเปลี่ยนปี %d", thisYear), len(thisYearItems), thisYearStyle)
-	if len(thisYearItems) == 0 {
-		mc := fmt.Sprintf("A%d", row)
-		me := fmt.Sprintf("G%d", row)
-		f.MergeCell(sheet, mc, me)
-		f.SetCellValue(sheet, mc, "✅ ไม่มีเครื่องที่ต้องเปลี่ยนในปีนี้")
-		row++
-	}
-	for i, e := range thisYearItems {
-		writeEquipRow(e, i+1)
+	if showThisYear {
+		writeYearHeader(fmt.Sprintf("🔴 ปีนี้ — ต้องเปลี่ยนปี %d", thisYear), len(thisYearItems), thisYearStyle)
+		if len(thisYearItems) == 0 {
+			mc := fmt.Sprintf("A%d", row)
+			me := fmt.Sprintf("G%d", row)
+			f.MergeCell(sheet, mc, me)
+			f.SetCellValue(sheet, mc, "✅ ไม่มีเครื่องที่ต้องเปลี่ยนในปีนี้")
+			row++
+		}
+		for i, e := range thisYearItems {
+			writeEquipRow(e, i+1)
+		}
 	}
 
 	// Section 2: ปีหน้า
-	writeYearHeader(fmt.Sprintf("🟡 ปีหน้า — ต้องเปลี่ยนปี %d", nextYear), len(nextYearItems), nextYearStyle)
-	if len(nextYearItems) == 0 {
-		mc := fmt.Sprintf("A%d", row)
-		me := fmt.Sprintf("G%d", row)
-		f.MergeCell(sheet, mc, me)
-		f.SetCellValue(sheet, mc, "✅ ไม่มีเครื่องที่ต้องเปลี่ยนในปีหน้า")
-		row++
-	}
-	for i, e := range nextYearItems {
-		writeEquipRow(e, i+1)
+	if showNextYear {
+		writeYearHeader(fmt.Sprintf("🟡 ปีหน้า — ต้องเปลี่ยนปี %d", nextYear), len(nextYearItems), nextYearStyle)
+		if len(nextYearItems) == 0 {
+			mc := fmt.Sprintf("A%d", row)
+			me := fmt.Sprintf("G%d", row)
+			f.MergeCell(sheet, mc, me)
+			f.SetCellValue(sheet, mc, "✅ ไม่มีเครื่องที่ต้องเปลี่ยนในปีหน้า")
+			row++
+		}
+		for i, e := range nextYearItems {
+			writeEquipRow(e, i+1)
+		}
 	}
 
 	// Summary row
@@ -392,6 +399,13 @@ func (uc *NotificationUseCase) BuildExpiryExcel(ctx context.Context, departmentI
 		return nil, "", fmt.Errorf("failed to write excel: %w", err)
 	}
 
-	filename := fmt.Sprintf("expiry_report_%d-%d_%s.xlsx", thisYear, nextYear, now.Format("20060102"))
+	// Filename reflects filter
+	filterLabel := fmt.Sprintf("%d-%d", thisYear, nextYear)
+	if filter == "this_year" {
+		filterLabel = fmt.Sprintf("%d", thisYear)
+	} else if filter == "next_year" {
+		filterLabel = fmt.Sprintf("%d", nextYear)
+	}
+	filename := fmt.Sprintf("expiry_report_%s_%s.xlsx", filterLabel, now.Format("20060102"))
 	return buf.Bytes(), filename, nil
 }

@@ -30,7 +30,7 @@ func GetCategorySelectionFlex(serialNumber string, categories []entity.TicketCat
 		buttons = append(buttons, map[string]interface{}{
 			"type":  "button",
 			"style": "primary",
-			"color": "#78909C",
+			"color": ColorNeutral,
 			"action": map[string]interface{}{
 				"type":        "postback",
 				"label":       "🔧 แจ้งซ่อมทั่วไป",
@@ -46,21 +46,21 @@ func GetCategorySelectionFlex(serialNumber string, categories []entity.TicketCat
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#4A90D9",
+			"backgroundColor": ColorPrimary,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "📋 เลือกหมวดหมู่", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{"type": "text", "text": "📋 เลือกหมวดหมู่", "color": ColorWhite, "size": "md", "weight": "bold"},
 			},
 		},
 		"body": map[string]interface{}{
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "sm", "color": "#888888",
+					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "sm", "color": ColorTextLight,
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "กรุณาเลือกประเภทการแจ้ง:", "size": "sm", "margin": "md", "wrap": true,
+					"type": "text", "text": "กรุณาเลือกประเภทการแจ้ง:", "size": "sm", "margin": "md", "wrap": true, "color": ColorText,
 				},
 			},
 		},

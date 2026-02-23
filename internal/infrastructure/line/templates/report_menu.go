@@ -9,12 +9,12 @@ func GetReportMenuFlex() map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#1B5E20",
+			"backgroundColor": ColorPrimaryDark,
 			"paddingAll":      "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type": "text", "text": "🔧 แจ้งปัญหา / เช็คสถานะ",
-					"color": "#FFFFFF", "size": "lg", "weight": "bold",
+					"color": ColorWhite, "size": "lg", "weight": "bold",
 				},
 				map[string]interface{}{
 					"type": "text", "text": "เลือกบริการที่ต้องการค่ะ",
@@ -26,7 +26,7 @@ func GetReportMenuFlex() map[string]interface{} {
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#FF5722", "height": "md",
+					"type": "button", "style": "primary", "color": ColorDanger, "height": "md",
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "📸 แจ้งปัญหา / เช็คสถานะเครื่อง",
@@ -35,7 +35,7 @@ func GetReportMenuFlex() map[string]interface{} {
 					},
 				},
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#FF9800", "height": "md",
+					"type": "button", "style": "primary", "color": ColorWarning, "height": "md",
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "📊 ดูเครื่องใกล้หมดอายุ",

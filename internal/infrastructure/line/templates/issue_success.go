@@ -10,24 +10,24 @@ func GetIssueSuccessFlex(serialNumber string) map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#4CAF50",
+			"backgroundColor": ColorSuccess,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "✅ บันทึกเรียบร้อย", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{"type": "text", "text": "✅ บันทึกเรียบร้อย", "color": ColorWhite, "size": "md", "weight": "bold"},
 			},
 		},
 		"body": map[string]interface{}{
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "sm", "color": "#888888",
+					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "sm", "color": ColorTextLight,
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "ระบบได้รับข้อมูลการแจ้งปัญหาแล้วค่ะ", "size": "sm", "margin": "md", "wrap": true,
+					"type": "text", "text": "ระบบได้รับข้อมูลการแจ้งปัญหาแล้วค่ะ", "size": "sm", "margin": "md", "wrap": true, "color": ColorText,
 				},
 				map[string]interface{}{
-					"type": "text", "text": "เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด", "size": "sm", "color": "#888888", "margin": "sm", "wrap": true,
+					"type": "text", "text": "เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุด", "size": "sm", "color": ColorTextLight, "margin": "sm", "wrap": true,
 				},
 			},
 		},
