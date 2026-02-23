@@ -3,6 +3,8 @@ package persistence
 import (
 	"context"
 	"log"
+	"strings"
+
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/infrastructure/database"
 
@@ -117,11 +119,13 @@ func (r *DepartmentRepository) FindOrCreate(ctx context.Context, name string) (*
 	return newDept, nil
 }
 
-// SearchByNameLike searches departments by keyword using LIKE
+// SearchByNameLike searches departments by keyword using case-insensitive ILIKE (PostgreSQL)
+// Supports both English (ICU/icu) and Thai text
 func (r *DepartmentRepository) SearchByNameLike(ctx context.Context, keyword string, limit int) ([]entity.Department, error) {
 	var departments []entity.Department
+	keyword = strings.TrimSpace(keyword)
 	err := r.db.WithContext(ctx).
-		Where("name LIKE ?", "%"+keyword+"%").
+		Where("name ILIKE ?", "%"+keyword+"%").
 		Order("name ASC").
 		Limit(limit).
 		Find(&departments).Error
