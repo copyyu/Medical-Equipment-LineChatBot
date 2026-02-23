@@ -42,4 +42,6 @@ type EquipmentRepository interface {
 	// Equipment Expiry Queries (for LINE Menu)
 	FindExpired(ctx context.Context, limit int) ([]entity.Equipment, error)
 	FindNearExpiry(ctx context.Context, limit int) ([]entity.Equipment, error)
+	FindExpiredByDepartment(ctx context.Context, departmentID uint, limit int) ([]entity.Equipment, error)
+	FindNearExpiryByDepartment(ctx context.Context, departmentID uint, limit int) ([]entity.Equipment, error)
 }
