@@ -6,27 +6,14 @@ import (
 	"medical-webhook/internal/domain/line/entity"
 )
 
-// GetDepartmentSelectionFlex returns a Flex Message for selecting department before viewing expiring equipment
+// deptButtonsPerBubble defines how many department buttons fit in one bubble body
+const deptButtonsPerBubble = 6
+
+// GetDepartmentSelectionFlex returns a single-bubble Flex Message for selecting department
 func GetDepartmentSelectionFlex(departments []entity.Department) map[string]interface{} {
-	// Build department buttons
-	deptButtons := []interface{}{}
+	deptButtons := buildDeptButtons(departments)
 
-	for _, dept := range departments {
-		deptButtons = append(deptButtons, map[string]interface{}{
-			"type":   "button",
-			"style":  "secondary",
-			"color":  "#4CAF50",
-			"height": "sm",
-			"action": map[string]interface{}{
-				"type":        "postback",
-				"label":       dept.Name,
-				"data":        fmt.Sprintf("action=view_equipment_expiry_by_dept&department_id=%d", dept.ID),
-				"displayText": "เลือก " + dept.Name,
-			},
-		})
-	}
-
-	// Limit to 10 departments for display
+	// Limit to 10 departments for single bubble display
 	if len(deptButtons) > 10 {
 		deptButtons = deptButtons[:10]
 	}
@@ -57,16 +44,26 @@ func GetDepartmentSelectionFlex(departments []entity.Department) map[string]inte
 	}
 }
 
-// GetDepartmentSelectionWithInputFlex returns Flex Message with department list + manual input option
+// GetDepartmentSelectionWithInputFlex returns Carousel Flex Message with department buttons
+// split across multiple bubbles. If departments <= 6, returns a single bubble.
+// Supports both button selection and text input.
 func GetDepartmentSelectionWithInputFlex(departments []entity.Department) map[string]interface{} {
-	// Build department buttons (limit to 6 for space)
-	deptButtons := []interface{}{}
+	allButtons := buildDeptButtons(departments)
 
-	for i, dept := range departments {
-		if i >= 6 {
-			break
-		}
-		deptButtons = append(deptButtons, map[string]interface{}{
+	// ถ้าแผนกน้อย ใช้ bubble เดียว
+	if len(allButtons) <= deptButtonsPerBubble {
+		return buildSingleBubbleWithInput(allButtons)
+	}
+
+	// แผนกเยอะ → ใช้ Carousel แบ่ง bubble ละ deptButtonsPerBubble ปุ่ม
+	return buildCarouselWithInput(allButtons, departments)
+}
+
+// buildDeptButtons creates postback button elements for each department
+func buildDeptButtons(departments []entity.Department) []interface{} {
+	buttons := []interface{}{}
+	for _, dept := range departments {
+		buttons = append(buttons, map[string]interface{}{
 			"type":   "button",
 			"style":  "secondary",
 			"color":  "#4CAF50",
@@ -79,21 +76,25 @@ func GetDepartmentSelectionWithInputFlex(departments []entity.Department) map[st
 			},
 		})
 	}
+	return buttons
+}
 
-	// Add separator and input instruction
-	contents := []interface{}{}
-	contents = append(contents, map[string]interface{}{
-		"type":  "text",
-		"text":  "เลือกแผนกจากรายการด้านล่าง หรือพิมพ์ชื่อแผนกของคุณ",
-		"size":  "xs",
-		"color": "#666666",
-		"wrap":  true,
-	})
-	contents = append(contents, map[string]interface{}{
-		"type":   "separator",
-		"margin": "md",
-	})
-	contents = append(contents, deptButtons...)
+// buildSingleBubbleWithInput creates a single bubble with buttons + text input instruction
+func buildSingleBubbleWithInput(buttons []interface{}) map[string]interface{} {
+	contents := []interface{}{
+		map[string]interface{}{
+			"type":  "text",
+			"text":  "เลือกแผนกจากรายการด้านล่าง หรือพิมพ์ชื่อแผนก",
+			"size":  "xs",
+			"color": "#666666",
+			"wrap":  true,
+		},
+		map[string]interface{}{
+			"type":   "separator",
+			"margin": "md",
+		},
+	}
+	contents = append(contents, buttons...)
 
 	return map[string]interface{}{
 		"type": "bubble",
@@ -127,8 +128,113 @@ func GetDepartmentSelectionWithInputFlex(departments []entity.Department) map[st
 					"size":  "xxs",
 					"color": "#888888",
 					"align": "center",
+					"wrap":  true,
 				},
 			},
 		},
 	}
+}
+
+// buildCarouselWithInput creates a carousel of bubbles, each containing up to deptButtonsPerBubble buttons
+func buildCarouselWithInput(allButtons []interface{}, departments []entity.Department) map[string]interface{} {
+	bubbles := []interface{}{}
+	totalButtons := len(allButtons)
+
+	for i := 0; i < totalButtons; i += deptButtonsPerBubble {
+		end := i + deptButtonsPerBubble
+		if end > totalButtons {
+			end = totalButtons
+		}
+		chunk := allButtons[i:end]
+		isFirst := (i == 0)
+		isLast := (end >= totalButtons)
+
+		bubble := buildCarouselBubble(chunk, isFirst, isLast, i/deptButtonsPerBubble+1, (totalButtons+deptButtonsPerBubble-1)/deptButtonsPerBubble)
+		bubbles = append(bubbles, bubble)
+	}
+
+	// LINE Carousel supports up to 12 bubbles
+	if len(bubbles) > 12 {
+		bubbles = bubbles[:12]
+	}
+
+	return map[string]interface{}{
+		"type":     "carousel",
+		"contents": bubbles,
+	}
+}
+
+// buildCarouselBubble creates one bubble in the carousel
+func buildCarouselBubble(buttons []interface{}, isFirst, isLast bool, page, totalPages int) map[string]interface{} {
+	bubble := map[string]interface{}{
+		"type": "bubble",
+		"size": "kilo",
+	}
+
+	// Header
+	headerText := fmt.Sprintf("🏥 เลือกแผนก (%d/%d)", page, totalPages)
+	headerContents := []interface{}{
+		map[string]interface{}{
+			"type": "text", "text": headerText,
+			"color": "#FFFFFF", "size": "lg", "weight": "bold",
+		},
+	}
+
+	if isFirst {
+		headerContents = append(headerContents, map[string]interface{}{
+			"type": "text", "text": "เลื่อน ← → เพื่อดูแผนกเพิ่มเติม",
+			"color": "#FFFFFFCC", "size": "xs",
+		})
+	}
+
+	bubble["header"] = map[string]interface{}{
+		"type":            "box",
+		"layout":          "vertical",
+		"backgroundColor": "#1B5E20",
+		"paddingAll":      "15px",
+		"contents":        headerContents,
+	}
+
+	// Body
+	bodyContents := []interface{}{}
+	if isFirst {
+		bodyContents = append(bodyContents,
+			map[string]interface{}{
+				"type":  "text",
+				"text":  "กดเลือกแผนก หรือพิมพ์ชื่อแผนกได้เลยค่ะ",
+				"size":  "xs",
+				"color": "#666666",
+				"wrap":  true,
+			},
+			map[string]interface{}{
+				"type":   "separator",
+				"margin": "md",
+			},
+		)
+	}
+	bodyContents = append(bodyContents, buttons...)
+
+	bubble["body"] = map[string]interface{}{
+		"type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "15px",
+		"contents": bodyContents,
+	}
+
+	// Footer on last bubble
+	if isLast {
+		bubble["footer"] = map[string]interface{}{
+			"type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "10px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type":  "text",
+					"text":  "💡 หากไม่พบแผนกของคุณ พิมพ์ชื่อแผนกได้เลยค่ะ",
+					"size":  "xxs",
+					"color": "#888888",
+					"align": "center",
+					"wrap":  true,
+				},
+			},
+		}
+	}
+
+	return bubble
 }
