@@ -11,12 +11,12 @@ func GetSimilarEquipmentFlex(original string, bestIDCode string, similarityPct i
 	escapedIDCode := url.QueryEscape(bestIDCode)
 
 	// เลือกสี % ตามระดับความใกล้เคียง
-	pctColor := "#4CAF50" // เขียว (สูง >= 70%)
+	pctColor := ColorSuccess // เขียว (สูง >= 70%)
 	if similarityPct < 70 {
-		pctColor = "#FF9800" // ส้ม (กลาง 50-69%)
+		pctColor = ColorWarning // ส้ม (กลาง 50-69%)
 	}
 	if similarityPct < 50 {
-		pctColor = "#F44336" // แดง (ต่ำ < 50%)
+		pctColor = ColorDanger // แดง (ต่ำ < 50%)
 	}
 
 	return map[string]interface{}{
@@ -25,13 +25,13 @@ func GetSimilarEquipmentFlex(original string, bestIDCode string, similarityPct i
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#673AB7",
+			"backgroundColor": ColorInfo,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "🔎 ข้อมูลที่ใกล้เคียงที่สุด",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"weight": "bold",
 				},
 			},
@@ -46,7 +46,7 @@ func GetSimilarEquipmentFlex(original string, bestIDCode string, similarityPct i
 					"type":  "text",
 					"text":  "ระบบอ่านได้: " + original,
 					"size":  "sm",
-					"color": "#888888",
+					"color": ColorTextLight,
 				},
 				map[string]interface{}{
 					"type":   "separator",
@@ -57,7 +57,7 @@ func GetSimilarEquipmentFlex(original string, bestIDCode string, similarityPct i
 					"text":   bestIDCode,
 					"size":   "xxl",
 					"weight": "bold",
-					"color":  "#333333",
+					"color":  ColorText,
 					"align":  "center",
 					"margin": "md",
 				},
@@ -80,7 +80,7 @@ func GetSimilarEquipmentFlex(original string, bestIDCode string, similarityPct i
 				map[string]interface{}{
 					"type":  "button",
 					"style": "primary",
-					"color": "#4CAF50",
+					"color": ColorSuccess,
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "✅ ใช่ เลือกรายการนี้",
@@ -113,13 +113,14 @@ func GetSimilarEquipmentListFlex(original string, equipments []*entity.Equipment
 		"text":   "พบอุปกรณ์ที่ใกล้เคียง",
 		"weight": "bold",
 		"size":   "lg",
+		"color":  ColorText,
 	})
 
 	contents = append(contents, map[string]interface{}{
 		"type":  "text",
 		"text":  "จากข้อความ: " + original,
 		"size":  "sm",
-		"color": "#888888",
+		"color": ColorTextLight,
 		"wrap":  true,
 	})
 
@@ -142,6 +143,7 @@ func GetSimilarEquipmentListFlex(original string, equipments []*entity.Equipment
 			"type":   "button",
 			"style":  "primary",
 			"margin": "md",
+			"color":  ColorPrimary,
 			"action": map[string]interface{}{
 				"type":  "postback",
 				"label": idCode,
@@ -183,13 +185,13 @@ func GetSimilarConfirmFlex(selectedIDCode string, originalOCR string) map[string
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#FF9800",
+			"backgroundColor": ColorWarning,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "⚠️ ยืนยันเปลี่ยนหมายเลข",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"weight": "bold",
 				},
 			},
@@ -204,7 +206,7 @@ func GetSimilarConfirmFlex(selectedIDCode string, originalOCR string) map[string
 					"type":  "text",
 					"text":  "ที่ระบบอ่านได้คือ: " + originalOCR,
 					"size":  "sm",
-					"color": "#888888",
+					"color": ColorTextLight,
 					"wrap":  true,
 				},
 				map[string]interface{}{
@@ -215,7 +217,7 @@ func GetSimilarConfirmFlex(selectedIDCode string, originalOCR string) map[string
 					"type":   "text",
 					"text":   "ต้องการเปลี่ยนไปหมายเลข",
 					"size":   "md",
-					"color":  "#333333",
+					"color":  ColorText,
 					"align":  "center",
 					"margin": "md",
 				},
@@ -224,7 +226,7 @@ func GetSimilarConfirmFlex(selectedIDCode string, originalOCR string) map[string
 					"text":   selectedIDCode,
 					"size":   "xxl",
 					"weight": "bold",
-					"color":  "#1976D2",
+					"color":  ColorAccent,
 					"align":  "center",
 					"margin": "sm",
 				},
@@ -232,7 +234,7 @@ func GetSimilarConfirmFlex(selectedIDCode string, originalOCR string) map[string
 					"type":   "text",
 					"text":   "ใช่หรือไม่?",
 					"size":   "md",
-					"color":  "#333333",
+					"color":  ColorText,
 					"align":  "center",
 					"margin": "sm",
 				},
@@ -246,7 +248,7 @@ func GetSimilarConfirmFlex(selectedIDCode string, originalOCR string) map[string
 				map[string]interface{}{
 					"type":  "button",
 					"style": "primary",
-					"color": "#4CAF50",
+					"color": ColorSuccess,
 					"flex":  1,
 					"action": map[string]interface{}{
 						"type":        "postback",
@@ -258,7 +260,7 @@ func GetSimilarConfirmFlex(selectedIDCode string, originalOCR string) map[string
 				map[string]interface{}{
 					"type":  "button",
 					"style": "primary",
-					"color": "#F44336",
+					"color": ColorDanger,
 					"flex":  1,
 					"action": map[string]interface{}{
 						"type":        "postback",

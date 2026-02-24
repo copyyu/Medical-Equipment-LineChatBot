@@ -22,6 +22,7 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 			"weight": "bold",
 			"wrap":   true,
 			"margin": "none",
+			"color":  ColorText,
 		},
 		// Separator
 		map[string]interface{}{
@@ -35,9 +36,9 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 			"margin":  "lg",
 			"spacing": "sm",
 			"contents": []interface{}{
-				createInfoRow("สถานะเดิม", oldStatusText, "#999999"),
+				createInfoRow("สถานะเดิม", oldStatusText, ColorTextLight),
 				createInfoRow("สถานะใหม่", newStatusText, newStatusColor),
-				createInfoRow("อัปเดตเมื่อ", time.Now().Format("2006-01-02 15:04"), "#666666"),
+				createInfoRow("อัปเดตเมื่อ", time.Now().Format("2006-01-02 15:04"), ColorTextLight),
 			},
 		},
 	}
@@ -53,7 +54,7 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 				"type":   "text",
 				"text":   fmt.Sprintf("📝 %s", note),
 				"size":   "sm",
-				"color":  "#666666",
+				"color":  ColorTextLight,
 				"wrap":   true,
 				"margin": "lg",
 			},
@@ -73,13 +74,13 @@ func GetTicketStatusChangedFlex(ticket *entity.Ticket, oldStatus, newStatus enti
 					"text":   fmt.Sprintf("%s อัปเดตสถานะ Ticket", getStatusChangeEmoji(newStatus)),
 					"weight": "bold",
 					"size":   "lg",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 				},
 				map[string]interface{}{
 					"type":   "text",
 					"text":   ticket.TicketNo,
 					"size":   "sm",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"margin": "sm",
 				},
 			},

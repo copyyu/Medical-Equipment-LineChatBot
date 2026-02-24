@@ -95,8 +95,9 @@ func (h *NotificationHandler) DownloadExpiryExcel(c *fiber.Ctx) error {
 		deptID := uint(id)
 		departmentID = &deptID
 	}
+	filter := c.Query("filter", "all") // this_year, next_year, all
 
-	xlsxBytes, filename, err := h.notificationUseCase.BuildExpiryExcel(ctx, departmentID)
+	xlsxBytes, filename, err := h.notificationUseCase.BuildExpiryExcel(ctx, departmentID, filter)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),

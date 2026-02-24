@@ -11,21 +11,21 @@ func GetActionMenuFlex(serialNumber string) map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#4CAF50",
+			"backgroundColor": ColorSuccess,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "✅ ยืนยันเลขเครื่องสำเร็จ", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{"type": "text", "text": "✅ ยืนยันเลขเครื่องสำเร็จ", "color": ColorWhite, "size": "md", "weight": "bold"},
 			},
 		},
 		"body": map[string]interface{}{
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "md", "weight": "bold", "color": "#0367D3",
+					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "md", "weight": "bold", "color": ColorAccent,
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "ต้องการทำอะไรต่อ?", "size": "sm", "margin": "md",
+					"type": "text", "text": "ต้องการทำอะไรต่อ?", "size": "sm", "margin": "md", "color": ColorText,
 				},
 			},
 		},
@@ -33,7 +33,7 @@ func GetActionMenuFlex(serialNumber string) map[string]interface{} {
 			"type": "box", "layout": "vertical", "spacing": "sm",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#5B9BD5",
+					"type": "button", "style": "primary", "color": ColorAccent,
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "🔍 ดูข้อมูลเครื่อง",
@@ -42,7 +42,7 @@ func GetActionMenuFlex(serialNumber string) map[string]interface{} {
 					},
 				},
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#FF5722", "margin": "sm",
+					"type": "button", "style": "primary", "color": ColorDanger, "margin": "sm",
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "⚠️ แจ้งปัญหา",
