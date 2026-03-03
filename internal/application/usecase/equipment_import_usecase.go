@@ -161,23 +161,26 @@ func (uc *equipmentImportUseCase) Execute(ctx context.Context, file io.Reader) (
 	return result, nil
 }
 
-// validateExcelRow
+// validateExcelRow - validate ข้อมูลที่จำเป็น
 func (uc *equipmentImportUseCase) validateExcelRow(row *dto.ExcelRowDTO) error {
 	if row.IDCode == "" {
 		return fmt.Errorf("ID CODE is required")
 	}
 
 	if row.Department == "" {
-		row.Department = "-"
+		return fmt.Errorf("department is required")
 	}
+
 	if row.Brand == "" {
-		row.Brand = "-"
+		return fmt.Errorf("brand is required")
 	}
+
 	if row.Category == "" {
-		row.Category = "-"
+		return fmt.Errorf("category is required")
 	}
+
 	if row.Model == "" {
-		row.Model = "-"
+		return fmt.Errorf("model is required")
 	}
 
 	return nil

@@ -149,6 +149,14 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 		equipment.DepartmentID = dept.ID
 	}
 
+	// Update compute date if provided
+	if req.ComputeDate != "" {
+		computeDate, err := time.Parse("2006-01-02", req.ComputeDate)
+		if err == nil {
+			equipment.ComputeDate = &computeDate
+		}
+	}
+
 	// Update expiry date and calculate RemainLife if provided
 	if req.ExpiryDate != "" {
 		expiryDate, err := time.Parse("2006-01-02", req.ExpiryDate)
@@ -165,6 +173,7 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 			equipment.ReplacementYear = &replacementYear
 
 			// Update LifeExpectancy based on new expiry date and receive date
+			// So the mapper's dynamic calculation (LifeExpectancy - equipmentAge) stays correct
 			if equipment.ReceiveDate != nil {
 				newLifeExpectancy := expiryDate.Sub(*equipment.ReceiveDate).Hours() / (24 * daysInYear)
 				equipment.LifeExpectancy = newLifeExpectancy
@@ -262,73 +271,55 @@ func (u *equipmentUsecase) CreateEquipment(ctx context.Context, req dto.CreateEq
 
 	// 8. Create Equipment entity
 	equipment := &entity.Equipment{
-		IDCode:         req.IDCode,
-		SerialNo:       &req.SerialNo,
-		ModelID:        model.ID,
-		DepartmentID:   department.ID,
-		ReceiveDate:    &receiveDate,
-		PurchasePrice:  req.PurchasePrice,
-		LifeExpectancy: req.LifeExpectancy,
+		IDCode:                req.IDCode,
+		SerialNo:              &req.SerialNo,
+		ModelID:               model.ID,
+		DepartmentID:          department.ID,
+		ReceiveDate:           &receiveDate,
+		PurchasePrice:         req.PurchasePrice,
+		EquipmentAge:          req.EquipmentAge,
+		LifeExpectancy:        req.LifeExpectancy,
+		RemainLife:            req.RemainLife,
+		UsefulLifetimePercent: req.UsefulLifetimePercent,
 	}
 
 	// Set optional fields
-	if req.ECRICode != "" {
-		equipment.ECRICode = &req.ECRICode
+	if req.AssessmentID != "" {
+		equipment.AssessmentID = &req.AssessmentID
 	}
-	if req.AssetTypeName != "" {
-		equipment.AssetTypeName = &req.AssetTypeName
-	}
-	if req.AssetName != "" {
-		equipment.AssetName = &req.AssetName
-	}
-	if req.Building != "" {
-		equipment.Building = &req.Building
-	}
-	if req.Floor != "" {
-		equipment.Floor = &req.Floor
-	}
-	if req.Room != "" {
-		equipment.Room = &req.Room
-	}
-	if req.Remark != "" {
-		equipment.Remark = &req.Remark
-	}
-	if req.PurchaseDate != "" {
-		purchaseDate, err := time.Parse("2006-01-02", req.PurchaseDate)
+	if req.ComputeDate != "" {
+		computeDate, err := time.Parse("2006-01-02", req.ComputeDate)
 		if err == nil {
-			equipment.PurchaseDate = &purchaseDate
+			equipment.ComputeDate = &computeDate
 		}
 	}
-	if req.WarrantyStartDate != "" {
-		wd, err := time.Parse("2006-01-02", req.WarrantyStartDate)
-		if err == nil {
-			equipment.WarrantyStartDate = &wd
-		}
+	if req.ReplacementYear > 0 {
+		equipment.ReplacementYear = &req.ReplacementYear
 	}
-	if req.WarrantyEndDate != "" {
-		wd, err := time.Parse("2006-01-02", req.WarrantyEndDate)
-		if err == nil {
-			equipment.WarrantyEndDate = &wd
-		}
+	if req.Technology != nil {
+		equipment.Technology = req.Technology
 	}
-	if req.WarrantyPeriod != "" {
-		equipment.WarrantyPeriod = &req.WarrantyPeriod
+	if req.UsageStatistics != nil {
+		equipment.UsageStatistics = req.UsageStatistics
+	}
+	if req.Efficiency != nil {
+		equipment.Efficiency = req.Efficiency
+	}
+	if req.Others != "" {
+		equipment.Others = &req.Others
 	}
 
-	// 9. ✅ Compute lifecycle fields (EquipmentAge, RemainLife, ReplacementYear)
-	u.mapper.ComputeLifecycleFieldsPublic(equipment)
+	// 9. ✅ Calculate and set Status based on RemainLife
+	equipment.Status = u.calculateStatus(req.RemainLife)
 
-	// 10. Calculate and set Status based on RemainLife
-	equipment.Status = u.calculateStatus(equipment.RemainLife)
-
-	// 11. Save to database via service
+	// 10. Save to database via service
 	err = u.equipmentService.CreateEquipment(ctx, equipment)
 	if err != nil {
 		log.Printf("Usecase: Error creating equipment: %v", err)
 		return nil, err
 	}
 
-	// 12. Load relations and return
+	// 11. Load relations and return
 	createdEquipment, err := u.equipmentService.FindEquipmentByID(ctx, equipment.ID)
 	if err != nil {
 		log.Printf("Usecase: Error loading created equipment: %v", err)
@@ -337,7 +328,7 @@ func (u *equipmentUsecase) CreateEquipment(ctx context.Context, req dto.CreateEq
 
 	log.Printf("Usecase: Successfully created equipment: %s (ID: %d)", equipment.IDCode, equipment.ID)
 
-	// 13. Map to response DTO using mapper
+	// 12. Map to response DTO using mapper
 	return u.mapper.MapEquipmentToResponse(createdEquipment), nil
 }
 
@@ -395,6 +386,14 @@ func (u *equipmentUsecase) validateCreateRequest(req dto.CreateEquipmentRequest)
 	}
 	if req.PurchasePrice < 0 {
 		return errors.New("purchase_price must be greater than or equal to 0")
+	}
+
+	// Business logic validations
+	if req.EquipmentAge > req.LifeExpectancy {
+		return errors.New("equipment_age cannot exceed life_expectancy")
+	}
+	if req.UsefulLifetimePercent < 0 || req.UsefulLifetimePercent > 100 {
+		return errors.New("useful_lifetime_percent must be between 0 and 100")
 	}
 
 	return nil

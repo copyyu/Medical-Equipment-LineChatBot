@@ -4,60 +4,30 @@ import "time"
 
 // ExcelRowDTO - DTO สำหรับข้อมูลจาก Excel แต่ละ row
 type ExcelRowDTO struct {
-	AssetTypeName        string
-	Category             string
-	ECRICode             string
-	Brand                string
-	Model                string
-	SerialNo             *string
-	Building             *string
-	AssetStatus          string
-	AssetStatusInternal  *string
-	RentalStatus         *string
-	BusinessName         *string
-	IDCode               string
-	ItemNo               *string
-	SKUNo                *string
-	UpdatedDate          *time.Time
-	UpdatedBy            *string
-	Department           string
-	WarrantyPeriod       *string
-	WarrantyStartDate    *time.Time
-	WarrantyEndDate      *time.Time
-	WarrantyPM           *string
-	WarrantyCal          *string
-	Floor                *string
-	Room                 *string
-	PhoneNo              *string
-	PowerConsumption     *string
-	ECRIRisk             string
-	Classification       string
-	LifeExpectancy       float64
-	CalPeriod            *string
-	VendorPM             *string
-	VendorCal            *string
-	TorNo                *string
-	PurchaseDate         *time.Time
-	PurchasePrice        float64
-	ReceiveDate          *time.Time
-	RegistrationDate     *time.Time
-	Supplier             *string
-	Ownership            *string
-	PoNo                 *string
-	ContractNo           *string
-	InvoiceNo            *string
-	DocumentNo           *string
-	ManufacturingCountry *string
-	RevenuePerMonth      *float64
-	Remark               *string
-	ApprovedBy           *string
-	NsmartItemCode       *string
-	AssetName            *string
-	AssetID              *string
-	LastPMDate           *time.Time
-	LastCalDate          *time.Time
-	PMPeriod             *string
-	BorrowStatus         *string
+	Department        string
+	ECRIRisk          string
+	AssessmentID      string
+	IDCode            string
+	Category          string
+	Brand             string
+	Model             string
+	SerialNo          *string
+	Classification    string
+	ReceiveDate       *time.Time
+	PurchasePrice     float64
+	EquipmentAge      float64
+	ComputeDate       *time.Time
+	LifeExpectancy    float64
+	RemainLife        float64
+	TotalOfCM         int
+	TotalOfCost       float64
+	PerCostPrice      float64
+	UsefulLifePercent float64
+	ReplacementYear   *int
+	Technology        *float64
+	UsageStatistics   *float64
+	Efficiency        *float64
+	Others            *string
 }
 
 // EquipmentImportResultDTO - DTO สำหรับผลลัพธ์การ import
@@ -74,57 +44,25 @@ type EquipmentImportResultDTO struct {
 	ErrorMessages  []string `json:"error_messages"`
 }
 
-// CreateEquipmentDTO - DTO สำหรับสร้าง Equipment (from Excel import)
+// CreateEquipmentDTO - DTO สำหรับสร้าง Equipment
 type CreateEquipmentDTO struct {
-	IDCode               string
-	SerialNo             *string
-	ModelID              uint
-	DepartmentID         uint
-	AssetTypeName        *string
-	ECRICode             *string
-	AssetName            *string
-	AssetID              *string
-	AssetStatus          string
-	AssetStatusInternal  *string
-	RentalStatus         *string
-	BorrowStatus         *string
-	Building             *string
-	Floor                *string
-	Room                 *string
-	PhoneNo              *string
-	BusinessName         *string
-	ItemNo               *string
-	SKUNo                *string
-	ReceiveDate          *time.Time
-	PurchaseDate         *time.Time
-	RegistrationDate     *time.Time
-	PurchasePrice        float64
-	LifeExpectancy       float64
-	WarrantyPeriod       *string
-	WarrantyStartDate    *time.Time
-	WarrantyEndDate      *time.Time
-	WarrantyPM           *string
-	WarrantyCal          *string
-	LastPMDate           *time.Time
-	LastCalDate          *time.Time
-	PMPeriod             *string
-	CalPeriod            *string
-	VendorPM             *string
-	VendorCal            *string
-	PowerConsumption     *string
-	Supplier             *string
-	Ownership            *string
-	PoNo                 *string
-	ContractNo           *string
-	InvoiceNo            *string
-	DocumentNo           *string
-	TorNo                *string
-	ManufacturingCountry *string
-	RevenuePerMonth      *float64
-	Remark               *string
-	ApprovedBy           *string
-	NsmartItemCode       *string
-	UpdatedBy            *string
+	IDCode                string
+	SerialNo              *string
+	ModelID               uint
+	DepartmentID          uint
+	AssessmentID          *string
+	ReceiveDate           *time.Time
+	PurchasePrice         float64
+	EquipmentAge          float64
+	ComputeDate           *time.Time
+	LifeExpectancy        float64
+	RemainLife            float64
+	UsefulLifetimePercent float64
+	ReplacementYear       *int
+	Technology            *float64
+	UsageStatistics       *float64
+	Efficiency            *float64
+	Others                *string
 }
 
 // BrandDTO - DTO สำหรับ Brand
