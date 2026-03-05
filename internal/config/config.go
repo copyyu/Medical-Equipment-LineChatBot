@@ -13,6 +13,7 @@ type Config struct {
 	LineChannelSecret string
 	Port              string
 	OCRURL            string
+	RedisURL          string
 	DB                DatabaseConfig
 	Contact           ContactConfig
 }
@@ -46,6 +47,7 @@ func Load() *Config {
 		LineChannelSecret: os.Getenv("LINE_CHANNEL_SECRET"),
 		Port:              os.Getenv("PORT"),
 		OCRURL:            os.Getenv("OCR_API_URL"),
+		RedisURL:          getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		DB: DatabaseConfig{
 			Host:     os.Getenv("DB_HOST"),
 			Port:     os.Getenv("DB_PORT"),
