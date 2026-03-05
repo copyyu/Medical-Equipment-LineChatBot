@@ -16,13 +16,13 @@ func GetOCRConfirmationFlex(detectedText string, imageURL string) map[string]int
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#0367D3",
+			"backgroundColor": ColorInfo,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "🔍 ตรวจสอบหมายเลขเครื่อง",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"size":   "md",
 					"weight": "bold",
 				},
@@ -38,14 +38,14 @@ func GetOCRConfirmationFlex(detectedText string, imageURL string) map[string]int
 					"type":  "text",
 					"text":  "ระบบอ่านได้เลข:",
 					"size":  "sm",
-					"color": "#888888",
+					"color": ColorTextLight,
 				},
 				map[string]interface{}{
 					"type":   "text",
 					"text":   detectedText,
 					"size":   "xxl",
 					"weight": "bold",
-					"color":  "#0367D3",
+					"color":  ColorAccent,
 					"align":  "center",
 				},
 				map[string]interface{}{
@@ -59,6 +59,7 @@ func GetOCRConfirmationFlex(detectedText string, imageURL string) map[string]int
 					"weight": "bold",
 					"align":  "center",
 					"margin": "md",
+					"color":  ColorText,
 				},
 			},
 		},
@@ -70,7 +71,7 @@ func GetOCRConfirmationFlex(detectedText string, imageURL string) map[string]int
 				map[string]interface{}{
 					"type":  "button",
 					"style": "primary",
-					"color": "#4CAF50",
+					"color": ColorSuccess,
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "✅ ใช่ ถูกต้อง",
@@ -107,7 +108,7 @@ func GetOCRSimilarFlex(detectedText string, suggestions []string) map[string]int
 			"type":  "text",
 			"text":  fmt.Sprintf("ระบบอ่านได้: %s", detectedText),
 			"size":  "sm",
-			"color": "#888888",
+			"color": ColorTextLight,
 		},
 		map[string]interface{}{
 			"type":   "text",
@@ -115,6 +116,7 @@ func GetOCRSimilarFlex(detectedText string, suggestions []string) map[string]int
 			"size":   "md",
 			"weight": "bold",
 			"margin": "md",
+			"color":  ColorText,
 		},
 	}
 
@@ -150,13 +152,13 @@ func GetOCRSimilarFlex(detectedText string, suggestions []string) map[string]int
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#673AB7",
+			"backgroundColor": ColorInfo,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "🔎 หมายเลขที่ใกล้เคียง",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"weight": "bold",
 				},
 			},
@@ -183,13 +185,13 @@ func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#FF9800",
+			"backgroundColor": ColorWarning,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "⚠️ ไม่พบในฐานระบบ",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"weight": "bold",
 				},
 			},
@@ -205,14 +207,14 @@ func GetOCRNotFoundFlex(detectedText string) map[string]interface{} {
 					"size":   "xl",
 					"weight": "bold",
 					"align":  "center",
-					"color":  "#333333",
+					"color":  ColorText,
 				},
 				map[string]interface{}{
 					"type":  "text",
 					"text":  "ไม่พบในฐานระบบ หรือภาพไม่ชัด กรุณาส่งภาพมาใหม่",
 					"size":  "sm",
 					"wrap":  true,
-					"color": "#888888",
+					"color": ColorTextLight,
 				},
 			},
 		},
@@ -232,13 +234,13 @@ func GetOCRErrorFlex() map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#F44336",
+			"backgroundColor": ColorDanger,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "❌ อ่านรูปไม่สำเร็จ",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"weight": "bold",
 				},
 			},
@@ -252,12 +254,13 @@ func GetOCRErrorFlex() map[string]interface{} {
 					"type": "text",
 					"text": "ระบบไม่สามารถอ่านหมายเลขจากรูปได้",
 					"size": "sm",
+					"color": ColorText,
 				},
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "กรุณาถ่ายรูปใหม่ให้เห็นตัวเลขชัดๆ",
 					"size":   "sm",
-					"color":  "#888888",
+					"color":  ColorTextLight,
 					"margin": "md",
 				},
 			},
@@ -278,13 +281,13 @@ func GetRetryPhotoFlex() map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#5B9BD5",
+			"backgroundColor": ColorAccent,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "📷 ส่งรูปใหม่",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"weight": "bold",
 				},
 			},
@@ -296,13 +299,14 @@ func GetRetryPhotoFlex() map[string]interface{} {
 			"contents": []interface{}{
 				map[string]interface{}{
 					"type": "text",
-					"text": "ขออภัยครับ รูปอาจไม่ชัด",
+					"text": "ขออภัยค่ะ รูปอาจไม่ชัด",
+					"color": ColorText,
 				},
 				map[string]interface{}{
 					"type":   "text",
-					"text":   "กรุณาถ่ายรูปใหม่ให้เห็นตัวเลขชัดๆ หน่อยครับ",
+					"text":   "กรุณาถ่ายรูปใหม่ให้เห็นตัวเลขชัดๆ หน่อยค่ะ",
 					"size":   "sm",
-					"color":  "#888888",
+					"color":  ColorTextLight,
 					"margin": "md",
 				},
 			},

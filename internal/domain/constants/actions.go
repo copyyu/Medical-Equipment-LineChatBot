@@ -25,4 +25,5 @@ const (
 	ActionViewEquipExpiry       = "view_equipment_expiry"
 	ActionSelectDeptForExpiry   = "select_dept_for_expiry"
 	ActionViewEquipExpiryByDept = "view_equipment_expiry_by_dept"
+	ActionViewExpiryFiltered    = "view_expiry_filtered"
 )

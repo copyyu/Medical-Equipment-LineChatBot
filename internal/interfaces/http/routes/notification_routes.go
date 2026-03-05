@@ -10,6 +10,9 @@ import (
 
 // SetupNotificationRoutes - protected routes for notifications
 func SetupNotificationRoutes(app *fiber.App, notificationHandler *handlers.NotificationHandler, adminUsecase usecase.AdminUsecase) {
+
+	app.Get("/notifications/export/expiry", notificationHandler.DownloadExpiryExcel)
+
 	// Notification routes - protected
 	notifGroup := app.Group("", middleware.AuthMiddleware(adminUsecase))
 

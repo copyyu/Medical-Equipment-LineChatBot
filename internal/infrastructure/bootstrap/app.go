@@ -136,11 +136,13 @@ func InitializeApp() (*Application, func(), error) {
 		sessionStore,
 		messageService,
 		ticketUseCase,
+		cfg.BaseURL,
 	)
 	notificationUseCase := usecase.NewNotificationUseCase(
 		notificationRepo,
 		notificationService,
 		lineRepo,
+		equipmentRepo,
 	)
 
 	equipmentImportUseCase := usecase.NewEquipmentImportUseCase(

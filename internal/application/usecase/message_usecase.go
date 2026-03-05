@@ -25,6 +25,7 @@ type MessageUseCase struct {
 	sessionStore   *session.SessionStore
 	messageService *service.MessageService
 	ticketUseCase  *TicketUseCase
+	baseURL        string
 }
 
 // NewMessageUseCase creates a new message use case
@@ -36,6 +37,7 @@ func NewMessageUseCase(
 	sessionStore *session.SessionStore,
 	messageService *service.MessageService,
 	ticketUseCase *TicketUseCase,
+	baseURL string,
 ) *MessageUseCase {
 	return &MessageUseCase{
 		lineRepo:       lineRepo,
@@ -45,6 +47,7 @@ func NewMessageUseCase(
 		sessionStore:   sessionStore,
 		messageService: messageService,
 		ticketUseCase:  ticketUseCase,
+		baseURL:        baseURL,
 	}
 }
 
@@ -340,12 +343,12 @@ func (uc *MessageUseCase) handleSelectDeptForExpiryInput(msg *model.IncomingMess
 		uc.sessionStore.Delete(msg.UserID)
 		dept := departments[0]
 
-		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, dept.ID, 10)
+		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, dept.ID, 999)
 		if err != nil {
 			log.Printf("❌ FindExpiredByDepartment error: %v", err)
 			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
-		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, dept.ID, 10)
+		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, dept.ID, 999)
 		if err != nil {
 			log.Printf("❌ FindNearExpiryByDepartment error: %v", err)
 			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
@@ -354,7 +357,7 @@ func (uc *MessageUseCase) handleSelectDeptForExpiryInput(msg *model.IncomingMess
 		if len(expired) == 0 && len(nearExpiry) == 0 {
 			return uc.lineRepo.ReplyMessage(msg.ReplyToken, fmt.Sprintf("✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในแผนก %s ค่ะ", dept.Name))
 		}
-		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name), templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name))
+		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name), templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name, dept.ID, uc.baseURL))
 	}
 
 	// เจอหลายแผนก → แสดง Flex ให้เลือก

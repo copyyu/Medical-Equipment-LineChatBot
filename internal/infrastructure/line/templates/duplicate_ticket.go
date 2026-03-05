@@ -10,34 +10,34 @@ func GetDuplicateTicketFlex(ticketNo string, equipmentSerial string, status stri
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#FFA726",
+			"backgroundColor": ColorWarning,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "⚠️ พบรายการแจ้งซ่อมที่มีอยู่แล้ว", "color": "#FFFFFF", "size": "md", "weight": "bold", "wrap": true},
+				map[string]interface{}{"type": "text", "text": "⚠️ พบรายการแจ้งซ่อมที่มีอยู่แล้ว", "color": ColorWhite, "size": "md", "weight": "bold", "wrap": true},
 			},
 		},
 		"body": map[string]interface{}{
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", equipmentSerial), "size": "sm", "color": "#888888",
+					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", equipmentSerial), "size": "sm", "color": ColorTextLight,
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "คุณได้แจ้งซ่อมเครื่องนี้ไปแล้ว", "size": "sm", "margin": "md", "wrap": true,
+					"type": "text", "text": "คุณได้แจ้งซ่อมเครื่องนี้ไปแล้ว", "size": "sm", "margin": "md", "wrap": true, "color": ColorText,
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "md",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "หมายเลข:", "size": "sm", "color": "#555555", "flex": 2},
-						map[string]interface{}{"type": "text", "text": ticketNo, "size": "sm", "color": "#0367D3", "weight": "bold", "flex": 3},
+						map[string]interface{}{"type": "text", "text": "หมายเลข:", "size": "sm", "color": ColorTextLight, "flex": 2},
+						map[string]interface{}{"type": "text", "text": ticketNo, "size": "sm", "color": ColorAccent, "weight": "bold", "flex": 3},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "สถานะ:", "size": "sm", "color": "#555555", "flex": 2},
-						map[string]interface{}{"type": "text", "text": status, "size": "sm", "color": "#FF5722", "weight": "bold", "flex": 3},
+						map[string]interface{}{"type": "text", "text": "สถานะ:", "size": "sm", "color": ColorTextLight, "flex": 2},
+						map[string]interface{}{"type": "text", "text": status, "size": "sm", "color": ColorWarning, "weight": "bold", "flex": 3},
 					},
 				},
 			},
@@ -46,7 +46,7 @@ func GetDuplicateTicketFlex(ticketNo string, equipmentSerial string, status stri
 			"type": "box", "layout": "vertical", "spacing": "sm",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#5B9BD5",
+					"type": "button", "style": "primary", "color": ColorAccent,
 					"action": map[string]interface{}{
 						"type":  "postback",
 						"label": "📋 ดูสถานะ Ticket",

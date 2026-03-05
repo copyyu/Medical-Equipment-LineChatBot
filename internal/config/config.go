@@ -14,6 +14,7 @@ type Config struct {
 	Port              string
 	OCRURL            string
 	RedisURL          string
+	BaseURL           string
 	DB                DatabaseConfig
 	Contact           ContactConfig
 }
@@ -48,6 +49,7 @@ func Load() *Config {
 		Port:              os.Getenv("PORT"),
 		OCRURL:            os.Getenv("OCR_API_URL"),
 		RedisURL:          getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
+		BaseURL:           os.Getenv("BASE_URL"),
 		DB: DatabaseConfig{
 			Host:     os.Getenv("DB_HOST"),
 			Port:     os.Getenv("DB_PORT"),
