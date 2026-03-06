@@ -21,4 +21,5 @@ type NotificationRepository interface {
 	// Equipment Alerts
 	GetEquipmentsForJuneAlert(ctx context.Context) ([]dto.EquipmentReplacementAlertDTO, error)
 	GetEquipmentsForAugustAlert(ctx context.Context) ([]dto.EquipmentReplacementAlertDTO, error)
+	GetEquipmentsForTestAlert(ctx context.Context, targetYear int, notifyRound string) ([]dto.EquipmentReplacementAlertDTO, error)
 }

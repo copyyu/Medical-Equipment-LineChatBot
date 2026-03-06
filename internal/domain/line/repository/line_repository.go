@@ -9,7 +9,8 @@ type LineRepository interface {
 	ReplyFlexMessage(replyToken, altText string, flexContent map[string]interface{}) error
 	PushFlexMessage(userID, altText string, flexContent map[string]interface{}) error
 	BroadcastMessage(text string) error
-	GetImageContent(messageID string) ([]byte, error) // Download image from LINE
+	BroadcastFlexMessage(altText string, flexContent map[string]interface{}) error
+	GetImageContent(messageID string) ([]byte, error)
 	GetProfile(userID string) (*model.UserProfile, error)
 	GetGroupMemberProfile(groupID, userID string) (*model.UserProfile, error)
 	GetRoomMemberProfile(roomID, userID string) (*model.UserProfile, error)
