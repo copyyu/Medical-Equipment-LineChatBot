@@ -39,9 +39,6 @@ type EquipmentRepository interface {
 	CountNearExpiry(ctx context.Context) (int64, error)
 	CountByStatus(ctx context.Context) (map[entity.AssetStatus]int64, error) // นับจำนวนอุปกรณ์แยกตาม Status
 
-	// Equipment Expiry Queries (for LINE Menu)
-	FindExpired(ctx context.Context, limit int) ([]entity.Equipment, error)
-	FindNearExpiry(ctx context.Context, limit int) ([]entity.Equipment, error)
-	FindExpiredByDepartment(ctx context.Context, departmentID uint, limit int) ([]entity.Equipment, error)
-	FindNearExpiryByDepartment(ctx context.Context, departmentID uint, limit int) ([]entity.Equipment, error)
+	// Equipment Expiry Queries (by ReplacementYear)
+	FindByReplacementYear(ctx context.Context, year int, departmentID *uint) ([]entity.Equipment, error)
 }

@@ -155,47 +155,20 @@ func (uc *NotificationUseCase) UpdateSettings(ctx context.Context, settingsDTO *
 // BuildExpiryExcel สร้างไฟล์ Excel เครื่องใกล้หมดอายุ กรองตาม filter (this_year / next_year / all)
 // ถ้า departmentID == nil จะดึงทุกแผนก
 func (uc *NotificationUseCase) BuildExpiryExcel(ctx context.Context, departmentID *uint, filter string) ([]byte, string, error) {
-	const noLimit = 99999
 
 	now := time.Now()
 	thisYear := now.Year()
 	nextYear := thisYear + 1
 
-	var expiredAll []entity.Equipment
-	var nearExpiry []entity.Equipment
-	var err error
-
-	if departmentID != nil {
-		expiredAll, err = uc.equipmentRepo.FindExpiredByDepartment(ctx, *departmentID, noLimit)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to get expired equipments: %w", err)
-		}
-		nearExpiry, err = uc.equipmentRepo.FindNearExpiryByDepartment(ctx, *departmentID, noLimit)
-	} else {
-		expiredAll, err = uc.equipmentRepo.FindExpired(ctx, noLimit)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to get expired equipments: %w", err)
-		}
-		nearExpiry, err = uc.equipmentRepo.FindNearExpiry(ctx, noLimit)
-	}
+	// ดึงเครื่องตาม ReplacementYear ตรงๆ — ไม่ใช้ expired/near-expiry
+	thisYearItems, err := uc.equipmentRepo.FindByReplacementYear(ctx, thisYear, departmentID)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get near expiry equipments: %w", err)
+		return nil, "", fmt.Errorf("failed to get this year equipments: %w", err)
 	}
 
-	// กรองเฉพาะปีนี้จาก expired (ปีก่อนหน้าไม่เอา)
-	thisYearItems := []entity.Equipment{}
-	for _, e := range expiredAll {
-		if e.ReplacementYear != nil && *e.ReplacementYear == thisYear {
-			thisYearItems = append(thisYearItems, e)
-		}
-	}
-
-	// nearExpiry คือปีหน้า (nextYear) - filter ให้แน่ใจ
-	nextYearItems := []entity.Equipment{}
-	for _, e := range nearExpiry {
-		if e.ReplacementYear != nil && *e.ReplacementYear == nextYear {
-			nextYearItems = append(nextYearItems, e)
-		}
+	nextYearItems, err := uc.equipmentRepo.FindByReplacementYear(ctx, nextYear, departmentID)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get next year equipments: %w", err)
 	}
 
 	// สร้างไฟล์ Excel

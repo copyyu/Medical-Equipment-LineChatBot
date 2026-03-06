@@ -517,3 +517,29 @@ func (r *EquipmentRepository) FindSimilarSorted(query string, limit int) ([]*ent
 
 	return equipments, nil
 }
+
+// FindByReplacementYear finds equipment where replacement_year matches the given year
+// If departmentID is not nil, filter by department
+func (r *EquipmentRepository) FindByReplacementYear(ctx context.Context, year int, departmentID *uint) ([]entity.Equipment, error) {
+	var equipments []entity.Equipment
+	query := r.db.WithContext(ctx).
+		Preload("Model").
+		Preload("Model.Brand").
+		Preload("Model.Category").
+		Preload("Department").
+		Where("replacement_year = ?", year)
+
+	if departmentID != nil {
+		query = query.Where("department_id = ?", *departmentID)
+	}
+
+	query = query.Order("id_code ASC")
+
+	err := query.Find(&equipments).Error
+	if err != nil {
+		log.Printf("Error finding equipment by replacement year %d: %v", year, err)
+		return nil, err
+	}
+	log.Printf("Found %d equipments for replacement year %d", len(equipments), year)
+	return equipments, nil
+}
