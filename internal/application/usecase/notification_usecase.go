@@ -9,9 +9,11 @@ import (
 
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/application/service"
+	"medical-webhook/internal/config"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	notificationRepo "medical-webhook/internal/domain/line/repository"
+	"medical-webhook/internal/infrastructure/line/templates"
 
 	excelize "github.com/xuri/excelize/v2"
 )
@@ -45,6 +47,30 @@ func (uc *NotificationUseCase) SendAugustAlerts(ctx context.Context) error {
 	return uc.sendAlerts(ctx, "AUGUST")
 }
 
+// TriggerTestAlerts
+func (uc *NotificationUseCase) TriggerTestAlerts(ctx context.Context, notifyRound string) error {
+	log.Printf("🔔 [TEST] Starting %s notification round...", notifyRound)
+
+	targetYear := time.Now().Year()
+	if notifyRound == "AUGUST" {
+		targetYear++
+	}
+
+	alerts, err := uc.notificationRepo.GetEquipmentsForTestAlert(ctx, targetYear, notifyRound)
+	if err != nil {
+		return fmt.Errorf("failed to get %s test alerts: %w", notifyRound, err)
+	}
+
+	log.Printf("[TEST] Found %d equipments for year %d", len(alerts), targetYear)
+
+	if len(alerts) == 0 {
+		log.Printf("ℹ️ [TEST] No equipment found for %s round (year=%d)", notifyRound, targetYear)
+		return nil
+	}
+
+	return uc.broadcastAlerts(ctx, alerts, notifyRound)
+}
+
 func (uc *NotificationUseCase) sendAlerts(ctx context.Context, notifyRound string) error {
 	log.Printf("🔔 Starting %s notification round...", notifyRound)
 
@@ -74,31 +100,55 @@ func (uc *NotificationUseCase) sendAlerts(ctx context.Context, notifyRound strin
 		return nil
 	}
 
-	var message string
-	if notifyRound == "JUNE" {
-		message = uc.notificationService.FormatJuneAlert(alerts)
-	} else {
-		message = uc.notificationService.FormatAugustAlert(alerts)
+	return uc.broadcastAlerts(ctx, alerts, notifyRound)
+}
+
+// broadcastAlerts - ส่ง Flex Message + บันทึก Log (ใช้ร่วมกันระหว่าง sendAlerts กับ TriggerTestAlerts)
+func (uc *NotificationUseCase) broadcastAlerts(ctx context.Context, alerts []dto.EquipmentReplacementAlertDTO, notifyRound string) error {
+	// ดึง BaseURL จาก Config เพื่อส่งไปทำเป็น Link โหลด Excel
+	cfg := config.Load()
+	baseURL := cfg.BaseURL
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
 	}
 
-	// ✅ Broadcast ไปยังทุกคนที่เพิ่มเพื่อน
-	err = uc.lineRepo.BroadcastMessage(message)
+	// สร้างลิงก์โหลด Excel ตามรอบ
+	var downloadURL string
+	if notifyRound == "JUNE" {
+		downloadURL = fmt.Sprintf("%s/notifications/export/expiry?filter=this_year", baseURL)
+	} else {
+		downloadURL = fmt.Sprintf("%s/notifications/export/expiry?filter=next_year", baseURL)
+	}
 
-	// บันทึก log
+	var messageText string
+	if notifyRound == "JUNE" {
+		messageText = uc.notificationService.FormatJuneAlert(alerts)
+	} else {
+		messageText = uc.notificationService.FormatAugustAlert(alerts)
+	}
+
+	// สร้าง Flex Message ด้วย Template + ปุ่ม Download
+	flexMsg := templates.GetNotificationAlertFlex(messageText, downloadURL)
+	altText := "แจ้งเตือนอุปกรณ์ใกล้ครบอายุขัย"
+
+	// Broadcast ไปยังทุกคนที่เพิ่มเพื่อน (ส่งแบบ Flex)
 	now := time.Now()
+	err := uc.lineRepo.BroadcastFlexMessage(altText, flexMsg)
+
+	// บันทึก log โดยบันทึกผูกกับอุปกรณ์ทุกเครื่องที่ครบกำหนด
 	for _, alert := range alerts {
 		status := entity.NotificationStatusSent
 		var errorMsg *string
 		if err != nil {
 			status = entity.NotificationStatusFailed
-			msg := err.Error()
-			errorMsg = &msg
+			errMsg := err.Error()
+			errorMsg = &errMsg
 		}
 
 		notifLog := &entity.NotificationLog{
 			EquipmentID: alert.EquipmentID,
 			NotifyRound: notifyRound,
-			Message:     message,
+			Message:     "Included in broadcast (" + notifyRound + ")",
 			Status:      status,
 			SentAt:      now,
 			ErrorMsg:    errorMsg,
@@ -110,12 +160,12 @@ func (uc *NotificationUseCase) sendAlerts(ctx context.Context, notifyRound strin
 		return fmt.Errorf("failed to send broadcast: %w", err)
 	}
 
-	log.Printf("✅ Broadcast sent to all Bot friends for %s round", notifyRound)
+	log.Printf("✅ Broadcast sent to all Bot friends for %s round (%d items)", notifyRound, len(alerts))
 	return nil
 }
 
 func (uc *NotificationUseCase) GetNotificationSummary(ctx context.Context) (*dto.NotificationSummaryDTO, error) {
-	// ✅ นับเครื่องมือทั้งหมด
+	// นับเครื่องมือทั้งหมด
 	totalEquipments, err := uc.notificationRepo.CountAllEquipments(ctx)
 	if err != nil {
 		log.Printf("Error counting total equipments: %v", err)
@@ -127,7 +177,7 @@ func (uc *NotificationUseCase) GetNotificationSummary(ctx context.Context) (*dto
 	augustAlerts, _ := uc.notificationRepo.GetEquipmentsForAugustAlert(ctx)
 
 	summary := &dto.NotificationSummaryDTO{
-		TotalEquipments: totalEquipments,   // ✅ ใช้จำนวนทั้งหมด
+		TotalEquipments: totalEquipments,   // ใช้จำนวนทั้งหมด
 		JuneAlerts:      len(juneAlerts),   // จำนวนที่ต้อง alert เดือน 6
 		AugustAlerts:    len(augustAlerts), // จำนวนที่ต้อง alert เดือน 8
 	}
@@ -332,7 +382,7 @@ func (uc *NotificationUseCase) BuildExpiryExcel(ctx context.Context, departmentI
 			mc := fmt.Sprintf("A%d", row)
 			me := fmt.Sprintf("G%d", row)
 			f.MergeCell(sheet, mc, me)
-			f.SetCellValue(sheet, mc, "✅ ไม่มีเครื่องที่ต้องเปลี่ยนในปีนี้")
+			f.SetCellValue(sheet, mc, "ไม่มีเครื่องที่ต้องเปลี่ยนในปีนี้")
 			row++
 		}
 		for i, e := range thisYearItems {

@@ -96,7 +96,6 @@ func (r *NotificationRepository) GetEquipmentsForAugustAlert(ctx context.Context
 	// monthsRangeMin := 7
 	// monthsRangeMax := 9
 
-	// PRODUCTION: แจ้งเครื่องที่ครบปีหน้า (เหลือ 12 เดือน)
 	targetYear := nextYear
 	monthsRangeMin := 11
 	monthsRangeMax := 13
@@ -148,7 +147,6 @@ func (r *NotificationRepository) GetEquipmentsForJuneAlert(ctx context.Context) 
 	// monthsRangeMin := 7
 	// monthsRangeMax := 9
 
-	// PRODUCTION: แจ้งเครื่องที่ครบปีนี้ (เหลือ 2 เดือน)
 	targetYear := currentYear
 	monthsRangeMin := 1
 	monthsRangeMax := 3
@@ -184,6 +182,43 @@ func (r *NotificationRepository) GetEquipmentsForJuneAlert(ctx context.Context) 
 		len(results), targetYear, monthsRangeMin, monthsRangeMax)
 	for _, r := range results {
 		log.Printf("  ✓ %s: year=%d, months=%d", r.IDCode, r.ReplacementYear, r.MonthsRemaining)
+	}
+
+	return results, nil
+}
+
+// GetEquipmentsForTestAlert
+func (r *NotificationRepository) GetEquipmentsForTestAlert(ctx context.Context, targetYear int, notifyRound string) ([]dto.EquipmentReplacementAlertDTO, error) {
+	var results []dto.EquipmentReplacementAlertDTO
+
+	query := `
+		SELECT 
+			e.id as equipment_id,
+			e.id_code,
+			COALESCE(e.serial_no, '') as serial_no,
+			b.name as brand_name,
+			m.model_name,
+			d.name as department_name,
+			e.replacement_year,
+			(e.replacement_year - EXTRACT(YEAR FROM NOW())::INTEGER) * 12 - EXTRACT(MONTH FROM NOW())::INTEGER + 8 as months_remaining,
+			COALESCE(e.purchase_price, 0) as purchase_price,
+			? as notify_round
+		FROM equipments e
+		JOIN equipment_models m ON e.model_id = m.id
+		JOIN brands b ON m.brand_id = b.id
+		JOIN departments d ON e.department_id = d.id
+		WHERE e.deleted_at IS NULL
+		AND e.replacement_year = ?
+		ORDER BY e.id_code ASC
+	`
+
+	err := r.db.WithContext(ctx).Raw(query, notifyRound, targetYear).Scan(&results).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get test alerts: %w", err)
+	}
+
+	for _, result := range results {
+		log.Printf("  [TEST] %s: year=%d, months=%d", result.IDCode, result.ReplacementYear, result.MonthsRemaining)
 	}
 
 	return results, nil
