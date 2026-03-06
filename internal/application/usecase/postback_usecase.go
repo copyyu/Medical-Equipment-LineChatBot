@@ -93,7 +93,6 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		)
 
 	case constants.ActionOCRSimilarSelect:
-		// ผู้ใช้เลือกจากรายการใกล้เคียง → ถามยืนยันก่อน
 		original := params.Get("original")
 		if serial == "" {
 			return uc.lineRepo.ReplyMessage(replyToken, "ไม่พบหมายเลขที่เลือก กรุณาลองใหม่")
@@ -108,7 +107,6 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		)
 
 	case constants.ActionOCRRetake:
-		// รีเซ็ตสถานะและให้ผู้ใช้ถ่ายรูปใหม่
 		if userID != "" {
 			uc.sessionStore.Set(userID, &session.OCRSession{Mode: session.ModeReportProblem})
 			log.Printf("📸 User %s requested to retake photo", userID)
@@ -124,28 +122,23 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 	case constants.ActionViewSpecs:
 		return uc.handleViewSpecs(replyToken, serial)
 
-	// New handlers for report issue flow
 	case constants.ActionShowActionMenu:
-		// Show action menu (ดูข้อมูล/แจ้งปัญหา)
 		if serial != "" {
 			return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกการดำเนินการ", templates.GetActionMenuFlex(serial))
 		}
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case constants.ActionViewEquipInfo:
-		// Go to equipment info menu (existing)
 		if serial != "" {
 			return uc.lineRepo.ReplyFlexMessage(replyToken, "ข้อมูลเครื่องมือ", templates.GetEquipmentOptionsFlex(serial))
 		}
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case constants.ActionStartReportIssue:
-		// Show category selection menu first
 		if serial != "" {
 			categories, err := uc.ticketUseCase.GetTicketCategories(context.Background())
 			if err != nil {
 				log.Printf("❌ Failed to get categories: %v", err)
-				// Fallback: skip category selection and go to issue input with default category
 				return uc.lineRepo.ReplyFlexMessage(replyToken, "แจ้งปัญหา", templates.GetIssueInputFlex(serial, 0))
 			}
 			return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกหมวดหมู่", templates.GetCategorySelectionFlex(serial, categories))
@@ -153,7 +146,6 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case constants.ActionConfirmCategory:
-		// User selected a category, show issue input
 		if serial != "" {
 			categoryIDStr := params.Get("category_id")
 			categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
@@ -162,7 +154,6 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case constants.ActionInputIssueDesc:
-		// Set session mode to wait for issue description
 		if serial != "" {
 			categoryIDStr := params.Get("category_id")
 			categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
@@ -192,7 +183,6 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.handleSubmitIssue(event, replyToken, serial, params)
 
 	case constants.ActionMyTickets:
-		// Show user's tickets
 		if userID != "" {
 			tickets, err := uc.ticketUseCase.GetUserTickets(userID)
 			if err != nil {
@@ -213,7 +203,6 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgReportProblem)
 
 	case constants.ActionViewEquipExpiry:
-		// แสดงรายการแผนกให้เลือกก่อน
 		ctx := context.Background()
 		departments, err := uc.departmentRepo.FindAll(ctx)
 		if err != nil {
@@ -223,14 +212,12 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 		if len(departments) == 0 {
 			return uc.lineRepo.ReplyMessage(replyToken, "⚠️ ไม่พบข้อมูลแผนกในระบบค่ะ")
 		}
-		// Set session เพื่อรับ text input ชื่อแผนก
 		if userID != "" {
 			uc.sessionStore.Set(userID, &session.OCRSession{Mode: session.ModeSelectDeptForExpiry})
 		}
 		return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกแผนก", templates.GetDepartmentSelectionWithInputFlex(departments))
 
 	case constants.ActionViewEquipExpiryByDept:
-		// เลือกแผนกแล้ว → ดึงข้อมูล → แสดง year filter ให้เลือก
 		if userID != "" {
 			uc.sessionStore.Delete(userID)
 		}
@@ -248,26 +235,26 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่พบแผนกที่เลือกค่ะ")
 		}
 
-		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, uint(departmentID), 999)
+		thisYear := time.Now().Year()
+		nextYear := thisYear + 1
+		deptIDPtr := func(id uint) *uint { return &id }(uint(departmentID))
+
+		thisYearItems, err := uc.equipmentRepo.FindByReplacementYear(ctx, thisYear, deptIDPtr)
 		if err != nil {
-			log.Printf("❌ FindExpiredByDepartment error: %v", err)
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
-		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, uint(departmentID), 999)
+		nextYearItems, err := uc.equipmentRepo.FindByReplacementYear(ctx, nextYear, deptIDPtr)
 		if err != nil {
-			log.Printf("❌ FindNearExpiryByDepartment error: %v", err)
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
-		if len(expired) == 0 && len(nearExpiry) == 0 {
+		if len(thisYearItems) == 0 && len(nextYearItems) == 0 {
 			return uc.lineRepo.ReplyMessage(replyToken, fmt.Sprintf("✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในแผนก %s ค่ะ", dept.Name))
 		}
-		// แสดง year filter ให้เลือก ปีนี้ / ปีหน้า / ทั้งหมด
 		return uc.lineRepo.ReplyFlexMessage(replyToken,
 			fmt.Sprintf("เครื่องใกล้หมดอายุ - %s", dept.Name),
-			templates.GetExpiryYearFilterFlex(dept.Name, uint(departmentID), len(expired), len(nearExpiry)))
+			templates.GetExpiryYearFilterFlex(dept.Name, uint(departmentID), len(thisYearItems), len(nextYearItems)))
 
 	case constants.ActionViewExpiryFiltered:
-		// แสดงผลเครื่องหมดอายุตาม filter ที่เลือก (this_year / next_year / all)
 		ctx := context.Background()
 		departmentIDStr := params.Get("department_id")
 		departmentID, err := strconv.ParseUint(departmentIDStr, 10, 32)
@@ -282,36 +269,60 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่พบแผนกที่เลือกค่ะ")
 		}
 
-		expired, err := uc.equipmentRepo.FindExpiredByDepartment(ctx, uint(departmentID), 999)
+		thisYear := time.Now().Year()
+		nextYear := thisYear + 1
+		deptIDPtr := func(id uint) *uint { return &id }(uint(departmentID))
+
+		thisYearItems, err := uc.equipmentRepo.FindByReplacementYear(ctx, thisYear, deptIDPtr)
 		if err != nil {
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
-		nearExpiry, err := uc.equipmentRepo.FindNearExpiryByDepartment(ctx, uint(departmentID), 999)
+		nextYearItems, err := uc.equipmentRepo.FindByReplacementYear(ctx, nextYear, deptIDPtr)
 		if err != nil {
 			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 		}
 
-		thisYear := time.Now().Year()
-		nextYear := thisYear + 1
+		if len(thisYearItems) == 0 && len(nextYearItems) == 0 {
+			return uc.lineRepo.ReplyMessage(replyToken, fmt.Sprintf("✅ ไม่มีเครื่องมือที่หมดอายุหรือใกล้หมดอายุในแผนก %s ค่ะ", dept.Name))
+		}
 
 		switch filter {
 		case "this_year":
 			return uc.lineRepo.ReplyFlexMessage(replyToken,
 				fmt.Sprintf("หมดอายุปี %d - %s", thisYear, dept.Name),
-				templates.GetEquipmentExpiryFilteredFlex(expired,
+				templates.GetEquipmentExpiryFilteredFlex(thisYearItems,
 					fmt.Sprintf("🔴 หมดอายุภายในปี %d", thisYear), templates.ColorDanger,
 					dept.Name, uint(departmentID), uc.baseURL, "this_year"))
 		case "next_year":
 			return uc.lineRepo.ReplyFlexMessage(replyToken,
 				fmt.Sprintf("หมดอายุปี %d - %s", nextYear, dept.Name),
-				templates.GetEquipmentExpiryFilteredFlex(nearExpiry,
+				templates.GetEquipmentExpiryFilteredFlex(nextYearItems,
 					fmt.Sprintf("🟡 หมดอายุปี %d", nextYear), templates.ColorWarning,
 					dept.Name, uint(departmentID), uc.baseURL, "next_year"))
-		default: // "all"
+		default:
 			return uc.lineRepo.ReplyFlexMessage(replyToken,
 				fmt.Sprintf("เครื่องมือใกล้หมดอายุ - %s", dept.Name),
-				templates.GetEquipmentExpiryByDeptFlex(expired, nearExpiry, dept.Name, uint(departmentID), uc.baseURL))
+				templates.GetEquipmentExpiryByDeptFlex(thisYearItems, nextYearItems, dept.Name, uint(departmentID), uc.baseURL))
 		}
+
+	case constants.ActionNavDeptPage:
+		ctx := context.Background()
+		pageStr := params.Get("page")
+		page, err := strconv.Atoi(pageStr)
+		if err != nil || page < 1 {
+			page = 1
+		}
+
+		departments, err := uc.departmentRepo.FindAll(ctx)
+		if err != nil {
+			log.Printf("❌ FindAll departments error: %v", err)
+			return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลแผนกได้ กรุณาลองใหม่ค่ะ")
+		}
+		if len(departments) == 0 {
+			return uc.lineRepo.ReplyMessage(replyToken, "⚠️ ไม่พบข้อมูลแผนกในระบบค่ะ")
+		}
+
+		return uc.lineRepo.ReplyFlexMessage(replyToken, "เลือกแผนก", templates.GetDepartmentSelectionPageFlex(departments, page))
 
 	default:
 		log.Printf("⚠️ Unhandled postback action: %s", action)
@@ -319,13 +330,12 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 	}
 }
 
-// handleSubmitIssue handles the submit issue action from postback
 func (uc *MessageUseCase) handleSubmitIssue(event webhook.PostbackEvent, replyToken, serial string, params url.Values) error {
 	if serial == "" {
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 	}
 
-	desc := params.Get("desc") // empty for skip
+	desc := params.Get("desc")
 	categoryIDStr := params.Get("category_id")
 	categoryID, _ := strconv.ParseUint(categoryIDStr, 10, 32)
 	userID := ""
@@ -379,7 +389,6 @@ func (uc *MessageUseCase) handleSubmitIssue(event webhook.PostbackEvent, replyTo
 		uint(categoryID),
 	)
 	if err != nil {
-		// Check if it's a duplicate ticket error
 		if err == ErrDuplicateTicket && ticket != nil {
 			log.Printf("⚠️ Duplicate ticket found: %s", ticket.TicketNo)
 			return uc.lineRepo.ReplyFlexMessage(replyToken, "พบรายการซ้ำ", templates.GetDuplicateTicketFlex(ticket.TicketNo, serial, ticket.Status.GetStatusText()))
