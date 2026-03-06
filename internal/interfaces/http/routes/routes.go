@@ -16,6 +16,7 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 	equipmentHandler *handlers.EquipmentHandler,
 	ticketHandler *handlers.TicketHandler,
 	activityLogHandler *handlers.ActivityLogHandler,
+	sseHandler *handlers.SSEHandler,
 	adminUsecase usecase.AdminUsecase) {
 	// Root endpoint
 	app.Get("/", func(c *fiber.Ctx) error {
@@ -34,6 +35,10 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 
 	// Setup admin routes (login = public, rest = protected)
 	SetupAdminRoutes(app, adminHandler, adminUsecase)
+
+	// Setup SSE routes (public — MUST be before protected routes because
+	// notification_routes uses app.Group("", AuthMiddleware) which catches all subsequent routes)
+	SetupSSERoutes(app, sseHandler)
 
 	// ===== Protected routes (require auth) =====
 
