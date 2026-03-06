@@ -44,19 +44,11 @@ func GetDepartmentSelectionFlex(departments []entity.Department) map[string]inte
 	}
 }
 
-// GetDepartmentSelectionWithInputFlex returns Carousel Flex Message with department buttons
-// split across multiple bubbles. If departments <= 6, returns a single bubble.
+// GetDepartmentSelectionWithInputFlex returns a single-bubble Flex Message for selecting department.
+// It loads the first page of departments with pagination arrows.
 // Supports both button selection and text input.
 func GetDepartmentSelectionWithInputFlex(departments []entity.Department) map[string]interface{} {
-	allButtons := buildDeptButtons(departments)
-
-	// ถ้าแผนกน้อย ใช้ bubble เดียว
-	if len(allButtons) <= deptButtonsPerBubble {
-		return buildSingleBubbleWithInput(allButtons)
-	}
-
-	// แผนกเยอะ → ใช้ Carousel แบ่ง bubble ละ deptButtonsPerBubble ปุ่ม
-	return buildCarouselWithInput(allButtons, departments)
+	return GetDepartmentSelectionPageFlex(departments, 1)
 }
 
 // deptColorPalette — สีแยกแผนก สุ่มวนไม่ซ้ำ (10 สี)
@@ -94,93 +86,10 @@ func buildDeptButtons(departments []entity.Department) []interface{} {
 	return buttons
 }
 
-// buildSingleBubbleWithInput creates a single bubble with buttons + text input instruction
-func buildSingleBubbleWithInput(buttons []interface{}) map[string]interface{} {
-	contents := []interface{}{
-		map[string]interface{}{
-			"type":  "text",
-			"text":  "เลือกแผนกจากรายการด้านล่าง หรือพิมพ์ชื่อแผนก",
-			"size":  "xs",
-			"color": ColorTextLight,
-			"wrap":  true,
-		},
-		map[string]interface{}{
-			"type":   "separator",
-			"margin": "md",
-		},
-	}
-	contents = append(contents, buttons...)
-
-	return map[string]interface{}{
-		"type": "bubble",
-		"size": "kilo",
-		"header": map[string]interface{}{
-			"type":            "box",
-			"layout":          "vertical",
-			"backgroundColor": ColorPrimaryDark,
-			"paddingAll":      "15px",
-			"contents": []interface{}{
-				map[string]interface{}{
-					"type": "text", "text": "🏥 เลือกแผนกของคุณ",
-					"color": ColorWhite, "size": "lg", "weight": "bold",
-				},
-				map[string]interface{}{
-					"type": "text", "text": "เพื่อดูเครื่องมือใกล้หมดอายุในแผนก",
-					"color": "#FFFFFFCC", "size": "sm",
-				},
-			},
-		},
-		"body": map[string]interface{}{
-			"type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "15px",
-			"contents": contents,
-		},
-		"footer": map[string]interface{}{
-			"type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "10px",
-			"contents": []interface{}{
-				map[string]interface{}{
-					"type":  "text",
-					"text":  "💡 หากไม่พบแผนกของคุณ พิมพ์ชื่อแผนกได้เลยค่ะ",
-					"size":  "xxs",
-					"color": ColorTextLight,
-					"align": "center",
-					"wrap":  true,
-				},
-			},
-		},
-	}
-}
-
-// buildCarouselWithInput creates a carousel of bubbles, each containing up to deptButtonsPerBubble buttons
-func buildCarouselWithInput(allButtons []interface{}, departments []entity.Department) map[string]interface{} {
-	bubbles := []interface{}{}
-	totalButtons := len(allButtons)
-
-	for i := 0; i < totalButtons; i += deptButtonsPerBubble {
-		end := i + deptButtonsPerBubble
-		if end > totalButtons {
-			end = totalButtons
-		}
-		chunk := allButtons[i:end]
-		isFirst := (i == 0)
-		isLast := (end >= totalButtons)
-
-		bubble := buildCarouselBubble(chunk, isFirst, isLast, i/deptButtonsPerBubble+1, (totalButtons+deptButtonsPerBubble-1)/deptButtonsPerBubble)
-		bubbles = append(bubbles, bubble)
-	}
-
-	// LINE Carousel supports up to 12 bubbles
-	if len(bubbles) > 12 {
-		bubbles = bubbles[:12]
-	}
-
-	return map[string]interface{}{
-		"type":     "carousel",
-		"contents": bubbles,
-	}
-}
-
 // buildCarouselBubble creates one bubble in the carousel
-func buildCarouselBubble(buttons []interface{}, isFirst, isLast bool, page, totalPages int) map[string]interface{} {
+func buildCarouselBubble(buttons []interface{}, page, totalPages int) map[string]interface{} {
+	isFirst := (page == 1)
+
 	bubble := map[string]interface{}{
 		"type": "bubble",
 		"size": "kilo",
@@ -197,7 +106,7 @@ func buildCarouselBubble(buttons []interface{}, isFirst, isLast bool, page, tota
 
 	if isFirst {
 		headerContents = append(headerContents, map[string]interface{}{
-			"type": "text", "text": "เลื่อน ← → เพื่อดูแผนกเพิ่มเติม",
+			"type": "text", "text": "เลื่อน ← → หรือกดปุ่มด้านล่าง",
 			"color": "#FFFFFFCC", "size": "xs",
 		})
 	}
@@ -234,22 +143,95 @@ func buildCarouselBubble(buttons []interface{}, isFirst, isLast bool, page, tota
 		"contents": bodyContents,
 	}
 
-	// Footer on last bubble
-	if isLast {
-		bubble["footer"] = map[string]interface{}{
-			"type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "10px",
-			"contents": []interface{}{
-				map[string]interface{}{
-					"type":  "text",
-					"text":  "💡 หากไม่พบแผนกของคุณ พิมพ์ชื่อแผนกได้เลยค่ะ",
-					"size":  "xxs",
-					"color": ColorTextLight,
-					"align": "center",
-					"wrap":  true,
-				},
-			},
-		}
+	// Footer — ◀ ▶ navigation arrows + hint text
+	footerContents := []interface{}{}
+
+	// Arrow navigation row
+	footerContents = append(footerContents, buildPageNavRow(page, totalPages))
+
+	// Hint text on last page
+	if page == totalPages {
+		footerContents = append(footerContents, map[string]interface{}{
+			"type":  "text",
+			"text":  "💡 หากไม่พบแผนกของคุณ พิมพ์ชื่อแผนกได้เลยค่ะ",
+			"size":  "xxs",
+			"color": ColorTextLight,
+			"align": "center",
+			"wrap":  true,
+		})
+	}
+
+	bubble["footer"] = map[string]interface{}{
+		"type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "10px",
+		"contents": footerContents,
 	}
 
 	return bubble
+}
+
+// buildPageNavRow builds a horizontal box with ◀ and ▶ postback buttons for page navigation
+func buildPageNavRow(page, totalPages int) map[string]interface{} {
+	contents := []interface{}{}
+
+	if page > 1 {
+		contents = append(contents, map[string]interface{}{
+			"type": "button", "style": "secondary", "height": "sm", "flex": 1,
+			"action": map[string]interface{}{
+				"type":        "postback",
+				"label":       fmt.Sprintf("◀ หน้า %d", page-1),
+				"data":        fmt.Sprintf("action=nav_dept_page&page=%d", page-1),
+				"displayText": fmt.Sprintf("ดูแผนกหน้า %d", page-1),
+			},
+		})
+	} else {
+		contents = append(contents, map[string]interface{}{
+			"type": "filler", "flex": 1,
+		})
+	}
+
+	if page < totalPages {
+		contents = append(contents, map[string]interface{}{
+			"type": "button", "style": "secondary", "height": "sm", "flex": 1,
+			"action": map[string]interface{}{
+				"type":        "postback",
+				"label":       fmt.Sprintf("หน้า %d ▶", page+1),
+				"data":        fmt.Sprintf("action=nav_dept_page&page=%d", page+1),
+				"displayText": fmt.Sprintf("ดูแผนกหน้า %d", page+1),
+			},
+		})
+	} else {
+		contents = append(contents, map[string]interface{}{
+			"type": "filler", "flex": 1,
+		})
+	}
+
+	return map[string]interface{}{
+		"type": "box", "layout": "horizontal", "spacing": "sm",
+		"contents": contents,
+	}
+}
+
+// GetDepartmentSelectionPageFlex renders a single page of department buttons
+// as a standalone bubble (triggered by ◀ ▶ postback navigation).
+func GetDepartmentSelectionPageFlex(departments []entity.Department, page int) map[string]interface{} {
+	allButtons := buildDeptButtons(departments)
+	totalButtons := len(allButtons)
+	totalPages := (totalButtons + deptButtonsPerBubble - 1) / deptButtonsPerBubble
+
+	// Clamp page
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+
+	start := (page - 1) * deptButtonsPerBubble
+	end := start + deptButtonsPerBubble
+	if end > totalButtons {
+		end = totalButtons
+	}
+	chunk := allButtons[start:end]
+
+	return buildCarouselBubble(chunk, page, totalPages)
 }
