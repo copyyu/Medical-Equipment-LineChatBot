@@ -1,0 +1,24 @@
+# Version control
+.git
+.gitignore
+
+# IDE / Editor
+.vscode
+.idea
+
+# Environment (secrets)
+.env
+
+# Temp files
+tmp/
+*.exe
+*.tmp
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs / misc
+README.md
+*.md
