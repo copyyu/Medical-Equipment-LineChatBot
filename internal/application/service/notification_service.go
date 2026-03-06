@@ -27,7 +27,7 @@ func (s *NotificationService) formatAlert(alerts []dto.EquipmentReplacementAlert
 	message += "━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
 	if len(alerts) == 0 {
-		message += "✅ ไม่มีอุปกรณ์ที่ต้องแจ้งเตือนในรอบนี้"
+		message += "ไม่มีอุปกรณ์ที่ต้องแจ้งเตือนในรอบนี้"
 		return message
 	}
 
@@ -35,45 +35,32 @@ func (s *NotificationService) formatAlert(alerts []dto.EquipmentReplacementAlert
 	warning := s.filterByUrgency(alerts, 3, 6)
 	info := s.filterByUrgency(alerts, 6, 999)
 
-	if len(urgent) > 0 {
-		message += "🔴 เร่งด่วน! (เหลือ ≤ 3 เดือน)\n"
-		message += "━━━━━━━━━━━━━━━━━━━━━━\n"
-		message += s.formatAlertList(urgent)
-		message += "\n"
+	var displayAlerts []dto.EquipmentReplacementAlertDTO
+	displayAlerts = append(displayAlerts, urgent...)
+	displayAlerts = append(displayAlerts, warning...)
+	displayAlerts = append(displayAlerts, info...)
+
+	limit := 5
+	if len(displayAlerts) < limit {
+		limit = len(displayAlerts)
 	}
 
-	if len(warning) > 0 {
-		message += "🟡 ควรเตรียมการ (3-6 เดือน)\n"
-		message += "━━━━━━━━━━━━━━━━━━━━━━\n"
-		message += s.formatAlertList(warning)
-		message += "\n"
-	}
+	message += fmt.Sprintf("⚠ พบอุปกรณ์ใกล้หมดอายุจำนวน %d รายการ\n", len(alerts))
+	message += "ตัวอย่างคร่าวๆ:\n\n"
 
-	if len(info) > 0 {
-		message += "ℹ️ แจ้งให้ทราบ (> 6 เดือน)\n"
-		message += "━━━━━━━━━━━━━━━━━━━━━━\n"
-		message += s.formatAlertList(info)
-		message += "\n"
+	for i := 0; i < limit; i++ {
+		alert := displayAlerts[i]
+		message += fmt.Sprintf("%d. %s\n", i+1, alert.IDCode)
+		message += fmt.Sprintf("   📦 %s - %s\n", alert.BrandName, alert.ModelName)
+		message += fmt.Sprintf("   🏥 แผนก: %s\n", alert.DepartmentName)
+		message += fmt.Sprintf("   ⏰ เหลืออีก %d เดือน\n\n", alert.MonthsRemaining)
 	}
 
 	message += "━━━━━━━━━━━━━━━━━━━━━━\n"
-	message += fmt.Sprintf("📊 รวมทั้งหมด: %d รายการ", len(alerts))
-
-	return message
-}
-
-func (s *NotificationService) formatAlertList(alerts []dto.EquipmentReplacementAlertDTO) string {
-	var message string
-	for i, alert := range alerts {
-		message += fmt.Sprintf("%d. 📦 %s\n", i+1, alert.IDCode)
-		message += fmt.Sprintf("   %s - %s\n", alert.BrandName, alert.ModelName)
-		message += fmt.Sprintf("   แผนก: %s\n", alert.DepartmentName)
-		message += fmt.Sprintf("   ⏰ เหลืออีก %d เดือน\n", alert.MonthsRemaining)
-
-		if i < len(alerts)-1 {
-			message += "\n"
-		}
+	if len(alerts) > limit {
+		message += fmt.Sprintf("... และอื่นๆ อีก %d รายการ\n", len(alerts)-limit)
 	}
+
 	return message
 }
 

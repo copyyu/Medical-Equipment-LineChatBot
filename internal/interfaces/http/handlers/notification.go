@@ -46,6 +46,32 @@ func (h *NotificationHandler) SendAugustAlerts(c *fiber.Ctx) error {
 	})
 }
 
+// TestJuneAlerts
+func (h *NotificationHandler) TestJuneAlerts(c *fiber.Ctx) error {
+	err := h.notificationUseCase.TriggerTestAlerts(c.Context(), "JUNE")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"message": "[TEST] June alerts sent successfully",
+	})
+}
+
+// TestAugustAlerts
+func (h *NotificationHandler) TestAugustAlerts(c *fiber.Ctx) error {
+	err := h.notificationUseCase.TriggerTestAlerts(c.Context(), "AUGUST")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"message": "[TEST] August alerts sent successfully",
+	})
+}
+
 // GetSummary - สรุปการแจ้งเตือน
 func (h *NotificationHandler) GetSummary(c *fiber.Ctx) error {
 	summary, err := h.notificationUseCase.GetNotificationSummary(c.Context())
