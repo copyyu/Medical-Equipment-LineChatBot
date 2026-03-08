@@ -125,10 +125,19 @@ func (r *EquipmentRepository) CreateOrUpdate(ctx context.Context, equipment *ent
 	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "id_code"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"serial_no", "model_id", "department_id", "assessment_id",
-			"receive_date", "purchase_price", "equipment_age", "compute_date",
-			"life_expectancy", "remain_life", "useful_lifetime_percent",
-			"replacement_year", "technology", "usage_statistics", "efficiency", "others",
+			"serial_no", "model_id", "department_id",
+			"asset_type_name", "ecri_code", "asset_name", "asset_id",
+			"status", "asset_status_internal", "rental_status", "borrow_status",
+			"building", "floor", "room", "phone_no",
+			"business_name", "item_no", "sku_no",
+			"receive_date", "purchase_date", "registration_date", "purchase_price",
+			"life_expectancy", "equipment_age", "remain_life", "replacement_year",
+			"warranty_period", "warranty_start_date", "warranty_end_date", "warranty_pm", "warranty_cal",
+			"last_pm_date", "last_cal_date", "pm_period", "cal_period", "vendor_pm", "vendor_cal",
+			"power_consumption",
+			"supplier", "ownership", "po_no", "contract_no", "invoice_no", "document_no", "tor_no", "manufacturing_country",
+			"revenue_per_month",
+			"remark", "approved_by", "nsmart_item_code", "updated_by",
 		}),
 	}).Create(equipment).Error
 
