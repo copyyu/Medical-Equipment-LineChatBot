@@ -432,11 +432,20 @@ func (uc *MessageUseCase) handleViewLifecycle(replyToken, serial string) error {
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgEquipmentNotFound)
 	}
 
+	// Compute useful percent dynamically
+	usefulPercent := 0.0
+	if equipment.LifeExpectancy > 0 {
+		usefulPercent = (equipment.EquipmentAge / equipment.LifeExpectancy) * 100
+		if usefulPercent > 100 {
+			usefulPercent = 100
+		}
+	}
+
 	data := map[string]interface{}{
 		"equipment_age":    equipment.EquipmentAge,
 		"life_expectancy":  equipment.LifeExpectancy,
 		"remain_life":      equipment.RemainLife,
-		"useful_percent":   equipment.UsefulLifetimePercent,
+		"useful_percent":   usefulPercent,
 		"replacement_year": getReplacementYear(equipment.ReplacementYear),
 	}
 
