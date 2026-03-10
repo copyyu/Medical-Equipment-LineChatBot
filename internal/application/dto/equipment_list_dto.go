@@ -37,27 +37,83 @@ type EquipmentListResponse struct {
 }
 
 type CreateEquipmentRequest struct {
-	IDCode            string  `json:"id_code" binding:"required"`
-	SerialNo          string  `json:"serial_no" binding:"required"`
-	Department        string  `json:"department" binding:"required"`
-	Brand             string  `json:"brand" binding:"required"`
-	Model             string  `json:"model" binding:"required"`
-	Category          string  `json:"category" binding:"required"`
-	AssetTypeName     string  `json:"asset_type_name"`
-	ECRICode          string  `json:"ecri_code"`
-	AssetName         string  `json:"asset_name"`
-	AssetID           string  `json:"asset_id"`
-	ReceiveDate       string  `json:"receive_date" binding:"required"`
-	PurchaseDate      string  `json:"purchase_date"`
-	PurchasePrice     float64 `json:"purchase_price" binding:"required"`
-	LifeExpectancy    float64 `json:"life_expectancy"`
-	Building          string  `json:"building"`
-	Floor             string  `json:"floor"`
-	Room              string  `json:"room"`
-	WarrantyPeriod    string  `json:"warranty_period"`
-	WarrantyStartDate string  `json:"warranty_start_date"`
-	WarrantyEndDate   string  `json:"warranty_end_date"`
-	Remark            string  `json:"remark"`
+	IDCode   string `json:"id_code" binding:"required"`
+	SerialNo string `json:"serial_no" binding:"required"`
+
+	// Relational data mapped by strings
+	Department string `json:"department" binding:"required"`
+	Brand      string `json:"brand" binding:"required"`
+	Model      string `json:"model" binding:"required"`
+	Category   string `json:"category" binding:"required"`
+
+	// === Basic Info ===
+	AssetTypeName string `json:"asset_type_name"`
+	AssetName     string `json:"asset_name"`
+	AssetID       string `json:"asset_id"`
+	ECRICode      string `json:"ecri_code"`
+
+	// === Status ===
+	Status              string `json:"status"` // allow override via API
+	AssetStatusInternal string `json:"asset_status_internal"`
+	RentalStatus        string `json:"rental_status"`
+	BorrowStatus        string `json:"borrow_status"`
+
+	// === Location ===
+	Building string `json:"building"`
+	Floor    string `json:"floor"`
+	Room     string `json:"room"`
+	PhoneNo  string `json:"phone_no"`
+
+	// === Business ===
+	BusinessName string `json:"business_name"`
+	ItemNo       string `json:"item_no"`
+	SKUNo        string `json:"sku_no"`
+
+	// === Dates ===
+	ReceiveDate      string  `json:"receive_date" binding:"required"` // YYYY-MM-DD
+	PurchaseDate     string  `json:"purchase_date"`                   // YYYY-MM-DD
+	RegistrationDate string  `json:"registration_date"`               // YYYY-MM-DD
+	PurchasePrice    float64 `json:"purchase_price" binding:"required"`
+
+	// === Lifecycle ===
+	LifeExpectancy float64 `json:"life_expectancy"`
+
+	// === Warranty ===
+	WarrantyPeriod    string `json:"warranty_period"`
+	WarrantyStartDate string `json:"warranty_start_date"` // YYYY-MM-DD
+	WarrantyEndDate   string `json:"warranty_end_date"`   // YYYY-MM-DD
+	WarrantyPM        string `json:"warranty_pm"`
+	WarrantyCal       string `json:"warranty_cal"`
+
+	// === PM & Calibration ===
+	LastPMDate  string `json:"last_pm_date"`  // YYYY-MM-DD
+	LastCalDate string `json:"last_cal_date"` // YYYY-MM-DD
+	PMPeriod    string `json:"pm_period"`
+	CalPeriod   string `json:"cal_period"`
+	VendorPM    string `json:"vendor_pm"`
+	VendorCal   string `json:"vendor_cal"`
+
+	// === Power & Technical ===
+	PowerConsumption string `json:"power_consumption"`
+
+	// === Procurement ===
+	Supplier             string `json:"supplier"`
+	Ownership            string `json:"ownership"`
+	PoNo                 string `json:"po_no"`
+	ContractNo           string `json:"contract_no"`
+	InvoiceNo            string `json:"invoice_no"`
+	DocumentNo           string `json:"document_no"`
+	TorNo                string `json:"tor_no"`
+	ManufacturingCountry string `json:"manufacturing_country"`
+
+	// === Financial ===
+	RevenuePerMonth *float64 `json:"revenue_per_month"`
+
+	// === Misc ===
+	Remark         string `json:"remark"`
+	ApprovedBy     string `json:"approved_by"`
+	NsmartItemCode string `json:"nsmart_item_code"`
+	UpdatedBy      string `json:"updated_by"`
 }
 
 // EquipmentResponse - ใช้ snake_case ตาม entity
