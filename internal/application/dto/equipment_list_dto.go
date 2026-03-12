@@ -6,12 +6,13 @@ import (
 
 // EquipmentListRequest represents the request parameters for equipment list
 type EquipmentListRequest struct {
-	Page    int    `query:"page"`
-	Limit   int    `query:"limit"`
-	Status  string `query:"status"`
-	Search  string `query:"search"`
-	SortBy  string `query:"sort_by"`
-	SortDir string `query:"sort_dir"`
+	Page         int    `query:"page"`
+	Limit        int    `query:"limit"`
+	Status       string `query:"status"`
+	Search       string `query:"search"`
+	SortBy       string `query:"sort_by"`
+	SortDir      string `query:"sort_dir"`
+	ExpiryFilter string `query:"expiry_filter"` // "expired" | "near_expiry"
 }
 
 // EquipmentListItem represents a single equipment item for the table

@@ -227,7 +227,7 @@ func (r *EquipmentRepository) Count(ctx context.Context) (int64, error) {
 }
 
 // CountWithFilter returns total count of equipments with filters
-func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, search string) (int64, error) {
+func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, search, expiryFilter string) (int64, error) {
 	var count int64
 	query := r.db.WithContext(ctx).Model(&entity.Equipment{})
 
@@ -244,6 +244,16 @@ func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, searc
 				searchPattern, searchPattern, searchPattern)
 	}
 
+	// Apply expiry filter using dynamic remain_life calculation
+	if expiryFilter == "expired" {
+		query = query.Where("receive_date IS NOT NULL AND life_expectancy > 0").
+			Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 0")
+	} else if expiryFilter == "near_expiry" {
+		query = query.Where("receive_date IS NOT NULL AND life_expectancy > 0").
+			Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) > 0").
+			Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 1")
+	}
+
 	err := query.Count(&count).Error
 	if err != nil {
 		log.Printf("Error counting equipments with filter: %v", err)
@@ -253,7 +263,7 @@ func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, searc
 }
 
 // FindAllWithFilter finds all equipments with pagination and filters
-func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offset int, status, search string) ([]entity.Equipment, error) {
+func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offset int, status, search, expiryFilter string) ([]entity.Equipment, error) {
 	var equipments []entity.Equipment
 	query := r.db.WithContext(ctx).
 		Preload("Model").
@@ -274,6 +284,16 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 				searchPattern, searchPattern, searchPattern)
 	}
 
+	// Apply expiry filter using dynamic remain_life calculation
+	if expiryFilter == "expired" {
+		query = query.Where("equipments.receive_date IS NOT NULL AND equipments.life_expectancy > 0").
+			Where("(equipments.life_expectancy - (NOW()::date - equipments.receive_date::date) / 365.25) <= 0")
+	} else if expiryFilter == "near_expiry" {
+		query = query.Where("equipments.receive_date IS NOT NULL AND equipments.life_expectancy > 0").
+			Where("(equipments.life_expectancy - (NOW()::date - equipments.receive_date::date) / 365.25) > 0").
+			Where("(equipments.life_expectancy - (NOW()::date - equipments.receive_date::date) / 365.25) <= 1")
+	}
+
 	query = query.Order("equipments.id DESC")
 
 	if limit > 0 {
@@ -285,7 +305,7 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 		log.Printf("Error finding equipments with filter: %v", err)
 		return nil, err
 	}
-	log.Printf("Found %d equipments with filter (status=%s, search=%s)", len(equipments), status, search)
+	log.Printf("Found %d equipments with filter (status=%s, search=%s, expiry=%s)", len(equipments), status, search, expiryFilter)
 	return equipments, nil
 }
 
