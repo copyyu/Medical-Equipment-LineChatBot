@@ -24,12 +24,13 @@ func NewEquipmentHandler(equipmentUsecase usecase.EquipmentUsecase) *EquipmentHa
 // Query params: page, limit, status, search, sort_by, sort_dir
 func (h *EquipmentHandler) GetList(c *fiber.Ctx) error {
 	req := dto.EquipmentListRequest{
-		Page:    c.QueryInt("page", 1),
-		Limit:   c.QueryInt("limit", 10),
-		Status:  c.Query("status"),
-		Search:  c.Query("search"),
-		SortBy:  c.Query("sort_by", "id"),
-		SortDir: c.Query("sort_dir", "desc"),
+		Page:         c.QueryInt("page", 1),
+		Limit:        c.QueryInt("limit", 10),
+		Status:       c.Query("status"),
+		Search:       c.Query("search"),
+		SortBy:       c.Query("sort_by", "id"),
+		SortDir:      c.Query("sort_dir", "desc"),
+		ExpiryFilter: c.Query("expiry_filter"),
 	}
 
 	result, err := h.equipmentUsecase.GetEquipmentList(c.Context(), req)

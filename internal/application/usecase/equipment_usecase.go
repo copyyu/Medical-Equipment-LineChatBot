@@ -57,18 +57,18 @@ func (u *equipmentUsecase) GetEquipmentList(ctx context.Context, req dto.Equipme
 	var err error
 
 	// Check if we need to apply filters
-	hasFilter := req.Status != "" || req.Search != ""
+	hasFilter := req.Status != "" || req.Search != "" || req.ExpiryFilter != ""
 
 	if hasFilter {
 		// Get total count with filters
-		total, err = u.equipmentService.CountEquipmentsWithFilter(ctx, req.Status, req.Search)
+		total, err = u.equipmentService.CountEquipmentsWithFilter(ctx, req.Status, req.Search, req.ExpiryFilter)
 		if err != nil {
 			log.Printf("Usecase: Error counting equipments with filter: %v", err)
 			return nil, err
 		}
 
 		// Get equipment list with pagination and filters
-		equipments, err = u.equipmentService.FindAllEquipmentsWithFilter(ctx, req.Limit, offset, req.Status, req.Search)
+		equipments, err = u.equipmentService.FindAllEquipmentsWithFilter(ctx, req.Limit, offset, req.Status, req.Search, req.ExpiryFilter)
 		if err != nil {
 			log.Printf("Usecase: Error getting equipments with filter: %v", err)
 			return nil, err
