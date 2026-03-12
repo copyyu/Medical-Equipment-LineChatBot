@@ -22,6 +22,9 @@ type EquipmentService interface {
 	UpdateEquipment(ctx context.Context, equipment *entity.Equipment) error
 	DeleteEquipment(ctx context.Context, id uint) error
 
+	// Categories
+	GetAllCategories(ctx context.Context) ([]entity.EquipmentCategory, error)
+
 	// Brand
 	FindOrCreateBrand(ctx context.Context, brandName string) (*entity.Brand, error)
 
@@ -158,6 +161,16 @@ func (s *equipmentService) DeleteEquipment(ctx context.Context, id uint) error {
 
 	log.Printf("Service: Successfully deleted equipment ID: %d", id)
 	return nil
+}
+
+func (s *equipmentService) GetAllCategories(ctx context.Context) ([]entity.EquipmentCategory, error) {
+	categories, err := s.categoryRepo.FindAll(ctx)
+	if err != nil {
+		log.Printf("Service: Error finding all categories: %v", err)
+		return nil, err
+	}
+	log.Printf("Service: Found %d categories", len(categories))
+	return categories, nil
 }
 
 func (s *equipmentService) FindOrCreateBrand(ctx context.Context, brandName string) (*entity.Brand, error) {

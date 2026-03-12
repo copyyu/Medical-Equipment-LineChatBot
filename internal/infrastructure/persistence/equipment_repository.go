@@ -248,12 +248,10 @@ func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, searc
 				"equipments.asset_type_name LIKE ? OR "+
 				"equipment_models.model_name LIKE ? OR "+
 				"equipment_categories.name LIKE ? OR "+
-				"equipments.status LIKE ? OR "+
-				"equipments.asset_status_internal LIKE ? OR "+
 				"departments.name LIKE ? OR "+
 				"equipments.building LIKE ?",
-			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern,
-			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern,
+			searchPattern, searchPattern, searchPattern, searchPattern,
+			searchPattern, searchPattern, searchPattern, searchPattern,
 		)
 	}
 
@@ -301,12 +299,10 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 				"equipments.asset_type_name LIKE ? OR "+
 				"equipment_models.model_name LIKE ? OR "+
 				"equipment_categories.name LIKE ? OR "+
-				"equipments.status LIKE ? OR "+
-				"equipments.asset_status_internal LIKE ? OR "+
 				"departments.name LIKE ? OR "+
 				"equipments.building LIKE ?",
-			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern,
-			searchPattern, searchPattern, searchPattern, searchPattern, searchPattern,
+			searchPattern, searchPattern, searchPattern, searchPattern,
+			searchPattern, searchPattern, searchPattern, searchPattern,
 		)
 	}
 

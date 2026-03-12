@@ -115,3 +115,15 @@ func (h *EquipmentHandler) CreateEquipment(c *fiber.Ctx) error {
 	log.Printf("Handler: CreateEquipment - Success, created equipment ID: %s", req.IDCode)
 	return errors.Success(c, result, "Equipment created successfully")
 }
+
+// GetCategories returns all equipment categories
+// GET /api/equipment/categories
+func (h *EquipmentHandler) GetCategories(c *fiber.Ctx) error {
+	categories, err := h.equipmentUsecase.GetAllCategories(c.Context())
+	if err != nil {
+		log.Printf("Handler: GetCategories - Error: %v", err)
+		return errors.Error(c, err)
+	}
+
+	return errors.Success(c, categories, "Categories retrieved successfully")
+}
