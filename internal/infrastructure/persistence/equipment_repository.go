@@ -229,19 +229,30 @@ func (r *EquipmentRepository) Count(ctx context.Context) (int64, error) {
 // CountWithFilter returns total count of equipments with filters
 func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, search, expiryFilter string) (int64, error) {
 	var count int64
-	query := r.db.WithContext(ctx).Model(&entity.Equipment{})
+	query := r.db.WithContext(ctx).Model(&entity.Equipment{}).
+		Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
+		Joins("LEFT JOIN equipment_categories ON equipment_categories.id = equipment_models.category_id").
+		Joins("LEFT JOIN departments ON departments.id = equipments.department_id")
 
 	// Apply status filter
 	if status != "" {
-		query = query.Where("status = ?", status)
+		query = query.Where("equipments.status = ?", status)
 	}
 
-	// Apply search filter (search in id_code, serial_no, and model name via join)
 	if search != "" {
 		searchPattern := "%" + search + "%"
-		query = query.Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
-			Where("equipments.id_code LIKE ? OR equipments.serial_no LIKE ? OR equipment_models.model_name LIKE ?",
-				searchPattern, searchPattern, searchPattern)
+		query = query.Where(
+			"equipments.id_code LIKE ? OR "+
+				"equipments.serial_no LIKE ? OR "+
+				"equipments.asset_name LIKE ? OR "+
+				"equipments.asset_type_name LIKE ? OR "+
+				"equipment_models.model_name LIKE ? OR "+
+				"equipment_categories.name LIKE ? OR "+
+				"departments.name LIKE ? OR "+
+				"equipments.building LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern,
+			searchPattern, searchPattern, searchPattern, searchPattern,
+		)
 	}
 
 	// Apply expiry filter using dynamic remain_life calculation
@@ -269,19 +280,30 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 		Preload("Model").
 		Preload("Model.Brand").
 		Preload("Model.Category").
-		Preload("Department")
+		Preload("Department").
+		Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
+		Joins("LEFT JOIN equipment_categories ON equipment_categories.id = equipment_models.category_id").
+		Joins("LEFT JOIN departments ON departments.id = equipments.department_id")
 
 	// Apply status filter
 	if status != "" {
 		query = query.Where("equipments.status = ?", status)
 	}
 
-	// Apply search filter (search in id_code, serial_no, and model name via join)
 	if search != "" {
 		searchPattern := "%" + search + "%"
-		query = query.Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
-			Where("equipments.id_code LIKE ? OR equipments.serial_no LIKE ? OR equipment_models.model_name LIKE ?",
-				searchPattern, searchPattern, searchPattern)
+		query = query.Where(
+			"equipments.id_code LIKE ? OR "+
+				"equipments.serial_no LIKE ? OR "+
+				"equipments.asset_name LIKE ? OR "+
+				"equipments.asset_type_name LIKE ? OR "+
+				"equipment_models.model_name LIKE ? OR "+
+				"equipment_categories.name LIKE ? OR "+
+				"departments.name LIKE ? OR "+
+				"equipments.building LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern,
+			searchPattern, searchPattern, searchPattern, searchPattern,
+		)
 	}
 
 	// Apply expiry filter using dynamic remain_life calculation

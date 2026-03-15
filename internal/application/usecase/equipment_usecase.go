@@ -18,6 +18,9 @@ type EquipmentUsecase interface {
 	UpdateEquipment(ctx context.Context, idCode string, req dto.EquipmentUpdateRequest) error
 	DeleteEquipment(ctx context.Context, idCode string) error
 	CreateEquipment(ctx context.Context, req dto.CreateEquipmentRequest) (*dto.EquipmentResponse, error)
+
+	// Categories
+	GetAllCategories(ctx context.Context) ([]entity.EquipmentCategory, error)
 }
 
 type equipmentUsecase struct {
@@ -468,6 +471,10 @@ func (u *equipmentUsecase) validateCreateRequest(req dto.CreateEquipmentRequest)
 	}
 
 	return nil
+}
+
+func (u *equipmentUsecase) GetAllCategories(ctx context.Context) ([]entity.EquipmentCategory, error) {
+	return u.equipmentService.GetAllCategories(ctx)
 }
 
 // calculateStatus determines the asset status based on remain_life
