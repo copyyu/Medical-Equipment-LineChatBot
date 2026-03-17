@@ -13,6 +13,7 @@ type EquipmentListRequest struct {
 	SortBy       string `query:"sort_by"`
 	SortDir      string `query:"sort_dir"`
 	ExpiryFilter string `query:"expiry_filter"` // "expired" | "near_expiry"
+	CategoryID   string `query:"category_id"`
 }
 
 // EquipmentListItem represents a single equipment item for the table

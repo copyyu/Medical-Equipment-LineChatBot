@@ -31,6 +31,7 @@ func (h *EquipmentHandler) GetList(c *fiber.Ctx) error {
 		SortBy:       c.Query("sort_by", "id"),
 		SortDir:      c.Query("sort_dir", "desc"),
 		ExpiryFilter: c.Query("expiry_filter"),
+		CategoryID:   c.Query("category_id"),
 	}
 
 	result, err := h.equipmentUsecase.GetEquipmentList(c.Context(), req)
