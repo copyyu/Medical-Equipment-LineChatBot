@@ -30,12 +30,12 @@ type EquipmentRepository interface {
 	Delete(ctx context.Context, id uint) error
 	FindByID(ctx context.Context, id uint) (*entity.Equipment, error)
 	FindAll(ctx context.Context, limit, offset int) ([]entity.Equipment, error)
-	FindAllWithFilter(ctx context.Context, limit, offset int, status, search, expiryFilter string) ([]entity.Equipment, error)
+	FindAllWithFilter(ctx context.Context, limit, offset int, status, search, expiryFilter, categoryID string) ([]entity.Equipment, error)
 
 	// Aggregate Query Operations (for Dashboard)
 	CountExpired(ctx context.Context) (int64, error)
 	Count(ctx context.Context) (int64, error)
-	CountWithFilter(ctx context.Context, status, search, expiryFilter string) (int64, error)
+	CountWithFilter(ctx context.Context, status, search, expiryFilter, categoryID string) (int64, error)
 	CountNearExpiry(ctx context.Context) (int64, error)
 	CountByStatus(ctx context.Context) (map[entity.AssetStatus]int64, error) // นับจำนวนอุปกรณ์แยกตาม Status
 

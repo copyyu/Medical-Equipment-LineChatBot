@@ -227,7 +227,7 @@ func (r *EquipmentRepository) Count(ctx context.Context) (int64, error) {
 }
 
 // CountWithFilter returns total count of equipments with filters
-func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, search, expiryFilter string) (int64, error) {
+func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, search, expiryFilter, categoryID string) (int64, error) {
 	var count int64
 	query := r.db.WithContext(ctx).Model(&entity.Equipment{}).
 		Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
@@ -237,6 +237,10 @@ func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, searc
 	// Apply status filter
 	if status != "" {
 		query = query.Where("equipments.status = ?", status)
+	}
+
+	if categoryID != "" {
+		query = query.Where("equipment_models.category_id = ?", categoryID)
 	}
 
 	if search != "" {
@@ -274,7 +278,7 @@ func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, searc
 }
 
 // FindAllWithFilter finds all equipments with pagination and filters
-func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offset int, status, search, expiryFilter string) ([]entity.Equipment, error) {
+func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offset int, status, search, expiryFilter, categoryID string) ([]entity.Equipment, error) {
 	var equipments []entity.Equipment
 	query := r.db.WithContext(ctx).
 		Preload("Model").
@@ -288,6 +292,10 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 	// Apply status filter
 	if status != "" {
 		query = query.Where("equipments.status = ?", status)
+	}
+
+	if categoryID != "" {
+		query = query.Where("equipment_models.category_id = ?", categoryID)
 	}
 
 	if search != "" {
