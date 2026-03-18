@@ -406,19 +406,32 @@ func (uc *MessageUseCase) handleViewRepairHistory(replyToken, serial string) err
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgEquipmentNotFound)
 	}
 
-	records, err := uc.equipmentRepo.GetMaintenanceRecords(equipment.ID)
+	tickets, err := uc.ticketUseCase.GetTicketsByEquipmentID(equipment.ID)
 	if err != nil {
 		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgRepairHistoryFail)
 	}
 
 	// Convert to map format for template
-	recordMaps := make([]map[string]interface{}, len(records))
-	for i, r := range records {
+	recordMaps := make([]map[string]interface{}, len(tickets))
+	for i, t := range tickets {
+		description := ""
+		if t.Description != nil {
+			description = *t.Description
+		}
+		if description == "" {
+			description = "แจ้งซ่อม"
+		}
+
+		typeStr := "อื่น ๆ"
+		if t.Category.ID != 0 {
+			typeStr = t.Category.Name
+		}
+
 		recordMaps[i] = map[string]interface{}{
-			"date":        r.MaintenanceDate.Format("2006-01-02"),
-			"type":        string(r.MaintenanceType),
-			"description": r.Description,
-			"cost":        r.Cost,
+			"date":        t.ReportedAt.Format("2006-01-02"),
+			"type":        typeStr,
+			"description": fmt.Sprintf("[%s] %s", t.TicketNo, description),
+			"cost":        "-",
 		}
 	}
 
