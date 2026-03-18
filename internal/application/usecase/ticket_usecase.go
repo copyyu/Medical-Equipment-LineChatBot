@@ -513,3 +513,8 @@ func (uc *TicketUseCase) generateTicketNumberFromDB() (string, error) {
 
 	return fmt.Sprintf("REQ-%d-%05d", year, nextNum), nil
 }
+
+// GetTicketsByEquipmentID finds all tickets for an equipment
+func (uc *TicketUseCase) GetTicketsByEquipmentID(equipmentID uint) ([]entity.Ticket, error) {
+	return uc.ticketRepo.GetTicketsByEquipmentID(equipmentID)
+}
