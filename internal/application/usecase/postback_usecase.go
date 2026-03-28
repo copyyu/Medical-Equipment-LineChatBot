@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"medical-webhook/internal/domain/constants"
+	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/model"
 	"medical-webhook/internal/infrastructure/line/templates"
 	"medical-webhook/internal/infrastructure/session"
@@ -181,6 +182,33 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 
 	case constants.ActionSubmitIssue:
 		return uc.handleSubmitIssue(event, replyToken, serial, params)
+
+	case constants.ActionFilterTickets:
+		statusFilter := params.Get("status")
+		if userID != "" {
+			tickets, err := uc.ticketUseCase.GetUserTickets(userID)
+			if err != nil {
+				log.Printf("❌ GetUserTickets error: %v", err)
+				return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
+			}
+			
+			var filteredTickets []entity.Ticket
+			if statusFilter == "ALL" {
+				filteredTickets = tickets
+			} else {
+				for _, t := range tickets {
+					if string(t.Status) == statusFilter {
+						filteredTickets = append(filteredTickets, t)
+					}
+				}
+			}
+
+			if len(filteredTickets) == 0 {
+				return uc.lineRepo.ReplyMessage(replyToken, "📋 ไม่พบรายการแจ้งปัญหาในสถานะที่เลือกค่ะ")
+			}
+			return uc.lineRepo.ReplyFlexMessage(replyToken, "รายการแจ้งปัญหาของคุณ", templates.GetMyTicketsFlex(filteredTickets))
+		}
+		return uc.lineRepo.ReplyMessage(replyToken, constants.MsgSelectMenu)
 
 	case constants.ActionMyTickets:
 		if userID != "" {

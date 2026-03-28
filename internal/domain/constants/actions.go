@@ -27,4 +27,5 @@ const (
 	ActionViewEquipExpiryByDept = "view_equipment_expiry_by_dept"
 	ActionViewExpiryFiltered    = "view_expiry_filtered"
 	ActionNavDeptPage           = "nav_dept_page"
+	ActionFilterTickets         = "filter_tickets"
 )

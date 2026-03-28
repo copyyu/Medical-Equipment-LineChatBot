@@ -74,16 +74,8 @@ func (uc *MessageUseCase) handleRichMenuCommand(msg *model.IncomingMessage, text
 		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เลือกบริการ", templates.GetReportMenuFlex())
 
 	case strings.Contains(text, "ติดตามสถานะ"):
-		// Directly show user's tickets
-		tickets, err := uc.ticketUseCase.GetUserTickets(msg.UserID)
-		if err != nil {
-			log.Printf("❌ GetUserTickets error: %v", err)
-			return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
-		}
-		if len(tickets) == 0 {
-			return true, uc.lineRepo.ReplyMessage(msg.ReplyToken, "📋 คุณยังไม่มีรายการแจ้งปัญหาค่ะ\n\nหากต้องการแจ้งปัญหา กรุณากดเมนู \"แจ้งปัญหา / เช็คสถานะ\" ค่ะ")
-		}
-		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "รายการแจ้งปัญหาของคุณ", templates.GetMyTicketsFlex(tickets))
+		// Show filter options first
+		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "เลือกสถานะที่ต้องการติดตาม", templates.GetTicketStatusFilterFlex())
 
 	case strings.Contains(text, "เปลี่ยนเครื่อง"):
 		return true, uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "แจ้งเปลี่ยนเครื่อง", uc.messageService.GetEquipmentChangeFlex("https://www.google.com/"))
