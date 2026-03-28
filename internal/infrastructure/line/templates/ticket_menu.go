@@ -344,3 +344,79 @@ func getEquipmentName(ticket *entity.Ticket) string {
 	}
 	return "ไม่ระบุอุปกรณ์"
 }
+
+// GetTicketStatusFilterFlex returns flex message for selecting ticket status filter
+func GetTicketStatusFilterFlex() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "bubble",
+		"header": map[string]interface{}{
+			"type":            "box",
+			"layout":          "vertical",
+			"backgroundColor": ColorPrimaryDark,
+			"paddingAll":      "20px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "🔍 เลือกสถานะ",
+					"weight": "bold",
+					"size":   "xl",
+					"color":  ColorWhite,
+				},
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "กรุณาเลือกสถานะงานที่ต้องการดู",
+					"size":   "sm",
+					"color":  "#FFFFFFCC",
+					"margin": "sm",
+				},
+			},
+		},
+		"body": map[string]interface{}{
+			"type":       "box",
+			"layout":     "vertical",
+			"spacing":    "md",
+			"paddingAll": "20px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type":  "button",
+					"style": "primary",
+					"color": entity.TicketStatusInProcess.GetColor(),
+					"action": map[string]interface{}{
+						"type":  "postback",
+						"label": entity.TicketStatusInProcess.GetStatusText(),
+						"data":  "action=filter_tickets&status=" + string(entity.TicketStatusInProcess),
+					},
+				},
+				map[string]interface{}{
+					"type":  "button",
+					"style": "primary",
+					"color": entity.TicketStatusSendToOutsource.GetColor(),
+					"action": map[string]interface{}{
+						"type":  "postback",
+						"label": entity.TicketStatusSendToOutsource.GetStatusText(),
+						"data":  "action=filter_tickets&status=" + string(entity.TicketStatusSendToOutsource),
+					},
+				},
+				map[string]interface{}{
+					"type":  "button",
+					"style": "primary",
+					"color": entity.TicketStatusCompleted.GetColor(),
+					"action": map[string]interface{}{
+						"type":  "postback",
+						"label": entity.TicketStatusCompleted.GetStatusText(),
+						"data":  "action=filter_tickets&status=" + string(entity.TicketStatusCompleted),
+					},
+				},
+				map[string]interface{}{
+					"type":  "button",
+					"style": "secondary",
+					"action": map[string]interface{}{
+						"type":  "postback",
+						"label": "ดูทั้งหมด",
+						"data":  "action=filter_tickets&status=ALL",
+					},
+				},
+			},
+		},
+	}
+}
