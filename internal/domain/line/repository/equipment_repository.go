@@ -25,7 +25,7 @@ type EquipmentRepository interface {
 
 	// CRUD methods for Excel import
 	Create(ctx context.Context, equipment *entity.Equipment) error
-	CreateOrUpdate(ctx context.Context, equipment *entity.Equipment) error
+	CreateOrUpdate(ctx context.Context, equipment *entity.Equipment) (bool, error)
 	Update(ctx context.Context, equipment *entity.Equipment) error
 	Delete(ctx context.Context, id uint) error
 	FindByID(ctx context.Context, id uint) (*entity.Equipment, error)

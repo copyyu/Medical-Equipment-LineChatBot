@@ -8,7 +8,6 @@ import (
 	"medical-webhook/internal/infrastructure/database"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // EquipmentRepository implements repository.EquipmentRepository using GORM
@@ -120,33 +119,34 @@ func (r *EquipmentRepository) Create(ctx context.Context, equipment *entity.Equi
 }
 
 // CreateOrUpdate creates or updates equipment based on id_code
-// This is used for Excel import to handle duplicate entries
-func (r *EquipmentRepository) CreateOrUpdate(ctx context.Context, equipment *entity.Equipment) error {
-	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "id_code"}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"serial_no", "model_id", "department_id",
-			"asset_type_name", "ecri_code", "asset_name", "asset_id",
-			"status", "asset_status_internal", "rental_status", "borrow_status",
-			"building", "floor", "room", "phone_no",
-			"business_name", "item_no", "sku_no",
-			"receive_date", "purchase_date", "registration_date", "purchase_price",
-			"life_expectancy", "equipment_age", "remain_life", "replacement_year",
-			"warranty_period", "warranty_start_date", "warranty_end_date", "warranty_pm", "warranty_cal",
-			"last_pm_date", "last_cal_date", "pm_period", "cal_period", "vendor_pm", "vendor_cal",
-			"power_consumption",
-			"supplier", "ownership", "po_no", "contract_no", "invoice_no", "document_no", "tor_no", "manufacturing_country",
-			"revenue_per_month",
-			"remark", "approved_by", "nsmart_item_code", "updated_by",
-		}),
-	}).Create(equipment).Error
+// Returns (isNew bool, err error) - isNew is true if a new record was created, false if updated
+func (r *EquipmentRepository) CreateOrUpdate(ctx context.Context, equipment *entity.Equipment) (bool, error) {
+	var existing entity.Equipment
+	err := r.db.WithContext(ctx).Where("id_code = ?", equipment.IDCode).First(&existing).Error
+
+	if err == gorm.ErrRecordNotFound {
+		// New record - create it
+		if createErr := r.db.WithContext(ctx).Create(equipment).Error; createErr != nil {
+			log.Printf("Error creating equipment: %v", createErr)
+			return false, createErr
+		}
+		log.Printf("Created new equipment: %s (ID: %d)", equipment.IDCode, equipment.ID)
+		return true, nil
+	}
 
 	if err != nil {
-		log.Printf("Error creating/updating equipment: %v", err)
-		return err
+		log.Printf("Error checking existing equipment: %v", err)
+		return false, err
 	}
-	log.Printf("Created/Updated equipment: %s (ID: %d)", equipment.IDCode, equipment.ID)
-	return nil
+
+	// Existing record - update it
+	equipment.ID = existing.ID
+	if updateErr := r.db.WithContext(ctx).Model(&existing).Updates(equipment).Error; updateErr != nil {
+		log.Printf("Error updating equipment: %v", updateErr)
+		return false, updateErr
+	}
+	log.Printf("Updated existing equipment: %s (ID: %d)", equipment.IDCode, existing.ID)
+	return false, nil
 }
 
 // Update updates equipment

@@ -64,6 +64,7 @@ type ExcelRowDTO struct {
 type EquipmentImportResultDTO struct {
 	TotalRows      int      `json:"total_rows"`
 	SuccessCount   int      `json:"success_count"`
+	UpdatedCount   int      `json:"updated_count"`
 	FailedCount    int      `json:"failed_count"`
 	SkippedCount   int      `json:"skipped_count"`
 	NewBrands      int      `json:"new_brands"`
