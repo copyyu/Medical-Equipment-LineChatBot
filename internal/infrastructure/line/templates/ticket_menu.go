@@ -15,7 +15,7 @@ func GetTicketCreatedFlex(ticket *entity.Ticket) map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#66BB6A",
+			"backgroundColor": ColorSuccess,
 			"paddingAll":      "20px",
 			"contents": []interface{}{
 				map[string]interface{}{
@@ -23,7 +23,7 @@ func GetTicketCreatedFlex(ticket *entity.Ticket) map[string]interface{} {
 					"text":   "✅ สร้าง Ticket สำเร็จ",
 					"weight": "bold",
 					"size":   "xl",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 				},
 			},
 		},
@@ -36,7 +36,7 @@ func GetTicketCreatedFlex(ticket *entity.Ticket) map[string]interface{} {
 					"type":   "text",
 					"text":   "หมายเลข Ticket",
 					"size":   "sm",
-					"color":  "#999999",
+					"color":  ColorTextLight,
 					"margin": "none",
 				},
 				map[string]interface{}{
@@ -44,7 +44,7 @@ func GetTicketCreatedFlex(ticket *entity.Ticket) map[string]interface{} {
 					"text":   ticket.TicketNo,
 					"size":   "xxl",
 					"weight": "bold",
-					"color":  "#1DB446",
+					"color":  ColorSuccess,
 					"margin": "sm",
 				},
 				map[string]interface{}{
@@ -58,15 +58,15 @@ func GetTicketCreatedFlex(ticket *entity.Ticket) map[string]interface{} {
 					"spacing": "sm",
 					"contents": []interface{}{
 						createInfoRow("สถานะ", statusText, statusColor),
-						createInfoRow("อุปกรณ์", getEquipmentName(ticket), "#333333"),
-						createInfoRow("วันที่แจ้ง", ticket.ReportedAt.Format("2006-01-02 15:04"), "#666666"),
+						createInfoRow("อุปกรณ์", getEquipmentName(ticket), ColorText),
+						createInfoRow("วันที่แจ้ง", ticket.ReportedAt.Format("2006-01-02 15:04"), ColorTextLight),
 					},
 				},
 				map[string]interface{}{
 					"type":   "text",
 					"text":   "📋 บันทึกเลข Ticket นี้ไว้เพื่อติดตามสถานะ\nหรือใช้เมนู 'ติดตามสถานะ'",
 					"size":   "xs",
-					"color":  "#999999",
+					"color":  ColorTextLight,
 					"margin": "lg",
 					"wrap":   true,
 				},
@@ -80,7 +80,7 @@ func GetTicketCreatedFlex(ticket *entity.Ticket) map[string]interface{} {
 				map[string]interface{}{
 					"type":  "button",
 					"style": "primary",
-					"color": "#42A5F5",
+					"color": ColorAccent,
 					"action": map[string]interface{}{
 						"type":  "postback",
 						"label": "รายการของฉัน",
@@ -116,6 +116,7 @@ func GetTicketStatusFlex(ticket *entity.Ticket) map[string]interface{} {
 			"weight": "bold",
 			"wrap":   true,
 			"margin": "none",
+			"color":  ColorText,
 		},
 	}
 
@@ -125,7 +126,7 @@ func GetTicketStatusFlex(ticket *entity.Ticket) map[string]interface{} {
 			"type":   "text",
 			"text":   *ticket.Description,
 			"size":   "sm",
-			"color":  "#666666",
+			"color":  ColorTextLight,
 			"wrap":   true,
 			"margin": "md",
 		})
@@ -144,7 +145,7 @@ func GetTicketStatusFlex(ticket *entity.Ticket) map[string]interface{} {
 			"contents": []interface{}{
 				createInfoRow("สถานะ", statusText, statusColor),
 				createInfoRow("ความสำคัญ", priorityText, priorityColor),
-				createInfoRow("วันที่แจ้ง", ticket.ReportedAt.Format("2006-01-02 15:04"), "#666666"),
+				createInfoRow("วันที่แจ้ง", ticket.ReportedAt.Format("2006-01-02 15:04"), ColorTextLight),
 			},
 		},
 	)
@@ -162,13 +163,13 @@ func GetTicketStatusFlex(ticket *entity.Ticket) map[string]interface{} {
 					"text":   "📋 สถานะ Ticket",
 					"weight": "bold",
 					"size":   "xl",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 				},
 				map[string]interface{}{
 					"type":   "text",
 					"text":   ticket.TicketNo,
 					"size":   "sm",
-					"color":  "#FFFFFF",
+					"color":  ColorWhite,
 					"margin": "sm",
 				},
 			},
@@ -186,7 +187,7 @@ func GetTicketStatusFlex(ticket *entity.Ticket) map[string]interface{} {
 				map[string]interface{}{
 					"type":  "button",
 					"style": "primary",
-					"color": "#42A5F5",
+					"color": ColorAccent,
 					"action": map[string]interface{}{
 						"type":  "postback",
 						"label": "รายการของฉัน",
@@ -218,7 +219,7 @@ func GetMyTicketsFlex(tickets []entity.Ticket) map[string]interface{} {
 	bodyContents := []interface{}{
 		map[string]interface{}{
 			"type": "text", "text": fmt.Sprintf("📊 รวม %d รายการ", maxTickets),
-			"size": "xs", "color": "#888888", "margin": "sm",
+			"size": "xs", "color": ColorTextLight, "margin": "sm",
 		},
 	}
 
@@ -228,9 +229,9 @@ func GetMyTicketsFlex(tickets []entity.Ticket) map[string]interface{} {
 		jobStatusText := ticket.Status.GetStatusText()
 		equipName := getEquipmentName(&ticket)
 
-		bgColor := "#FFFFFF"
+		bgColor := ColorWhite
 		if i%2 == 1 {
-			bgColor = "#F5F5F5"
+			bgColor = ColorBgAlt
 		}
 
 		bodyContents = append(bodyContents, map[string]interface{}{
@@ -243,7 +244,7 @@ func GetMyTicketsFlex(tickets []entity.Ticket) map[string]interface{} {
 					"contents": []interface{}{
 						map[string]interface{}{
 							"type": "text", "text": fmt.Sprintf("%d. %s", i+1, ticket.TicketNo),
-							"size": "xs", "weight": "bold", "flex": 5,
+							"size": "xs", "weight": "bold", "flex": 5, "color": ColorText,
 						},
 						map[string]interface{}{
 							"type": "box", "layout": "vertical", "flex": 4,
@@ -251,7 +252,7 @@ func GetMyTicketsFlex(tickets []entity.Ticket) map[string]interface{} {
 							"contents": []interface{}{
 								map[string]interface{}{
 									"type": "text", "text": jobStatusText,
-									"size": "xxs", "color": "#FFFFFF", "align": "center",
+									"size": "xxs", "color": ColorWhite, "align": "center",
 								},
 							},
 						},
@@ -260,12 +261,12 @@ func GetMyTicketsFlex(tickets []entity.Ticket) map[string]interface{} {
 				// Row 2: equipment name
 				map[string]interface{}{
 					"type": "text", "text": fmt.Sprintf("   🔧 %s", equipName),
-					"size": "xxs", "color": "#666666", "wrap": true,
+					"size": "xxs", "color": ColorTextLight, "wrap": true,
 				},
 				// Row 3: date
 				map[string]interface{}{
 					"type": "text", "text": fmt.Sprintf("   📅 %s", ticket.ReportedAt.Format("02/01/2006 15:04")),
-					"size": "xxs", "color": "#888888",
+					"size": "xxs", "color": ColorTextLight,
 				},
 			},
 		})
@@ -275,11 +276,11 @@ func GetMyTicketsFlex(tickets []entity.Ticket) map[string]interface{} {
 		"type": "bubble", "size": "mega",
 		"header": map[string]interface{}{
 			"type": "box", "layout": "vertical",
-			"backgroundColor": "#1565C0", "paddingAll": "15px",
+			"backgroundColor": ColorPrimaryDark, "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": "รายการแจ้งปัญหาของฉัน",
-					"color": "#FFFFFF", "size": "lg", "weight": "bold",
+					"type": "text", "text": "📋 รายการแจ้งปัญหาของฉัน",
+					"color": ColorWhite, "size": "lg", "weight": "bold",
 				},
 				map[string]interface{}{
 					"type": "text", "text": fmt.Sprintf("แสดง %d รายการล่าสุด", maxTickets),
@@ -320,7 +321,7 @@ func createInfoRow(label, value, valueColor string) map[string]interface{} {
 				"type":  "text",
 				"text":  label,
 				"size":  "sm",
-				"color": "#999999",
+				"color": ColorTextLight,
 				"flex":  0,
 			},
 			map[string]interface{}{
@@ -342,4 +343,80 @@ func getEquipmentName(ticket *entity.Ticket) string {
 		return *ticket.EquipmentName
 	}
 	return "ไม่ระบุอุปกรณ์"
+}
+
+// GetTicketStatusFilterFlex returns flex message for selecting ticket status filter
+func GetTicketStatusFilterFlex() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "bubble",
+		"header": map[string]interface{}{
+			"type":            "box",
+			"layout":          "vertical",
+			"backgroundColor": ColorPrimaryDark,
+			"paddingAll":      "20px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "🔍 เลือกสถานะ",
+					"weight": "bold",
+					"size":   "xl",
+					"color":  ColorWhite,
+				},
+				map[string]interface{}{
+					"type":   "text",
+					"text":   "กรุณาเลือกสถานะงานที่ต้องการดู",
+					"size":   "sm",
+					"color":  "#FFFFFFCC",
+					"margin": "sm",
+				},
+			},
+		},
+		"body": map[string]interface{}{
+			"type":       "box",
+			"layout":     "vertical",
+			"spacing":    "md",
+			"paddingAll": "20px",
+			"contents": []interface{}{
+				map[string]interface{}{
+					"type":  "button",
+					"style": "primary",
+					"color": entity.TicketStatusInProcess.GetColor(),
+					"action": map[string]interface{}{
+						"type":  "postback",
+						"label": entity.TicketStatusInProcess.GetStatusText(),
+						"data":  "action=filter_tickets&status=" + string(entity.TicketStatusInProcess),
+					},
+				},
+				map[string]interface{}{
+					"type":  "button",
+					"style": "primary",
+					"color": entity.TicketStatusSendToOutsource.GetColor(),
+					"action": map[string]interface{}{
+						"type":  "postback",
+						"label": entity.TicketStatusSendToOutsource.GetStatusText(),
+						"data":  "action=filter_tickets&status=" + string(entity.TicketStatusSendToOutsource),
+					},
+				},
+				map[string]interface{}{
+					"type":  "button",
+					"style": "primary",
+					"color": entity.TicketStatusCompleted.GetColor(),
+					"action": map[string]interface{}{
+						"type":  "postback",
+						"label": entity.TicketStatusCompleted.GetStatusText(),
+						"data":  "action=filter_tickets&status=" + string(entity.TicketStatusCompleted),
+					},
+				},
+				map[string]interface{}{
+					"type":  "button",
+					"style": "secondary",
+					"action": map[string]interface{}{
+						"type":  "postback",
+						"label": "ดูทั้งหมด",
+						"data":  "action=filter_tickets&status=ALL",
+					},
+				},
+			},
+		},
+	}
 }

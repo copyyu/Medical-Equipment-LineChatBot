@@ -9,6 +9,7 @@ import (
 
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/application/service"
+	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	"medical-webhook/internal/infrastructure/line/templates"
@@ -23,6 +24,7 @@ type TicketUseCase struct {
 	categoryRepo  repository.TicketCategoryRepository
 	historyRepo   repository.TicketHistoryRepository
 	notifyService *service.TicketNotificationService
+	eventBus      event.EventBus
 }
 
 // NewTicketUseCase creates a new ticket use case
@@ -33,6 +35,7 @@ func NewTicketUseCase(
 	categoryRepo repository.TicketCategoryRepository,
 	historyRepo repository.TicketHistoryRepository,
 	notifyService *service.TicketNotificationService,
+	eventBus event.EventBus,
 ) *TicketUseCase {
 	return &TicketUseCase{
 		lineRepo:      lineRepo,
@@ -41,6 +44,7 @@ func NewTicketUseCase(
 		categoryRepo:  categoryRepo,
 		historyRepo:   historyRepo,
 		notifyService: notifyService,
+		eventBus:      eventBus,
 	}
 }
 
@@ -289,6 +293,21 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 		}()
 	}
 
+	// Publish ticket updated event
+	if uc.eventBus != nil {
+		go func() {
+			publishErr := uc.eventBus.Publish(context.Background(), event.NewEvent(event.TicketUpdated, map[string]interface{}{
+				"ticket_id": ticket.ID,
+				"ticket_no": ticket.TicketNo,
+				"status":    string(ticket.Status),
+				"priority":  string(ticket.Priority),
+			}))
+			if publishErr != nil {
+				log.Printf("Failed to publish ticket.updated event: %v", publishErr)
+			}
+		}()
+	}
+
 	return nil
 }
 
@@ -404,6 +423,22 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 	}
 	_ = uc.historyRepo.CreateTicketHistory(history)
 
+	// Publish ticket created event
+	if uc.eventBus != nil {
+		go func() {
+			publishErr := uc.eventBus.Publish(context.Background(), event.NewEvent(event.TicketCreated, map[string]interface{}{
+				"ticket_id": ticket.ID,
+				"ticket_no": ticketNo,
+				"equipment": serialOrCode,
+				"reporter":  lineDisplayName,
+				"status":    string(ticket.Status),
+			}))
+			if publishErr != nil {
+				log.Printf("Failed to publish ticket.created event: %v", publishErr)
+			}
+		}()
+	}
+
 	log.Printf("Created ticket %s for equipment %s", ticketNo, serialOrCode)
 	return ticket, nil
 }
@@ -477,4 +512,9 @@ func (uc *TicketUseCase) generateTicketNumberFromDB() (string, error) {
 	}
 
 	return fmt.Sprintf("REQ-%d-%05d", year, nextNum), nil
+}
+
+// GetTicketsByEquipmentID finds all tickets for an equipment
+func (uc *TicketUseCase) GetTicketsByEquipmentID(equipmentID uint) ([]entity.Ticket, error) {
+	return uc.ticketRepo.GetTicketsByEquipmentID(equipmentID)
 }

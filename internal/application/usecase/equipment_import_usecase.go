@@ -144,43 +144,45 @@ func (uc *equipmentImportUseCase) Execute(ctx context.Context, file io.Reader) (
 		equipment := uc.mapper.ToEquipmentEntity(createEquipmentDTO)
 
 		// 6. Save Equipment (CreateOrUpdate)
-		if err := uc.equipmentRepo.CreateOrUpdate(ctx, equipment); err != nil {
+		isNew, err := uc.equipmentRepo.CreateOrUpdate(ctx, equipment)
+		if err != nil {
 			result.FailedCount++
 			result.FailedRows = append(result.FailedRows, rowNum)
 			result.ErrorMessages = append(result.ErrorMessages, fmt.Sprintf("Row %d: failed to save equipment: %s", rowNum, err.Error()))
 			continue
 		}
 
-		result.SuccessCount++
+		if isNew {
+			result.SuccessCount++
+		} else {
+			result.UpdatedCount++
+		}
 	}
 
 	// ⭐ Log summary
-	log.Printf("🎉 Import completed: Success=%d, Failed=%d, Skipped=%d",
-		result.SuccessCount, result.FailedCount, result.SkippedCount)
+	log.Printf("🎉 Import completed: New=%d, Updated=%d, Failed=%d, Skipped=%d",
+		result.SuccessCount, result.UpdatedCount, result.FailedCount, result.SkippedCount)
 
 	return result, nil
 }
 
-// validateExcelRow - validate ข้อมูลที่จำเป็น
+// validateExcelRow
 func (uc *equipmentImportUseCase) validateExcelRow(row *dto.ExcelRowDTO) error {
 	if row.IDCode == "" {
 		return fmt.Errorf("ID CODE is required")
 	}
 
 	if row.Department == "" {
-		return fmt.Errorf("department is required")
+		row.Department = "-"
 	}
-
 	if row.Brand == "" {
-		return fmt.Errorf("brand is required")
+		row.Brand = "-"
 	}
-
 	if row.Category == "" {
-		return fmt.Errorf("category is required")
+		row.Category = "-"
 	}
-
 	if row.Model == "" {
-		return fmt.Errorf("model is required")
+		row.Model = "-"
 	}
 
 	return nil

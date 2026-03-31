@@ -170,6 +170,48 @@ func (r *LineRepository) BroadcastMessage(text string) error {
 	return nil
 }
 
+// BroadcastFlexMessage - ส่ง Flex Message หาทุกคนที่เพิ่มเพื่อน Bot
+func (r *LineRepository) BroadcastFlexMessage(altText string, flexContent map[string]interface{}) error {
+	requestBody := map[string]interface{}{
+		"messages": []map[string]interface{}{
+			{
+				"type":     "flex",
+				"altText":  altText,
+				"contents": flexContent,
+			},
+		},
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", "https://api.line.me/v2/bot/message/broadcast", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+r.token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		log.Printf("LINE Broadcast Flex API error %d: %s", resp.StatusCode, string(bodyBytes))
+		return fmt.Errorf("LINE Broadcast Flex API error %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	log.Println("Broadcast flex message sent successfully")
+	return nil
+}
+
 // GetImageContent downloads image content from LINE using message ID
 func (r *LineRepository) GetImageContent(messageID string) ([]byte, error) {
 	log.Printf("Downloading image: %s", messageID)

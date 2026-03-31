@@ -14,4 +14,5 @@ type TicketRepository interface {
 	GetTicketStats() (total, inProgress, completed, sendToOutsource int64, err error)
 	GetRecentTickets(limit int) ([]entity.Ticket, error)
 	FindPendingTicketByEquipmentAndUser(equipmentID uint, lineUserID string) (*entity.Ticket, error)
+	GetTicketsByEquipmentID(equipmentID uint) ([]entity.Ticket, error)
 }

@@ -16,25 +16,107 @@ func NewEquipmentMapper() *EquipmentMapper {
 
 // ToEquipmentEntity - แปลง CreateEquipmentDTO เป็น Equipment Entity
 func (m *EquipmentMapper) ToEquipmentEntity(dto *dto.CreateEquipmentDTO) *entity.Equipment {
-	return &entity.Equipment{
-		IDCode:                dto.IDCode,
-		SerialNo:              dto.SerialNo,
-		ModelID:               dto.ModelID,
-		DepartmentID:          dto.DepartmentID,
-		AssessmentID:          dto.AssessmentID,
-		ReceiveDate:           dto.ReceiveDate,
-		PurchasePrice:         dto.PurchasePrice,
-		EquipmentAge:          dto.EquipmentAge,
-		ComputeDate:           dto.ComputeDate,
-		LifeExpectancy:        dto.LifeExpectancy,
-		RemainLife:            dto.RemainLife,
-		UsefulLifetimePercent: dto.UsefulLifetimePercent,
-		ReplacementYear:       dto.ReplacementYear,
-		Technology:            dto.Technology,
-		UsageStatistics:       dto.UsageStatistics,
-		Efficiency:            dto.Efficiency,
-		Others:                dto.Others,
+	eq := &entity.Equipment{
+		IDCode:       dto.IDCode,
+		SerialNo:     dto.SerialNo,
+		ModelID:      dto.ModelID,
+		DepartmentID: dto.DepartmentID,
+
+		// Basic Info
+		AssetTypeName: dto.AssetTypeName,
+		ECRICode:      dto.ECRICode,
+		AssetName:     dto.AssetName,
+		AssetID:       dto.AssetID,
+
+		// Status
+		AssetStatusInternal: dto.AssetStatusInternal,
+		RentalStatus:        dto.RentalStatus,
+		BorrowStatus:        dto.BorrowStatus,
+
+		// Location
+		Building: dto.Building,
+		Floor:    dto.Floor,
+		Room:     dto.Room,
+		PhoneNo:  dto.PhoneNo,
+
+		// Business
+		BusinessName: dto.BusinessName,
+		ItemNo:       dto.ItemNo,
+		SKUNo:        dto.SKUNo,
+
+		// Dates
+		ReceiveDate:      dto.ReceiveDate,
+		PurchaseDate:     dto.PurchaseDate,
+		RegistrationDate: dto.RegistrationDate,
+		PurchasePrice:    dto.PurchasePrice,
+
+		// Lifecycle
+		LifeExpectancy: dto.LifeExpectancy,
+
+		// Warranty
+		WarrantyPeriod:    dto.WarrantyPeriod,
+		WarrantyStartDate: dto.WarrantyStartDate,
+		WarrantyEndDate:   dto.WarrantyEndDate,
+		WarrantyPM:        dto.WarrantyPM,
+		WarrantyCal:       dto.WarrantyCal,
+
+		// PM & Calibration
+		LastPMDate:  dto.LastPMDate,
+		LastCalDate: dto.LastCalDate,
+		PMPeriod:    dto.PMPeriod,
+		CalPeriod:   dto.CalPeriod,
+		VendorPM:    dto.VendorPM,
+		VendorCal:   dto.VendorCal,
+
+		// Power
+		PowerConsumption: dto.PowerConsumption,
+
+		// Procurement
+		Supplier:             dto.Supplier,
+		Ownership:            dto.Ownership,
+		PoNo:                 dto.PoNo,
+		ContractNo:           dto.ContractNo,
+		InvoiceNo:            dto.InvoiceNo,
+		DocumentNo:           dto.DocumentNo,
+		TorNo:                dto.TorNo,
+		ManufacturingCountry: dto.ManufacturingCountry,
+
+		// Financial
+		RevenuePerMonth: dto.RevenuePerMonth,
+
+		// Misc
+		Remark:         dto.Remark,
+		ApprovedBy:     dto.ApprovedBy,
+		NsmartItemCode: dto.NsmartItemCode,
+		UpdatedBy:      dto.UpdatedBy,
 	}
+
+	// Compute lifecycle fields
+	m.computeLifecycleFields(eq)
+
+	return eq
+}
+
+// computeLifecycleFields - คำนวณ EquipmentAge, RemainLife, ReplacementYear จาก ReceiveDate + LifeExpectancy
+func (m *EquipmentMapper) computeLifecycleFields(eq *entity.Equipment) {
+	if eq.ReceiveDate != nil && eq.LifeExpectancy > 0 {
+		now := time.Now()
+		// EquipmentAge = (today - receive_date) in fractional years
+		equipmentAge := now.Sub(*eq.ReceiveDate).Hours() / (24 * 365.25)
+		eq.EquipmentAge = equipmentAge
+
+		// RemainLife = LifeExpectancy - EquipmentAge
+		eq.RemainLife = eq.LifeExpectancy - equipmentAge
+
+		// ReplacementYear = ReceiveDate.Year + LifeExpectancy
+		replacementYear := eq.ReceiveDate.Year() + int(eq.LifeExpectancy)
+		eq.ReplacementYear = &replacementYear
+	}
+}
+
+// ComputeLifecycleFieldsPublic - public wrapper for computeLifecycleFields
+func (m *EquipmentMapper) ComputeLifecycleFieldsPublic(eq *entity.Equipment) {
+	m.computeLifecycleFields(eq)
 }
 
 // ToCreateEquipmentDTO - แปลง ExcelRowDTO เป็น CreateEquipmentDTO
@@ -43,29 +125,80 @@ func (m *EquipmentMapper) ToCreateEquipmentDTO(
 	modelID uint,
 	departmentID uint,
 ) *dto.CreateEquipmentDTO {
-	var assessmentID *string
-	if excelRow.AssessmentID != "" {
-		assessmentID = &excelRow.AssessmentID
-	}
-
 	return &dto.CreateEquipmentDTO{
-		IDCode:                excelRow.IDCode,
-		SerialNo:              excelRow.SerialNo,
-		ModelID:               modelID,
-		DepartmentID:          departmentID,
-		AssessmentID:          assessmentID,
-		ReceiveDate:           excelRow.ReceiveDate,
-		PurchasePrice:         excelRow.PurchasePrice,
-		EquipmentAge:          excelRow.EquipmentAge,
-		ComputeDate:           excelRow.ComputeDate,
-		LifeExpectancy:        excelRow.LifeExpectancy,
-		RemainLife:            excelRow.RemainLife,
-		UsefulLifetimePercent: excelRow.UsefulLifePercent,
-		ReplacementYear:       excelRow.ReplacementYear,
-		Technology:            excelRow.Technology,
-		UsageStatistics:       excelRow.UsageStatistics,
-		Efficiency:            excelRow.Efficiency,
-		Others:                excelRow.Others,
+		IDCode:       excelRow.IDCode,
+		SerialNo:     excelRow.SerialNo,
+		ModelID:      modelID,
+		DepartmentID: departmentID,
+
+		// Basic Info
+		AssetTypeName: strPtr(excelRow.AssetTypeName),
+		ECRICode:      strPtr(excelRow.ECRICode),
+		AssetName:     excelRow.AssetName,
+		AssetID:       excelRow.AssetID,
+
+		// Status
+		AssetStatus:         excelRow.AssetStatus,
+		AssetStatusInternal: excelRow.AssetStatusInternal,
+		RentalStatus:        excelRow.RentalStatus,
+		BorrowStatus:        excelRow.BorrowStatus,
+
+		// Location
+		Building: excelRow.Building,
+		Floor:    excelRow.Floor,
+		Room:     excelRow.Room,
+		PhoneNo:  excelRow.PhoneNo,
+
+		// Business
+		BusinessName: excelRow.BusinessName,
+		ItemNo:       excelRow.ItemNo,
+		SKUNo:        excelRow.SKUNo,
+
+		// Dates
+		ReceiveDate:      excelRow.ReceiveDate,
+		PurchaseDate:     excelRow.PurchaseDate,
+		RegistrationDate: excelRow.RegistrationDate,
+		PurchasePrice:    excelRow.PurchasePrice,
+
+		// Lifecycle
+		LifeExpectancy: excelRow.LifeExpectancy,
+
+		// Warranty
+		WarrantyPeriod:    excelRow.WarrantyPeriod,
+		WarrantyStartDate: excelRow.WarrantyStartDate,
+		WarrantyEndDate:   excelRow.WarrantyEndDate,
+		WarrantyPM:        excelRow.WarrantyPM,
+		WarrantyCal:       excelRow.WarrantyCal,
+
+		// PM & Calibration
+		LastPMDate:  excelRow.LastPMDate,
+		LastCalDate: excelRow.LastCalDate,
+		PMPeriod:    excelRow.PMPeriod,
+		CalPeriod:   excelRow.CalPeriod,
+		VendorPM:    excelRow.VendorPM,
+		VendorCal:   excelRow.VendorCal,
+
+		// Power
+		PowerConsumption: excelRow.PowerConsumption,
+
+		// Procurement
+		Supplier:             excelRow.Supplier,
+		Ownership:            excelRow.Ownership,
+		PoNo:                 excelRow.PoNo,
+		ContractNo:           excelRow.ContractNo,
+		InvoiceNo:            excelRow.InvoiceNo,
+		DocumentNo:           excelRow.DocumentNo,
+		TorNo:                excelRow.TorNo,
+		ManufacturingCountry: excelRow.ManufacturingCountry,
+
+		// Financial
+		RevenuePerMonth: excelRow.RevenuePerMonth,
+
+		// Misc
+		Remark:         excelRow.Remark,
+		ApprovedBy:     excelRow.ApprovedBy,
+		NsmartItemCode: excelRow.NsmartItemCode,
+		UpdatedBy:      excelRow.UpdatedBy,
 	}
 }
 
@@ -159,9 +292,11 @@ func (m *EquipmentMapper) ToModelDTO(entity *entity.EquipmentModel) *dto.ModelDT
 }
 
 func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.EquipmentListItem {
-	// Get name from model
+	// Get name: prefer AssetName, then Model name, then IDCode
 	name := ""
-	if entity.Model.ModelName != "" {
+	if entity.AssetName != nil && *entity.AssetName != "" {
+		name = *entity.AssetName
+	} else if entity.Model.ModelName != "" {
 		name = entity.Model.ModelName
 	} else {
 		name = entity.IDCode
@@ -210,12 +345,12 @@ func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.
 		isExpiring = true
 	}
 
-	// Get last check date from latest maintenance record
+	// Get last check date from latest maintenance record or LastPMDate
 	lastCheck := ""
 	if len(entity.MaintenanceRecords) > 0 {
 		lastCheck = entity.MaintenanceRecords[0].MaintenanceDate.Format("2006-01-02")
-	} else if entity.ComputeDate != nil {
-		lastCheck = entity.ComputeDate.Format("2006-01-02")
+	} else if entity.LastPMDate != nil {
+		lastCheck = entity.LastPMDate.Format("2006-01-02")
 	}
 
 	// Map asset status to frontend status
@@ -235,10 +370,7 @@ func (m *EquipmentMapper) MapEquipmentToListItem(entity *entity.Equipment) *dto.
 }
 
 // mapAssetStatusToFrontend maps backend AssetStatus to frontend EquipmentStatus
-// Returns exact status values to match frontend EQUIPMENT_STATUS_CONFIG keys
 func mapAssetStatusToFrontend(status entity.AssetStatus) string {
-	// Return exact status string to match frontend type definitions:
-	// active, defective, wait_decom, decommission, active_ready_to_sell, missing, plan_to_replace
 	return string(status)
 }
 
@@ -246,32 +378,62 @@ func formatYear(year int) string {
 	return strconv.Itoa(year)
 }
 
-// func formatYear(year int) string {
-//     return string(rune('0'+year/1000)) + string(rune('0'+(year/100)%10)) + string(rune('0'+(year/10)%10)) + string(rune('0'+year%10))
-// }
-//
-
 func (m *EquipmentMapper) MapEquipmentToResponse(entity *entity.Equipment) *dto.EquipmentResponse {
 	resp := &dto.EquipmentResponse{
-		ID:                    entity.ID,
-		IDCode:                entity.IDCode,
-		SerialNo:              entity.SerialNo,
-		AssessmentID:          entity.AssessmentID,
-		Status:                string(entity.Status),
-		ReceiveDate:           entity.ReceiveDate,
-		PurchasePrice:         entity.PurchasePrice,
-		EquipmentAge:          entity.EquipmentAge,
-		ComputeDate:           entity.ComputeDate,
-		LifeExpectancy:        entity.LifeExpectancy,
-		RemainLife:            entity.RemainLife,
-		UsefulLifetimePercent: entity.UsefulLifetimePercent,
-		ReplacementYear:       entity.ReplacementYear,
-		Technology:            entity.Technology,
-		UsageStatistics:       entity.UsageStatistics,
-		Efficiency:            entity.Efficiency,
-		Others:                entity.Others,
-		CreatedAt:             entity.CreatedAt,
-		UpdatedAt:             entity.UpdatedAt,
+		ID:                   entity.ID,
+		IDCode:               entity.IDCode,
+		SerialNo:             entity.SerialNo,
+		ECRICode:             entity.ECRICode,
+		Status:               string(entity.Status),
+		ReceiveDate:          entity.ReceiveDate,
+		PurchasePrice:        entity.PurchasePrice,
+		EquipmentAge:         entity.EquipmentAge,
+		LifeExpectancy:       entity.LifeExpectancy,
+		RemainLife:           entity.RemainLife,
+		ReplacementYear:      entity.ReplacementYear,
+		AssetTypeName:        entity.AssetTypeName,
+		AssetName:            entity.AssetName,
+		AssetID:              entity.AssetID,
+		AssetStatusInternal:  entity.AssetStatusInternal,
+		RentalStatus:         entity.RentalStatus,
+		BorrowStatus:         entity.BorrowStatus,
+		Building:             entity.Building,
+		Floor:                entity.Floor,
+		Room:                 entity.Room,
+		PhoneNo:              entity.PhoneNo,
+		BusinessName:         entity.BusinessName,
+		ItemNo:               entity.ItemNo,
+		SKUNo:                entity.SKUNo,
+		PurchaseDate:         entity.PurchaseDate,
+		RegistrationDate:     entity.RegistrationDate,
+		WarrantyPeriod:       entity.WarrantyPeriod,
+		WarrantyStartDate:    entity.WarrantyStartDate,
+		WarrantyEndDate:      entity.WarrantyEndDate,
+		WarrantyPM:           entity.WarrantyPM,
+		WarrantyCal:          entity.WarrantyCal,
+		LastPMDate:           entity.LastPMDate,
+		LastCalDate:          entity.LastCalDate,
+		PMPeriod:             entity.PMPeriod,
+		CalPeriod:            entity.CalPeriod,
+		VendorPM:             entity.VendorPM,
+		VendorCal:            entity.VendorCal,
+		PowerConsumption:     entity.PowerConsumption,
+		Supplier:             entity.Supplier,
+		Ownership:            entity.Ownership,
+		PoNo:                 entity.PoNo,
+		ContractNo:           entity.ContractNo,
+		InvoiceNo:            entity.InvoiceNo,
+		DocumentNo:           entity.DocumentNo,
+		TorNo:                entity.TorNo,
+		ManufacturingCountry: entity.ManufacturingCountry,
+		RevenuePerMonth:      entity.RevenuePerMonth,
+		Remark:               entity.Remark,
+		ApprovedBy:           entity.ApprovedBy,
+		NsmartItemCode:       entity.NsmartItemCode,
+		UpdatedBy:            entity.UpdatedBy,
+
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
 	}
 
 	// Map Model if exists
@@ -310,4 +472,12 @@ func (m *EquipmentMapper) MapEquipmentToResponse(entity *entity.Equipment) *dto.
 	}
 
 	return resp
+}
+
+// strPtr - helper to convert non-empty string to *string
+func strPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

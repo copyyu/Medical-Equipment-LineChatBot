@@ -7,6 +7,7 @@ import (
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/service"
+	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/domain/line/entity"
 	"time"
 )
@@ -17,17 +18,22 @@ type EquipmentUsecase interface {
 	UpdateEquipment(ctx context.Context, idCode string, req dto.EquipmentUpdateRequest) error
 	DeleteEquipment(ctx context.Context, idCode string) error
 	CreateEquipment(ctx context.Context, req dto.CreateEquipmentRequest) (*dto.EquipmentResponse, error)
+
+	// Categories
+	GetAllCategories(ctx context.Context) ([]entity.EquipmentCategory, error)
 }
 
 type equipmentUsecase struct {
 	equipmentService service.EquipmentService
 	mapper           *mapper.EquipmentMapper
+	eventBus         event.EventBus
 }
 
-func NewEquipmentUsecase(equipmentService service.EquipmentService) EquipmentUsecase {
+func NewEquipmentUsecase(equipmentService service.EquipmentService, eventBus event.EventBus) EquipmentUsecase {
 	return &equipmentUsecase{
 		equipmentService: equipmentService,
 		mapper:           mapper.NewEquipmentMapper(),
+		eventBus:         eventBus,
 	}
 }
 
@@ -54,18 +60,18 @@ func (u *equipmentUsecase) GetEquipmentList(ctx context.Context, req dto.Equipme
 	var err error
 
 	// Check if we need to apply filters
-	hasFilter := req.Status != "" || req.Search != ""
+	hasFilter := req.Status != "" || req.Search != "" || req.ExpiryFilter != "" || req.CategoryID != ""
 
 	if hasFilter {
 		// Get total count with filters
-		total, err = u.equipmentService.CountEquipmentsWithFilter(ctx, req.Status, req.Search)
+		total, err = u.equipmentService.CountEquipmentsWithFilter(ctx, req.Status, req.Search, req.ExpiryFilter, req.CategoryID)
 		if err != nil {
 			log.Printf("Usecase: Error counting equipments with filter: %v", err)
 			return nil, err
 		}
 
 		// Get equipment list with pagination and filters
-		equipments, err = u.equipmentService.FindAllEquipmentsWithFilter(ctx, req.Limit, offset, req.Status, req.Search)
+		equipments, err = u.equipmentService.FindAllEquipmentsWithFilter(ctx, req.Limit, offset, req.Status, req.Search, req.ExpiryFilter, req.CategoryID)
 		if err != nil {
 			log.Printf("Usecase: Error getting equipments with filter: %v", err)
 			return nil, err
@@ -149,14 +155,6 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 		equipment.DepartmentID = dept.ID
 	}
 
-	// Update compute date if provided
-	if req.ComputeDate != "" {
-		computeDate, err := time.Parse("2006-01-02", req.ComputeDate)
-		if err == nil {
-			equipment.ComputeDate = &computeDate
-		}
-	}
-
 	// Update expiry date and calculate RemainLife if provided
 	if req.ExpiryDate != "" {
 		expiryDate, err := time.Parse("2006-01-02", req.ExpiryDate)
@@ -173,7 +171,6 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 			equipment.ReplacementYear = &replacementYear
 
 			// Update LifeExpectancy based on new expiry date and receive date
-			// So the mapper's dynamic calculation (LifeExpectancy - equipmentAge) stays correct
 			if equipment.ReceiveDate != nil {
 				newLifeExpectancy := expiryDate.Sub(*equipment.ReceiveDate).Hours() / (24 * daysInYear)
 				equipment.LifeExpectancy = newLifeExpectancy
@@ -188,6 +185,19 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 	if err := u.equipmentService.UpdateEquipment(ctx, equipment); err != nil {
 		log.Printf("Usecase: UpdateEquipment - Error: %v", err)
 		return err
+	}
+
+	// Publish equipment updated event
+	if u.eventBus != nil {
+		go func() {
+			publishErr := u.eventBus.Publish(context.Background(), event.NewEvent(event.EquipmentUpdated, map[string]interface{}{
+				"id_code": idCode,
+				"status":  string(equipment.Status),
+			}))
+			if publishErr != nil {
+				log.Printf("Usecase: Failed to publish equipment.updated event: %v", publishErr)
+			}
+		}()
 	}
 
 	log.Printf("Usecase: UpdateEquipment - Equipment ID: %s updated successfully", idCode)
@@ -209,6 +219,18 @@ func (u *equipmentUsecase) DeleteEquipment(ctx context.Context, idCode string) e
 	if err := u.equipmentService.DeleteEquipment(ctx, equipment.ID); err != nil {
 		log.Printf("Usecase: DeleteEquipment - Error: %v", err)
 		return err
+	}
+
+	// Publish equipment deleted event
+	if u.eventBus != nil {
+		go func() {
+			publishErr := u.eventBus.Publish(context.Background(), event.NewEvent(event.EquipmentDeleted, map[string]interface{}{
+				"id_code": idCode,
+			}))
+			if publishErr != nil {
+				log.Printf("Usecase: Failed to publish equipment.deleted event: %v", publishErr)
+			}
+		}()
 	}
 
 	log.Printf("Usecase: DeleteEquipment - Equipment ID: %s deleted successfully", idCode)
@@ -271,55 +293,101 @@ func (u *equipmentUsecase) CreateEquipment(ctx context.Context, req dto.CreateEq
 
 	// 8. Create Equipment entity
 	equipment := &entity.Equipment{
-		IDCode:                req.IDCode,
-		SerialNo:              &req.SerialNo,
-		ModelID:               model.ID,
-		DepartmentID:          department.ID,
-		ReceiveDate:           &receiveDate,
-		PurchasePrice:         req.PurchasePrice,
-		EquipmentAge:          req.EquipmentAge,
-		LifeExpectancy:        req.LifeExpectancy,
-		RemainLife:            req.RemainLife,
-		UsefulLifetimePercent: req.UsefulLifetimePercent,
+		IDCode:         req.IDCode,
+		SerialNo:       &req.SerialNo,
+		ModelID:        model.ID,
+		DepartmentID:   department.ID,
+		ReceiveDate:    &receiveDate,
+		PurchasePrice:  req.PurchasePrice,
+		LifeExpectancy: req.LifeExpectancy,
 	}
 
-	// Set optional fields
-	if req.AssessmentID != "" {
-		equipment.AssessmentID = &req.AssessmentID
-	}
-	if req.ComputeDate != "" {
-		computeDate, err := time.Parse("2006-01-02", req.ComputeDate)
-		if err == nil {
-			equipment.ComputeDate = &computeDate
+	// Helper for string pointers
+	assignStr := func(val string) *string {
+		if val == "" {
+			return nil
 		}
-	}
-	if req.ReplacementYear > 0 {
-		equipment.ReplacementYear = &req.ReplacementYear
-	}
-	if req.Technology != nil {
-		equipment.Technology = req.Technology
-	}
-	if req.UsageStatistics != nil {
-		equipment.UsageStatistics = req.UsageStatistics
-	}
-	if req.Efficiency != nil {
-		equipment.Efficiency = req.Efficiency
-	}
-	if req.Others != "" {
-		equipment.Others = &req.Others
+		v := val
+		return &v
 	}
 
-	// 9. ✅ Calculate and set Status based on RemainLife
-	equipment.Status = u.calculateStatus(req.RemainLife)
+	// Set optional string fields
+	equipment.AssetTypeName = assignStr(req.AssetTypeName)
+	equipment.AssetName = assignStr(req.AssetName)
+	equipment.AssetID = assignStr(req.AssetID)
+	equipment.ECRICode = assignStr(req.ECRICode)
+	equipment.AssetStatusInternal = assignStr(req.AssetStatusInternal)
+	equipment.RentalStatus = assignStr(req.RentalStatus)
+	equipment.BorrowStatus = assignStr(req.BorrowStatus)
+	equipment.Building = assignStr(req.Building)
+	equipment.Floor = assignStr(req.Floor)
+	equipment.Room = assignStr(req.Room)
+	equipment.PhoneNo = assignStr(req.PhoneNo)
+	equipment.BusinessName = assignStr(req.BusinessName)
+	equipment.ItemNo = assignStr(req.ItemNo)
+	equipment.SKUNo = assignStr(req.SKUNo)
+	equipment.WarrantyPeriod = assignStr(req.WarrantyPeriod)
+	equipment.WarrantyPM = assignStr(req.WarrantyPM)
+	equipment.WarrantyCal = assignStr(req.WarrantyCal)
+	equipment.PMPeriod = assignStr(req.PMPeriod)
+	equipment.CalPeriod = assignStr(req.CalPeriod)
+	equipment.VendorPM = assignStr(req.VendorPM)
+	equipment.VendorCal = assignStr(req.VendorCal)
+	equipment.PowerConsumption = assignStr(req.PowerConsumption)
+	equipment.Supplier = assignStr(req.Supplier)
+	equipment.Ownership = assignStr(req.Ownership)
+	equipment.PoNo = assignStr(req.PoNo)
+	equipment.ContractNo = assignStr(req.ContractNo)
+	equipment.InvoiceNo = assignStr(req.InvoiceNo)
+	equipment.DocumentNo = assignStr(req.DocumentNo)
+	equipment.TorNo = assignStr(req.TorNo)
+	equipment.ManufacturingCountry = assignStr(req.ManufacturingCountry)
+	equipment.Remark = assignStr(req.Remark)
+	equipment.ApprovedBy = assignStr(req.ApprovedBy)
+	equipment.NsmartItemCode = assignStr(req.NsmartItemCode)
+	equipment.UpdatedBy = assignStr(req.UpdatedBy)
 
-	// 10. Save to database via service
+	if req.RevenuePerMonth != nil {
+		equipment.RevenuePerMonth = req.RevenuePerMonth
+	}
+
+	// Helper for date pointers
+	parseDate := func(val string) *time.Time {
+		if val == "" {
+			return nil
+		}
+		t, err := time.Parse("2006-01-02", val)
+		if err == nil {
+			return &t
+		}
+		return nil
+	}
+
+	equipment.PurchaseDate = parseDate(req.PurchaseDate)
+	equipment.RegistrationDate = parseDate(req.RegistrationDate)
+	equipment.WarrantyStartDate = parseDate(req.WarrantyStartDate)
+	equipment.WarrantyEndDate = parseDate(req.WarrantyEndDate)
+	equipment.LastPMDate = parseDate(req.LastPMDate)
+	equipment.LastCalDate = parseDate(req.LastCalDate)
+
+	// 9. ✅ Compute lifecycle fields (EquipmentAge, RemainLife, ReplacementYear)
+	u.mapper.ComputeLifecycleFieldsPublic(equipment)
+
+	// 10. Calculate and set Status based on RemainLife
+	if req.Status != "" {
+		equipment.Status = entity.AssetStatus(req.Status)
+	} else {
+		equipment.Status = u.calculateStatus(equipment.RemainLife)
+	}
+
+	// 11. Save to database via service
 	err = u.equipmentService.CreateEquipment(ctx, equipment)
 	if err != nil {
 		log.Printf("Usecase: Error creating equipment: %v", err)
 		return nil, err
 	}
 
-	// 11. Load relations and return
+	// 12. Load relations and return
 	createdEquipment, err := u.equipmentService.FindEquipmentByID(ctx, equipment.ID)
 	if err != nil {
 		log.Printf("Usecase: Error loading created equipment: %v", err)
@@ -328,7 +396,21 @@ func (u *equipmentUsecase) CreateEquipment(ctx context.Context, req dto.CreateEq
 
 	log.Printf("Usecase: Successfully created equipment: %s (ID: %d)", equipment.IDCode, equipment.ID)
 
-	// 12. Map to response DTO using mapper
+	// 12. Publish equipment created event
+	if u.eventBus != nil {
+		go func() {
+			publishErr := u.eventBus.Publish(context.Background(), event.NewEvent(event.EquipmentCreated, map[string]interface{}{
+				"id_code":   equipment.IDCode,
+				"serial_no": req.SerialNo,
+				"status":    string(equipment.Status),
+			}))
+			if publishErr != nil {
+				log.Printf("Usecase: Failed to publish equipment.created event: %v", publishErr)
+			}
+		}()
+	}
+
+	// 13. Map to response DTO using mapper
 	return u.mapper.MapEquipmentToResponse(createdEquipment), nil
 }
 
@@ -388,15 +470,11 @@ func (u *equipmentUsecase) validateCreateRequest(req dto.CreateEquipmentRequest)
 		return errors.New("purchase_price must be greater than or equal to 0")
 	}
 
-	// Business logic validations
-	if req.EquipmentAge > req.LifeExpectancy {
-		return errors.New("equipment_age cannot exceed life_expectancy")
-	}
-	if req.UsefulLifetimePercent < 0 || req.UsefulLifetimePercent > 100 {
-		return errors.New("useful_lifetime_percent must be between 0 and 100")
-	}
-
 	return nil
+}
+
+func (u *equipmentUsecase) GetAllCategories(ctx context.Context) ([]entity.EquipmentCategory, error) {
+	return u.equipmentService.GetAllCategories(ctx)
 }
 
 // calculateStatus determines the asset status based on remain_life

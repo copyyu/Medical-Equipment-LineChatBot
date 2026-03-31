@@ -6,9 +6,11 @@ import (
 	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/config"
+	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
 	"medical-webhook/internal/infrastructure/persistence"
+	redisinfra "medical-webhook/internal/infrastructure/redis"
 	"medical-webhook/internal/infrastructure/session"
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
@@ -29,6 +31,7 @@ type Application struct {
 	EquipmentHandler       *handlers.EquipmentHandler
 	TicketHandler          *handlers.TicketHandler
 	ActivityLogHandler     *handlers.ActivityLogHandler
+	SSEHandler             *handlers.SSEHandler
 }
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
@@ -54,6 +57,19 @@ func InitializeApp() (*Application, func(), error) {
 		log.Printf("OCR client initialized: %s", cfg.OCRURL)
 	} else {
 		log.Println("OCR_API_URL not configured, OCR features disabled")
+	}
+
+	// Connect Redis (for Event Bus / Pub/Sub)
+	if err := redisinfra.Connect(cfg.RedisURL); err != nil {
+		log.Printf("⚠️ Redis connection failed: %v (real-time events disabled)", err)
+	} else {
+		log.Println("✅ Redis connected for Event Bus")
+	}
+
+	// Create EventBus (nil-safe — using interface type so nil stays nil)
+	var eventBus event.EventBus
+	if redisinfra.GetClient() != nil {
+		eventBus = redisinfra.NewEventBus(redisinfra.GetClient())
 	}
 
 	// Initialize repositories (Infrastructure Layer)
@@ -109,20 +125,24 @@ func InitializeApp() (*Application, func(), error) {
 		ticketCategoryRepo,
 		ticketHistoryRepo,
 		ticketNotifyService,
+		eventBus,
 	)
 
 	messageUseCase := usecase.NewMessageUseCase(
 		lineRepo,
 		equipmentRepo,
+		departmentRepo,
 		ocrClient,
 		sessionStore,
 		messageService,
 		ticketUseCase,
+		cfg.BaseURL,
 	)
 	notificationUseCase := usecase.NewNotificationUseCase(
 		notificationRepo,
 		notificationService,
 		lineRepo,
+		equipmentRepo,
 	)
 
 	equipmentImportUseCase := usecase.NewEquipmentImportUseCase(
@@ -146,7 +166,7 @@ func InitializeApp() (*Application, func(), error) {
 	)
 
 	// Initialize equipment usecase for equipment list (using service layer)
-	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentService)
+	equipmentUseCase := usecase.NewEquipmentUsecase(equipmentService, eventBus)
 
 	// Initialize activity log usecase (reuses ticketHistoryRepo)
 	activityLogUseCase := usecase.NewActivityLogUseCase(ticketHistoryRepo)
@@ -176,11 +196,17 @@ func InitializeApp() (*Application, func(), error) {
 		},
 	})
 
+	// Initialize SSE handler for real-time event streaming
+	// Always create handler — it returns 503 gracefully if Redis is not connected
+	sseHandler := handlers.NewSSEHandler(eventBus)
+
 	// Register Middlewares
 	middleware.FiberMiddleware(app)
 
-	// Register Routes
-	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler, activityLogHandler, adminUseCase)
+	// Register Routes (SSE handler passed for public registration before 404 catch-all)
+	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler, activityLogHandler, sseHandler, adminUseCase)
+
+	log.Println("📡 SSE endpoint registered: /api/events/stream")
 
 	// Initialize และ Start Notification Scheduler
 	notificationScheduler := scheduler.NewNotificationScheduler(notificationUseCase)
@@ -193,6 +219,14 @@ func InitializeApp() (*Application, func(), error) {
 		// Stop scheduler
 		if notificationScheduler != nil {
 			notificationScheduler.Stop()
+		}
+		// Close event bus
+		if eventBus != nil {
+			eventBus.Close()
+		}
+		// Close Redis
+		if err := redisinfra.Close(); err != nil {
+			log.Printf("Error closing Redis: %v", err)
 		}
 		// Close session store (stops cleanup goroutine)
 		if sessionStore != nil {
@@ -214,6 +248,7 @@ func InitializeApp() (*Application, func(), error) {
 		EquipmentHandler:       equipmentHandler,
 		TicketHandler:          ticketHandler,
 		ActivityLogHandler:     activityLogHandler,
+		SSEHandler:             sseHandler,
 	}, cleanup, nil
 }
 

@@ -25,21 +25,20 @@ type EquipmentRepository interface {
 
 	// CRUD methods for Excel import
 	Create(ctx context.Context, equipment *entity.Equipment) error
-	CreateOrUpdate(ctx context.Context, equipment *entity.Equipment) error
+	CreateOrUpdate(ctx context.Context, equipment *entity.Equipment) (bool, error)
 	Update(ctx context.Context, equipment *entity.Equipment) error
 	Delete(ctx context.Context, id uint) error
 	FindByID(ctx context.Context, id uint) (*entity.Equipment, error)
 	FindAll(ctx context.Context, limit, offset int) ([]entity.Equipment, error)
-	FindAllWithFilter(ctx context.Context, limit, offset int, status, search string) ([]entity.Equipment, error)
+	FindAllWithFilter(ctx context.Context, limit, offset int, status, search, expiryFilter, categoryID string) ([]entity.Equipment, error)
 
 	// Aggregate Query Operations (for Dashboard)
 	CountExpired(ctx context.Context) (int64, error)
 	Count(ctx context.Context) (int64, error)
-	CountWithFilter(ctx context.Context, status, search string) (int64, error)
+	CountWithFilter(ctx context.Context, status, search, expiryFilter, categoryID string) (int64, error)
 	CountNearExpiry(ctx context.Context) (int64, error)
 	CountByStatus(ctx context.Context) (map[entity.AssetStatus]int64, error) // นับจำนวนอุปกรณ์แยกตาม Status
 
-	// Equipment Expiry Queries (for LINE Menu)
-	FindExpired(ctx context.Context, limit int) ([]entity.Equipment, error)
-	FindNearExpiry(ctx context.Context, limit int) ([]entity.Equipment, error)
+	// Equipment Expiry Queries (by ReplacementYear)
+	FindByReplacementYear(ctx context.Context, year int, departmentID *uint) ([]entity.Equipment, error)
 }

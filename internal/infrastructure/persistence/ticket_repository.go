@@ -230,3 +230,12 @@ func (r *TicketRepository) FindPendingTicketByEquipmentAndUser(equipmentID uint,
 	}
 	return &ticket, err
 }
+
+func (r *TicketRepository) GetTicketsByEquipmentID(equipmentID uint) ([]entity.Ticket, error) {
+	var tickets []entity.Ticket
+	err := r.db.Preload("Category").
+		Where("equipment_id = ?", equipmentID).
+		Order("created_at DESC").
+		Find(&tickets).Error
+	return tickets, err
+}

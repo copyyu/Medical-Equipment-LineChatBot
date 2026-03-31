@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/application/usecase"
@@ -69,8 +70,8 @@ func (h *EquipmentImportHandler) ImportExcel(c *fiber.Ctx) error {
 	// Build success message
 	message := buildSuccessMessage(result)
 	log.Printf("Import completed: %s", message)
-	log.Printf("Stats: Total=%d, Success=%d, Failed=%d, Skipped=%d",
-		result.TotalRows, result.SuccessCount, result.FailedCount, result.SkippedCount)
+	log.Printf("Stats: Total=%d, New=%d, Updated=%d, Failed=%d, Skipped=%d",
+		result.TotalRows, result.SuccessCount, result.UpdatedCount, result.FailedCount, result.SkippedCount)
 	log.Printf("New records: Brands=%d, Categories=%d, Departments=%d, Models=%d",
 		result.NewBrands, result.NewCategories, result.NewDepartments, result.NewModels)
 
@@ -189,17 +190,20 @@ func (h *EquipmentImportHandler) GetImportHistory(c *fiber.Ctx) error {
 
 // buildSuccessMessage builds appropriate message based on import result
 func buildSuccessMessage(result *dto.EquipmentImportResultDTO) string {
-	if result.FailedCount == 0 && result.SkippedCount == 0 {
-		return "Excel file imported successfully! All rows processed."
+	if result.FailedCount == 0 && result.UpdatedCount == 0 {
+		return "Excel file imported successfully! All rows are new records."
 	}
-	if result.FailedCount > 0 && result.SkippedCount > 0 {
-		return "Excel file imported with some errors and skipped rows. Please check the details."
+	if result.FailedCount > 0 && result.UpdatedCount > 0 {
+		return fmt.Sprintf("Import completed: %d new, %d updated (duplicates), %d failed.",
+			result.SuccessCount, result.UpdatedCount, result.FailedCount)
 	}
 	if result.FailedCount > 0 {
-		return "Excel file imported with some errors. Please check the error messages."
+		return fmt.Sprintf("Import completed with errors: %d new, %d failed.",
+			result.SuccessCount, result.FailedCount)
 	}
-	if result.SkippedCount > 0 {
-		return "Excel file imported successfully. Some rows were skipped."
+	if result.UpdatedCount > 0 {
+		return fmt.Sprintf("Import completed: %d new, %d updated (already in database).",
+			result.SuccessCount, result.UpdatedCount)
 	}
 	return "Excel file imported successfully!"
 }

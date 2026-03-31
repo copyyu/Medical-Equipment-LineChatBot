@@ -10,21 +10,21 @@ func GetEquipmentOptionsFlex(serialNumber string) map[string]interface{} {
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#4CAF50",
+			"backgroundColor": ColorPrimary,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "🔧 ข้อมูลเครื่องมือ", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{"type": "text", "text": "🔧 ข้อมูลเครื่องมือ", "color": ColorWhite, "size": "md", "weight": "bold"},
 			},
 		},
 		"body": map[string]interface{}{
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "md", "weight": "bold", "color": "#0367D3",
+					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "md", "weight": "bold", "color": ColorAccent,
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "ต้องการดูข้อมูลอะไร?", "size": "sm", "margin": "md",
+					"type": "text", "text": "ต้องการดูข้อมูลอะไร?", "size": "sm", "margin": "md", "color": ColorText,
 				},
 			},
 		},
@@ -32,7 +32,7 @@ func GetEquipmentOptionsFlex(serialNumber string) map[string]interface{} {
 			"type": "box", "layout": "vertical", "spacing": "sm",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#5B9BD5",
+					"type": "button", "style": "primary", "color": ColorAccent,
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "📋 ดูประวัติการซ่อม",
@@ -41,7 +41,7 @@ func GetEquipmentOptionsFlex(serialNumber string) map[string]interface{} {
 					},
 				},
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#FF9800", "margin": "sm",
+					"type": "button", "style": "primary", "color": ColorWarning, "margin": "sm",
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "📅 ดูอายุ/วงจรชีวิตเครื่อง",
@@ -50,7 +50,7 @@ func GetEquipmentOptionsFlex(serialNumber string) map[string]interface{} {
 					},
 				},
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#9C27B0", "margin": "sm",
+					"type": "button", "style": "primary", "color": ColorInfo, "margin": "sm",
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "📊 ดูสเปกเครื่อง",
@@ -67,14 +67,14 @@ func GetEquipmentOptionsFlex(serialNumber string) map[string]interface{} {
 func GetRepairHistoryFlex(serialNumber string, records []map[string]interface{}) map[string]interface{} {
 	contents := []interface{}{
 		map[string]interface{}{
-			"type": "text", "text": fmt.Sprintf("เครื่อง: %s", serialNumber), "size": "sm", "color": "#888888",
+			"type": "text", "text": fmt.Sprintf("เครื่อง: %s", serialNumber), "size": "sm", "color": ColorTextLight,
 		},
 		map[string]interface{}{"type": "separator", "margin": "md"},
 	}
 
 	if len(records) == 0 {
 		contents = append(contents, map[string]interface{}{
-			"type": "text", "text": "ไม่พบประวัติการซ่อม", "size": "sm", "color": "#888888", "margin": "md",
+			"type": "text", "text": "ไม่พบประวัติการซ่อม", "size": "sm", "color": ColorTextLight, "margin": "md",
 		})
 	} else {
 		for i, record := range records {
@@ -85,13 +85,13 @@ func GetRepairHistoryFlex(serialNumber string, records []map[string]interface{})
 				"type": "box", "layout": "vertical", "margin": "md",
 				"contents": []interface{}{
 					map[string]interface{}{
-						"type": "text", "text": fmt.Sprintf("📅 %v", record["date"]), "size": "sm", "weight": "bold",
+						"type": "text", "text": fmt.Sprintf("📅 %v", record["date"]), "size": "sm", "weight": "bold", "color": ColorText,
 					},
 					map[string]interface{}{
-						"type": "text", "text": fmt.Sprintf("ประเภท: %v", record["type"]), "size": "xs", "color": "#888888",
+						"type": "text", "text": fmt.Sprintf("ประเภท: %v", record["type"]), "size": "xs", "color": ColorTextLight,
 					},
 					map[string]interface{}{
-						"type": "text", "text": fmt.Sprintf("รายละเอียด: %v", record["description"]), "size": "xs", "color": "#888888", "wrap": true,
+						"type": "text", "text": fmt.Sprintf("รายละเอียด: %v", record["description"]), "size": "xs", "color": ColorTextLight, "wrap": true,
 					},
 				},
 			})
@@ -104,10 +104,10 @@ func GetRepairHistoryFlex(serialNumber string, records []map[string]interface{})
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#5B9BD5",
+			"backgroundColor": ColorAccent,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "📋 ประวัติการซ่อม", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{"type": "text", "text": "📋 ประวัติการซ่อม", "color": ColorWhite, "size": "md", "weight": "bold"},
 			},
 		},
 		"body": map[string]interface{}{
@@ -138,52 +138,52 @@ func GetLifecycleFlex(serialNumber string, data map[string]interface{}) map[stri
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#FF9800",
+			"backgroundColor": ColorWarning,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "📅 อายุ/วงจรชีวิตเครื่อง", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{"type": "text", "text": "📅 อายุ/วงจรชีวิตเครื่อง", "color": ColorWhite, "size": "md", "weight": "bold"},
 			},
 		},
 		"body": map[string]interface{}{
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("เครื่อง: %s", serialNumber), "size": "sm", "color": "#888888",
+					"type": "text", "text": fmt.Sprintf("เครื่อง: %s", serialNumber), "size": "sm", "color": ColorTextLight,
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "md",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "อายุเครื่อง:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v ปี", data["equipment_age"]), "size": "sm", "flex": 1, "align": "end"},
+						map[string]interface{}{"type": "text", "text": "อายุเครื่อง:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v ปี", data["equipment_age"]), "size": "sm", "flex": 1, "align": "end", "color": ColorText},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "อายุการใช้งานคาดหวัง:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v ปี", data["life_expectancy"]), "size": "sm", "flex": 1, "align": "end"},
+						map[string]interface{}{"type": "text", "text": "อายุการใช้งานคาดหวัง:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v ปี", data["life_expectancy"]), "size": "sm", "flex": 1, "align": "end", "color": ColorText},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "อายุคงเหลือ:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v ปี", data["remain_life"]), "size": "sm", "flex": 1, "align": "end"},
+						map[string]interface{}{"type": "text", "text": "อายุคงเหลือ:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v ปี", data["remain_life"]), "size": "sm", "flex": 1, "align": "end", "color": ColorText},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "% การใช้งาน:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%.1f%%", data["useful_percent"]), "size": "sm", "flex": 1, "align": "end"},
+						map[string]interface{}{"type": "text", "text": "% การใช้งาน:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%.1f%%", data["useful_percent"]), "size": "sm", "flex": 1, "align": "end", "color": ColorText},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "ปีที่ต้องเปลี่ยน:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["replacement_year"]), "size": "sm", "flex": 1, "align": "end", "color": "#F44336"},
+						map[string]interface{}{"type": "text", "text": "ปีที่ต้องเปลี่ยน:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["replacement_year"]), "size": "sm", "flex": 1, "align": "end", "color": ColorDanger},
 					},
 				},
 			},
@@ -212,52 +212,52 @@ func GetSpecsFlex(serialNumber string, data map[string]interface{}) map[string]i
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#9C27B0",
+			"backgroundColor": ColorInfo,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "📊 สเปกเครื่อง", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{"type": "text", "text": "📊 สเปกเครื่อง", "color": ColorWhite, "size": "md", "weight": "bold"},
 			},
 		},
 		"body": map[string]interface{}{
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("เครื่อง: %s", serialNumber), "size": "sm", "color": "#888888",
+					"type": "text", "text": fmt.Sprintf("เครื่อง: %s", serialNumber), "size": "sm", "color": ColorTextLight,
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "md",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "รุ่น:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["model_name"]), "size": "sm", "flex": 2, "align": "end", "wrap": true},
+						map[string]interface{}{"type": "text", "text": "รุ่น:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["model_name"]), "size": "sm", "flex": 2, "align": "end", "wrap": true, "color": ColorText},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "ยี่ห้อ:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["brand"]), "size": "sm", "flex": 2, "align": "end"},
+						map[string]interface{}{"type": "text", "text": "ยี่ห้อ:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["brand"]), "size": "sm", "flex": 2, "align": "end", "color": ColorText},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "แผนก:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["department"]), "size": "sm", "flex": 2, "align": "end", "wrap": true},
+						map[string]interface{}{"type": "text", "text": "แผนก:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["department"]), "size": "sm", "flex": 2, "align": "end", "wrap": true, "color": ColorText},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "วันที่รับ:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["receive_date"]), "size": "sm", "flex": 2, "align": "end"},
+						map[string]interface{}{"type": "text", "text": "วันที่รับ:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("%v", data["receive_date"]), "size": "sm", "flex": 2, "align": "end", "color": ColorText},
 					},
 				},
 				map[string]interface{}{
 					"type": "box", "layout": "horizontal", "margin": "sm",
 					"contents": []interface{}{
-						map[string]interface{}{"type": "text", "text": "ราคา:", "size": "sm", "flex": 1},
-						map[string]interface{}{"type": "text", "text": fmt.Sprintf("฿%.2f", data["price"]), "size": "sm", "flex": 2, "align": "end"},
+						map[string]interface{}{"type": "text", "text": "ราคา:", "size": "sm", "flex": 1, "color": ColorText},
+						map[string]interface{}{"type": "text", "text": fmt.Sprintf("฿%.2f", data["price"]), "size": "sm", "flex": 2, "align": "end", "color": ColorText},
 					},
 				},
 			},

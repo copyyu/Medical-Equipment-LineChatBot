@@ -10,6 +10,13 @@ import (
 
 // SetupNotificationRoutes - protected routes for notifications
 func SetupNotificationRoutes(app *fiber.App, notificationHandler *handlers.NotificationHandler, adminUsecase usecase.AdminUsecase) {
+
+	app.Get("/notifications/export/expiry", notificationHandler.DownloadExpiryExcel)
+
+	// Temporary manual trigger endpoints for testing cronjob messages
+	app.Get("/test/cron/june", notificationHandler.TestJuneAlerts)
+	app.Get("/test/cron/august", notificationHandler.TestAugustAlerts)
+
 	// Notification routes - protected
 	notifGroup := app.Group("", middleware.AuthMiddleware(adminUsecase))
 

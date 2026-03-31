@@ -81,7 +81,7 @@ func isEmptyRow(row []string) bool {
 	return true
 }
 
-// ParseExcelRow - parse แต่ละ row จาก Excel
+// ParseExcelRow - parse แต่ละ row จาก Excel (54 columns)
 func (s *excelParserService) ParseExcelRow(row []string, rowNum int) (*dto.ExcelRowDTO, error) {
 	// Helper function to safely get column value
 	getCol := func(idx int) string {
@@ -91,125 +91,257 @@ func (s *excelParserService) ParseExcelRow(row []string, rowNum int) (*dto.Excel
 		return ""
 	}
 
+	// ID Code (col 11) is required
+	idCode := getCol(11)
+	if idCode == "" {
+		return nil, fmt.Errorf("row %d: ID Code is empty", rowNum)
+	}
+
 	data := &dto.ExcelRowDTO{
-		Department:     getCol(0),         // Department
-		ECRIRisk:       getCol(1),         // ECRI Risk
-		AssessmentID:   getCol(2),         // Assessment ID
-		IDCode:         getCol(3),         // ID CODE
-		Category:       getCol(4),         // Equipment Category
-		Brand:          getCol(5),         // Brand
-		Model:          getCol(6),         // Model
-		SerialNo:       strPtr(getCol(7)), // Serial No
-		Classification: getCol(8),         // Classification
+		AssetTypeName:  getCol(0),         // Asset Type Name
+		Category:       getCol(1),         // Category
+		ECRICode:       getCol(2),         // ECRI Code
+		Brand:          getCol(3),         // Brand Name
+		Model:          getCol(4),         // Model Name
+		SerialNo:       strPtr(getCol(5)), // Serial Number
+		Building:       strPtr(getCol(6)), // Building
+		AssetStatus:    getCol(7),         // Asset Status
+		IDCode:         idCode,            // ID Code
+		ECRIRisk:       getCol(26),        // Risk Level
+		Classification: getCol(27),        // Classification
+		Department:     getCol(16),        // Department Name
 	}
 
-	if data.IDCode == "" {
-		return nil, fmt.Errorf("ID CODE is empty")
+	// col 8: Asset Status Internal
+	if v := getCol(8); v != "" {
+		data.AssetStatusInternal = &v
 	}
 
-	// Receive Date (column 9)
-	if dateStr := getCol(9); dateStr != "" {
+	// col 9: Rental Status
+	if v := getCol(9); v != "" {
+		data.RentalStatus = &v
+	}
+
+	// col 10: Business Name
+	if v := getCol(10); v != "" {
+		data.BusinessName = &v
+	}
+
+	// col 12: Item No
+	if v := getCol(12); v != "" {
+		data.ItemNo = &v
+	}
+
+	// col 13: SKU No
+	if v := getCol(13); v != "" {
+		data.SKUNo = &v
+	}
+
+	// col 14: Updated Date
+	if dateStr := getCol(14); dateStr != "" {
 		if date, err := s.parseDate(dateStr); err == nil {
-			data.ReceiveDate = &date
+			data.UpdatedDate = &date
 		}
 	}
 
-	// Purchase Price (column 10)
-	if priceStr := getCol(10); priceStr != "" {
-		if price, err := strconv.ParseFloat(priceStr, 64); err == nil {
-			data.PurchasePrice = price
-		}
+	// col 15: Updated By
+	if v := getCol(15); v != "" {
+		data.UpdatedBy = &v
 	}
 
-	// Equipment Age (column 11)
-	if ageStr := getCol(11); ageStr != "" {
-		if age, err := strconv.ParseFloat(ageStr, 64); err == nil {
-			data.EquipmentAge = age
-		}
+	// col 17: Warranty Period
+	if v := getCol(17); v != "" {
+		data.WarrantyPeriod = &v
 	}
 
-	// Compute Date (column 12)
-	if dateStr := getCol(12); dateStr != "" {
+	// col 18: Warranty Start Date
+	if dateStr := getCol(18); dateStr != "" {
 		if date, err := s.parseDate(dateStr); err == nil {
-			data.ComputeDate = &date
+			data.WarrantyStartDate = &date
 		}
 	}
 
-	// Life Expectancy (column 13)
-	if lifeStr := getCol(13); lifeStr != "" {
+	// col 19: Warranty End Date
+	if dateStr := getCol(19); dateStr != "" {
+		if date, err := s.parseDate(dateStr); err == nil {
+			data.WarrantyEndDate = &date
+		}
+	}
+
+	// col 20: Warranty PM
+	if v := getCol(20); v != "" {
+		data.WarrantyPM = &v
+	}
+
+	// col 21: Warranty Cal
+	if v := getCol(21); v != "" {
+		data.WarrantyCal = &v
+	}
+
+	// col 22: Floor
+	if v := getCol(22); v != "" {
+		data.Floor = &v
+	}
+
+	// col 23: Room
+	if v := getCol(23); v != "" {
+		data.Room = &v
+	}
+
+	// col 24: Phone No
+	if v := getCol(24); v != "" {
+		data.PhoneNo = &v
+	}
+
+	// col 25: Power Consumption
+	if v := getCol(25); v != "" {
+		data.PowerConsumption = &v
+	}
+
+	// col 28: Estimated Use Life → LifeExpectancy
+	if lifeStr := getCol(28); lifeStr != "" {
 		if life, err := strconv.ParseFloat(lifeStr, 64); err == nil {
 			data.LifeExpectancy = life
 		}
 	}
 
-	// Remain Life (column 14)
-	if remainStr := getCol(14); remainStr != "" {
-		if remain, err := strconv.ParseFloat(remainStr, 64); err == nil {
-			data.RemainLife = remain
+	// col 29: Cal Period
+	if v := getCol(29); v != "" {
+		data.CalPeriod = &v
+	}
+
+	// col 30: Vendor PM
+	if v := getCol(30); v != "" {
+		data.VendorPM = &v
+	}
+
+	// col 31: Vendor Cal
+	if v := getCol(31); v != "" {
+		data.VendorCal = &v
+	}
+
+	// col 32: Tor No
+	if v := getCol(32); v != "" {
+		data.TorNo = &v
+	}
+
+	// col 33: Purchase Date
+	if dateStr := getCol(33); dateStr != "" {
+		if date, err := s.parseDate(dateStr); err == nil {
+			data.PurchaseDate = &date
 		}
 	}
 
-	// Total of CM (column 15)
-	if cmStr := getCol(15); cmStr != "" {
-		if cm, err := strconv.Atoi(cmStr); err == nil {
-			data.TotalOfCM = cm
+	// col 34: Price → PurchasePrice
+	if priceStr := getCol(34); priceStr != "" {
+		if price, err := strconv.ParseFloat(priceStr, 64); err == nil {
+			data.PurchasePrice = price
 		}
 	}
 
-	// Total of Cost (column 16)
-	if costStr := getCol(16); costStr != "" {
-		if cost, err := strconv.ParseFloat(costStr, 64); err == nil {
-			data.TotalOfCost = cost
+	// col 35: Receive Date
+	if dateStr := getCol(35); dateStr != "" {
+		if date, err := s.parseDate(dateStr); err == nil {
+			data.ReceiveDate = &date
 		}
 	}
 
-	// Per Cost Price (column 17)
-	if perCostStr := getCol(17); perCostStr != "" {
-		if perCost, err := strconv.ParseFloat(perCostStr, 64); err == nil {
-			data.PerCostPrice = perCost
+	// col 36: Registeration Date
+	if dateStr := getCol(36); dateStr != "" {
+		if date, err := s.parseDate(dateStr); err == nil {
+			data.RegistrationDate = &date
 		}
 	}
 
-	// % of useful lifetime (column 18)
-	if percentStr := getCol(18); percentStr != "" {
-		// Remove % sign if present
-		percentStr = strings.TrimSuffix(percentStr, "%")
-		if percent, err := strconv.ParseFloat(percentStr, 64); err == nil {
-			data.UsefulLifePercent = percent
+	// col 37: Supplier
+	if v := getCol(37); v != "" {
+		data.Supplier = &v
+	}
+
+	// col 38: Ownership
+	if v := getCol(38); v != "" {
+		data.Ownership = &v
+	}
+
+	// col 39: Po No
+	if v := getCol(39); v != "" {
+		data.PoNo = &v
+	}
+
+	// col 40: Contract No
+	if v := getCol(40); v != "" {
+		data.ContractNo = &v
+	}
+
+	// col 41: Invoice No
+	if v := getCol(41); v != "" {
+		data.InvoiceNo = &v
+	}
+
+	// col 42: Document No
+	if v := getCol(42); v != "" {
+		data.DocumentNo = &v
+	}
+
+	// col 43: Manufacturing Country
+	if v := getCol(43); v != "" {
+		data.ManufacturingCountry = &v
+	}
+
+	// col 44: Revenue Per Month
+	if revStr := getCol(44); revStr != "" {
+		if rev, err := strconv.ParseFloat(revStr, 64); err == nil {
+			data.RevenuePerMonth = &rev
 		}
 	}
 
-	// Replacement Year (column 19)
-	if yearStr := getCol(19); yearStr != "" {
-		if year, err := strconv.Atoi(yearStr); err == nil {
-			data.ReplacementYear = &year
+	// col 45: Remark
+	if v := getCol(45); v != "" {
+		data.Remark = &v
+	}
+
+	// col 46: Approved By
+	if v := getCol(46); v != "" {
+		data.ApprovedBy = &v
+	}
+
+	// col 47: Nsmart Item Code
+	if v := getCol(47); v != "" {
+		data.NsmartItemCode = &v
+	}
+
+	// col 48: Asset Name
+	if v := getCol(48); v != "" {
+		data.AssetName = &v
+	}
+
+	// col 49: Asset ID
+	if v := getCol(49); v != "" {
+		data.AssetID = &v
+	}
+
+	// col 50: Last PM Date
+	if dateStr := getCol(50); dateStr != "" {
+		if date, err := s.parseDate(dateStr); err == nil {
+			data.LastPMDate = &date
 		}
 	}
 
-	// Technology score (column 20)
-	if techStr := getCol(20); techStr != "" {
-		if tech, err := strconv.ParseFloat(techStr, 64); err == nil {
-			data.Technology = &tech
+	// col 51: Last Cal Date
+	if dateStr := getCol(51); dateStr != "" {
+		if date, err := s.parseDate(dateStr); err == nil {
+			data.LastCalDate = &date
 		}
 	}
 
-	// Usage Statistics score (column 21)
-	if usageStr := getCol(21); usageStr != "" {
-		if usage, err := strconv.ParseFloat(usageStr, 64); err == nil {
-			data.UsageStatistics = &usage
-		}
+	// col 52: PM Period
+	if v := getCol(52); v != "" {
+		data.PMPeriod = &v
 	}
 
-	// Efficiency score (column 22)
-	if effStr := getCol(22); effStr != "" {
-		if eff, err := strconv.ParseFloat(effStr, 64); err == nil {
-			data.Efficiency = &eff
-		}
-	}
-
-	// Others (column 23)
-	if others := getCol(23); others != "" {
-		data.Others = &others
+	// col 53: Borrow status
+	if v := getCol(53); v != "" {
+		data.BorrowStatus = &v
 	}
 
 	return data, nil

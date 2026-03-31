@@ -8,7 +8,6 @@ import (
 	"medical-webhook/internal/infrastructure/database"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // EquipmentRepository implements repository.EquipmentRepository using GORM
@@ -120,24 +119,34 @@ func (r *EquipmentRepository) Create(ctx context.Context, equipment *entity.Equi
 }
 
 // CreateOrUpdate creates or updates equipment based on id_code
-// This is used for Excel import to handle duplicate entries
-func (r *EquipmentRepository) CreateOrUpdate(ctx context.Context, equipment *entity.Equipment) error {
-	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "id_code"}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"serial_no", "model_id", "department_id", "assessment_id",
-			"receive_date", "purchase_price", "equipment_age", "compute_date",
-			"life_expectancy", "remain_life", "useful_lifetime_percent",
-			"replacement_year", "technology", "usage_statistics", "efficiency", "others",
-		}),
-	}).Create(equipment).Error
+// Returns (isNew bool, err error) - isNew is true if a new record was created, false if updated
+func (r *EquipmentRepository) CreateOrUpdate(ctx context.Context, equipment *entity.Equipment) (bool, error) {
+	var existing entity.Equipment
+	err := r.db.WithContext(ctx).Where("id_code = ?", equipment.IDCode).First(&existing).Error
+
+	if err == gorm.ErrRecordNotFound {
+		// New record - create it
+		if createErr := r.db.WithContext(ctx).Create(equipment).Error; createErr != nil {
+			log.Printf("Error creating equipment: %v", createErr)
+			return false, createErr
+		}
+		log.Printf("Created new equipment: %s (ID: %d)", equipment.IDCode, equipment.ID)
+		return true, nil
+	}
 
 	if err != nil {
-		log.Printf("Error creating/updating equipment: %v", err)
-		return err
+		log.Printf("Error checking existing equipment: %v", err)
+		return false, err
 	}
-	log.Printf("Created/Updated equipment: %s (ID: %d)", equipment.IDCode, equipment.ID)
-	return nil
+
+	// Existing record - update it
+	equipment.ID = existing.ID
+	if updateErr := r.db.WithContext(ctx).Model(&existing).Updates(equipment).Error; updateErr != nil {
+		log.Printf("Error updating equipment: %v", updateErr)
+		return false, updateErr
+	}
+	log.Printf("Updated existing equipment: %s (ID: %d)", equipment.IDCode, existing.ID)
+	return false, nil
 }
 
 // Update updates equipment
@@ -218,21 +227,46 @@ func (r *EquipmentRepository) Count(ctx context.Context) (int64, error) {
 }
 
 // CountWithFilter returns total count of equipments with filters
-func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, search string) (int64, error) {
+func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, search, expiryFilter, categoryID string) (int64, error) {
 	var count int64
-	query := r.db.WithContext(ctx).Model(&entity.Equipment{})
+	query := r.db.WithContext(ctx).Model(&entity.Equipment{}).
+		Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
+		Joins("LEFT JOIN equipment_categories ON equipment_categories.id = equipment_models.category_id").
+		Joins("LEFT JOIN departments ON departments.id = equipments.department_id")
 
 	// Apply status filter
 	if status != "" {
-		query = query.Where("status = ?", status)
+		query = query.Where("equipments.status = ?", status)
 	}
 
-	// Apply search filter (search in id_code, serial_no, and model name via join)
+	if categoryID != "" {
+		query = query.Where("equipment_models.category_id = ?", categoryID)
+	}
+
 	if search != "" {
 		searchPattern := "%" + search + "%"
-		query = query.Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
-			Where("equipments.id_code LIKE ? OR equipments.serial_no LIKE ? OR equipment_models.model_name LIKE ?",
-				searchPattern, searchPattern, searchPattern)
+		query = query.Where(
+			"equipments.id_code LIKE ? OR "+
+				"equipments.serial_no LIKE ? OR "+
+				"equipments.asset_name LIKE ? OR "+
+				"equipments.asset_type_name LIKE ? OR "+
+				"equipment_models.model_name LIKE ? OR "+
+				"equipment_categories.name LIKE ? OR "+
+				"departments.name LIKE ? OR "+
+				"equipments.building LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern,
+			searchPattern, searchPattern, searchPattern, searchPattern,
+		)
+	}
+
+	// Apply expiry filter using dynamic remain_life calculation
+	if expiryFilter == "expired" {
+		query = query.Where("receive_date IS NOT NULL AND life_expectancy > 0").
+			Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 0")
+	} else if expiryFilter == "near_expiry" {
+		query = query.Where("receive_date IS NOT NULL AND life_expectancy > 0").
+			Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) > 0").
+			Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 1")
 	}
 
 	err := query.Count(&count).Error
@@ -244,25 +278,50 @@ func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, searc
 }
 
 // FindAllWithFilter finds all equipments with pagination and filters
-func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offset int, status, search string) ([]entity.Equipment, error) {
+func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offset int, status, search, expiryFilter, categoryID string) ([]entity.Equipment, error) {
 	var equipments []entity.Equipment
 	query := r.db.WithContext(ctx).
 		Preload("Model").
 		Preload("Model.Brand").
 		Preload("Model.Category").
-		Preload("Department")
+		Preload("Department").
+		Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
+		Joins("LEFT JOIN equipment_categories ON equipment_categories.id = equipment_models.category_id").
+		Joins("LEFT JOIN departments ON departments.id = equipments.department_id")
 
 	// Apply status filter
 	if status != "" {
 		query = query.Where("equipments.status = ?", status)
 	}
 
-	// Apply search filter (search in id_code, serial_no, and model name via join)
+	if categoryID != "" {
+		query = query.Where("equipment_models.category_id = ?", categoryID)
+	}
+
 	if search != "" {
 		searchPattern := "%" + search + "%"
-		query = query.Joins("LEFT JOIN equipment_models ON equipment_models.id = equipments.model_id").
-			Where("equipments.id_code LIKE ? OR equipments.serial_no LIKE ? OR equipment_models.model_name LIKE ?",
-				searchPattern, searchPattern, searchPattern)
+		query = query.Where(
+			"equipments.id_code LIKE ? OR "+
+				"equipments.serial_no LIKE ? OR "+
+				"equipments.asset_name LIKE ? OR "+
+				"equipments.asset_type_name LIKE ? OR "+
+				"equipment_models.model_name LIKE ? OR "+
+				"equipment_categories.name LIKE ? OR "+
+				"departments.name LIKE ? OR "+
+				"equipments.building LIKE ?",
+			searchPattern, searchPattern, searchPattern, searchPattern,
+			searchPattern, searchPattern, searchPattern, searchPattern,
+		)
+	}
+
+	// Apply expiry filter using dynamic remain_life calculation
+	if expiryFilter == "expired" {
+		query = query.Where("equipments.receive_date IS NOT NULL AND equipments.life_expectancy > 0").
+			Where("(equipments.life_expectancy - (NOW()::date - equipments.receive_date::date) / 365.25) <= 0")
+	} else if expiryFilter == "near_expiry" {
+		query = query.Where("equipments.receive_date IS NOT NULL AND equipments.life_expectancy > 0").
+			Where("(equipments.life_expectancy - (NOW()::date - equipments.receive_date::date) / 365.25) > 0").
+			Where("(equipments.life_expectancy - (NOW()::date - equipments.receive_date::date) / 365.25) <= 1")
 	}
 
 	query = query.Order("equipments.id DESC")
@@ -276,7 +335,7 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 		log.Printf("Error finding equipments with filter: %v", err)
 		return nil, err
 	}
-	log.Printf("Found %d equipments with filter (status=%s, search=%s)", len(equipments), status, search)
+	log.Printf("Found %d equipments with filter (status=%s, search=%s, expiry=%s)", len(equipments), status, search, expiryFilter)
 	return equipments, nil
 }
 
@@ -387,6 +446,58 @@ func (r *EquipmentRepository) FindNearExpiry(ctx context.Context, limit int) ([]
 	log.Printf("Found %d near expiry equipments", len(equipments))
 	return equipments, nil
 }
+
+// FindExpiredByDepartment returns expired equipments filtered by department ID
+func (r *EquipmentRepository) FindExpiredByDepartment(ctx context.Context, departmentID uint, limit int) ([]entity.Equipment, error) {
+	var equipments []entity.Equipment
+	query := r.db.WithContext(ctx).
+		Preload("Model").
+		Preload("Model.Brand").
+		Preload("Department").
+		Where("department_id = ?", departmentID).
+		Where("receive_date IS NOT NULL AND life_expectancy > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 0").
+		Order("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) ASC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	err := query.Find(&equipments).Error
+	if err != nil {
+		log.Printf("Error finding expired equipments by department: %v", err)
+		return nil, err
+	}
+	log.Printf("Found %d expired equipments for department %d", len(equipments), departmentID)
+	return equipments, nil
+}
+
+// FindNearExpiryByDepartment returns near-expiry equipments filtered by department ID
+func (r *EquipmentRepository) FindNearExpiryByDepartment(ctx context.Context, departmentID uint, limit int) ([]entity.Equipment, error) {
+	var equipments []entity.Equipment
+	query := r.db.WithContext(ctx).
+		Preload("Model").
+		Preload("Model.Brand").
+		Preload("Department").
+		Where("department_id = ?", departmentID).
+		Where("receive_date IS NOT NULL AND life_expectancy > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) > 0").
+		Where("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) <= 1").
+		Order("(life_expectancy - (NOW()::date - receive_date::date) / 365.25) ASC")
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	err := query.Find(&equipments).Error
+	if err != nil {
+		log.Printf("Error finding near expiry equipments by department: %v", err)
+		return nil, err
+	}
+	log.Printf("Found %d near expiry equipments for department %d", len(equipments), departmentID)
+	return equipments, nil
+}
+
 func (r *EquipmentRepository) FindSimilarByIDCodePrefix(prefix string, limit int) ([]*entity.Equipment, error) {
 	var equipments []*entity.Equipment
 
@@ -463,5 +574,31 @@ func (r *EquipmentRepository) FindSimilarSorted(query string, limit int) ([]*ent
 		return nil, err
 	}
 
+	return equipments, nil
+}
+
+// FindByReplacementYear finds equipment where replacement_year matches the given year
+// If departmentID is not nil, filter by department
+func (r *EquipmentRepository) FindByReplacementYear(ctx context.Context, year int, departmentID *uint) ([]entity.Equipment, error) {
+	var equipments []entity.Equipment
+	query := r.db.WithContext(ctx).
+		Preload("Model").
+		Preload("Model.Brand").
+		Preload("Model.Category").
+		Preload("Department").
+		Where("replacement_year = ?", year)
+
+	if departmentID != nil {
+		query = query.Where("department_id = ?", *departmentID)
+	}
+
+	query = query.Order("id_code ASC")
+
+	err := query.Find(&equipments).Error
+	if err != nil {
+		log.Printf("Error finding equipment by replacement year %d: %v", year, err)
+		return nil, err
+	}
+	log.Printf("Found %d equipments for replacement year %d", len(equipments), year)
 	return equipments, nil
 }

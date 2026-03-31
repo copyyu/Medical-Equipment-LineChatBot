@@ -24,12 +24,14 @@ func NewEquipmentHandler(equipmentUsecase usecase.EquipmentUsecase) *EquipmentHa
 // Query params: page, limit, status, search, sort_by, sort_dir
 func (h *EquipmentHandler) GetList(c *fiber.Ctx) error {
 	req := dto.EquipmentListRequest{
-		Page:    c.QueryInt("page", 1),
-		Limit:   c.QueryInt("limit", 10),
-		Status:  c.Query("status"),
-		Search:  c.Query("search"),
-		SortBy:  c.Query("sort_by", "id"),
-		SortDir: c.Query("sort_dir", "desc"),
+		Page:         c.QueryInt("page", 1),
+		Limit:        c.QueryInt("limit", 10),
+		Status:       c.Query("status"),
+		Search:       c.Query("search"),
+		SortBy:       c.Query("sort_by", "id"),
+		SortDir:      c.Query("sort_dir", "desc"),
+		ExpiryFilter: c.Query("expiry_filter"),
+		CategoryID:   c.Query("category_id"),
 	}
 
 	result, err := h.equipmentUsecase.GetEquipmentList(c.Context(), req)
@@ -113,4 +115,16 @@ func (h *EquipmentHandler) CreateEquipment(c *fiber.Ctx) error {
 
 	log.Printf("Handler: CreateEquipment - Success, created equipment ID: %s", req.IDCode)
 	return errors.Success(c, result, "Equipment created successfully")
+}
+
+// GetCategories returns all equipment categories
+// GET /api/equipment/categories
+func (h *EquipmentHandler) GetCategories(c *fiber.Ctx) error {
+	categories, err := h.equipmentUsecase.GetAllCategories(c.Context())
+	if err != nil {
+		log.Printf("Handler: GetCategories - Error: %v", err)
+		return errors.Error(c, err)
+	}
+
+	return errors.Success(c, categories, "Categories retrieved successfully")
 }

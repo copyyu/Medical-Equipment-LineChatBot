@@ -10,21 +10,21 @@ func GetIssueInputFlex(serialNumber string, categoryID uint) map[string]interfac
 		"header": map[string]interface{}{
 			"type":            "box",
 			"layout":          "vertical",
-			"backgroundColor": "#FF5722",
+			"backgroundColor": ColorDanger,
 			"paddingAll":      "12px",
 			"contents": []interface{}{
-				map[string]interface{}{"type": "text", "text": "⚠️ แจ้งปัญหา", "color": "#FFFFFF", "size": "md", "weight": "bold"},
+				map[string]interface{}{"type": "text", "text": "⚠️ แจ้งปัญหา", "color": ColorWhite, "size": "md", "weight": "bold"},
 			},
 		},
 		"body": map[string]interface{}{
 			"type": "box", "layout": "vertical", "spacing": "md", "paddingAll": "15px",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "sm", "color": "#888888",
+					"type": "text", "text": fmt.Sprintf("เลขเครื่อง: %s", serialNumber), "size": "sm", "color": ColorTextLight,
 				},
 				map[string]interface{}{"type": "separator", "margin": "md"},
 				map[string]interface{}{
-					"type": "text", "text": "ต้องการระบุรายละเอียดปัญหาหรือไม่?", "size": "sm", "margin": "md", "wrap": true,
+					"type": "text", "text": "ต้องการระบุรายละเอียดปัญหาหรือไม่?", "size": "sm", "margin": "md", "wrap": true, "color": ColorText,
 				},
 			},
 		},
@@ -32,7 +32,7 @@ func GetIssueInputFlex(serialNumber string, categoryID uint) map[string]interfac
 			"type": "box", "layout": "vertical", "spacing": "sm",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "button", "style": "primary", "color": "#4CAF50",
+					"type": "button", "style": "primary", "color": ColorSuccess,
 					"action": map[string]interface{}{
 						"type":        "postback",
 						"label":       "✏️ พิมพ์รายละเอียด",
