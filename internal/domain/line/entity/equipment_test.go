@@ -2,6 +2,8 @@ package entity
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // ─── GetStatusText ────────────────────────────────────────
@@ -24,9 +26,7 @@ func TestAssetStatus_GetStatusText(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(string(tt.status), func(t *testing.T) {
 			got := tt.status.GetStatusText()
-			if got != tt.want {
-				t.Errorf("GetStatusText(%s) = %q, want %q", tt.status, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -51,9 +51,7 @@ func TestAssetStatus_GetColor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(string(tt.status), func(t *testing.T) {
 			got := tt.status.GetColor()
-			if got != tt.want {
-				t.Errorf("GetColor(%s) = %q, want %q", tt.status, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -62,7 +60,5 @@ func TestAssetStatus_GetColor(t *testing.T) {
 
 func TestEquipment_TableName(t *testing.T) {
 	e := Equipment{}
-	if got := e.TableName(); got != "equipments" {
-		t.Errorf("TableName() = %q, want %q", got, "equipments")
-	}
+	assert.Equal(t, "equipments", e.TableName())
 }

@@ -22,6 +22,16 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Check mock freshness
+        run: |
+          go run github.com/vektra/mockery/v2@latest
+          if [ -n "$(git diff --name-only)" ]; then
+            echo "❌ Mock files are stale! Run 'go run github.com/vektra/mockery/v2@latest' locally and commit the results."
+            git diff --stat
+            exit 1
+          fi
+          echo "✅ Mock files are up-to-date"
+
       - name: Build
         run: go build ./...
 
