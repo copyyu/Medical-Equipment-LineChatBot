@@ -357,14 +357,6 @@ Jobs:
 
 ---
 
-## ผู้พัฒนา
-
-| ชื่อ | GitHub |
-|------|--------|
-| Chayapol Jitnaphets | [@copyyu](https://github.com/copyyu) |
-
----
-
 ## License
 
 This project is for educational and internal use.
