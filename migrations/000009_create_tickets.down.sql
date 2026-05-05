@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS ticket_histories CASCADE;
+DROP TABLE IF EXISTS tickets CASCADE;
+DROP TABLE IF EXISTS ticket_categories CASCADE;
