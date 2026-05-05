@@ -1,7 +1,7 @@
 package bootstrap
 
 import (
-	"log"
+	"log/slog"
 	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/service"
 	"medical-webhook/internal/application/usecase"
@@ -9,6 +9,7 @@ import (
 	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
+	"medical-webhook/internal/infrastructure/logger"
 	"medical-webhook/internal/infrastructure/persistence"
 	redisinfra "medical-webhook/internal/infrastructure/redis"
 	"medical-webhook/internal/infrastructure/session"
@@ -39,6 +40,10 @@ func InitializeApp() (*Application, func(), error) {
 	// Load configuration
 	cfg := config.Load()
 
+	// Initialize structured logger (must be first)
+	logger.Setup(cfg.AppEnv, cfg.LogLevel)
+	slog.Info("Logger initialized", "env", cfg.AppEnv, "level", cfg.LogLevel)
+
 	// Connect Database
 	if err := database.Connect(cfg); err != nil {
 		return nil, nil, err
@@ -54,16 +59,16 @@ func InitializeApp() (*Application, func(), error) {
 	var ocrClient *client.OCRClient
 	if cfg.OCRURL != "" {
 		ocrClient = client.NewOCRClient(cfg.OCRURL)
-		log.Printf("OCR client initialized: %s", cfg.OCRURL)
+		slog.Info("OCR client initialized", "url", cfg.OCRURL)
 	} else {
-		log.Println("OCR_API_URL not configured, OCR features disabled")
+		slog.Warn("OCR_API_URL not configured, OCR features disabled")
 	}
 
 	// Connect Redis (for Event Bus / Pub/Sub)
 	if err := redisinfra.Connect(cfg.RedisURL); err != nil {
-		log.Printf("⚠️ Redis connection failed: %v (real-time events disabled)", err)
+		slog.Warn("Redis connection failed, real-time events disabled", "error", err)
 	} else {
-		log.Println("✅ Redis connected for Event Bus")
+		slog.Info("Redis connected for Event Bus")
 	}
 
 	// Create EventBus (nil-safe — using interface type so nil stays nil)
@@ -201,21 +206,23 @@ func InitializeApp() (*Application, func(), error) {
 	sseHandler := handlers.NewSSEHandler(eventBus)
 
 	// Register Middlewares
-	middleware.FiberMiddleware(app)
+	app.Use(middleware.RequestID())         // Generate request ID first
+	app.Use(middleware.StructuredLogger())  // Then log with request ID
+	middleware.FiberMiddleware(app)         // CORS, etc.
 
 	// Register Routes (SSE handler passed for public registration before 404 catch-all)
 	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler, activityLogHandler, sseHandler, adminUseCase)
 
-	log.Println("📡 SSE endpoint registered: /api/events/stream")
+	slog.Info("SSE endpoint registered", "path", "/api/events/stream")
 
-	// Initialize และ Start Notification Scheduler
+	// Initialize and Start Notification Scheduler
 	notificationScheduler := scheduler.NewNotificationScheduler(notificationUseCase)
 	notificationScheduler.Start()
-	log.Println("Notification scheduler started")
+	slog.Info("Notification scheduler started")
 
 	// Cleanup function
 	cleanup := func() {
-		log.Println("Shutting down gracefully...")
+		slog.Info("Shutting down gracefully...")
 		// Stop scheduler
 		if notificationScheduler != nil {
 			notificationScheduler.Stop()
@@ -226,16 +233,16 @@ func InitializeApp() (*Application, func(), error) {
 		}
 		// Close Redis
 		if err := redisinfra.Close(); err != nil {
-			log.Printf("Error closing Redis: %v", err)
+			slog.Error("Error closing Redis", "error", err)
 		}
 		// Close session store (stops cleanup goroutine)
 		if sessionStore != nil {
 			sessionStore.Close()
 		}
 		if err := database.Close(); err != nil {
-			log.Printf("Error closing database: %v", err)
+			slog.Error("Error closing database", "error", err)
 		}
-		log.Println("Cleanup complete")
+		slog.Info("Cleanup complete")
 	}
 
 	return &Application{

@@ -11,6 +11,8 @@ import (
 
 // Config holds all configuration values
 type Config struct {
+	AppEnv            string // dev, staging, prod
+	LogLevel          string // debug, info, warn, error
 	LineChannelToken  string
 	LineChannelSecret string
 	Port              string
@@ -49,9 +51,11 @@ func Load() *Config {
 	}
 
 	return &Config{
+		AppEnv:            getEnvOrDefault("APP_ENV", "dev"),
+		LogLevel:          getEnvOrDefault("LOG_LEVEL", "info"),
 		LineChannelToken:  os.Getenv("LINE_CHANNEL_TOKEN"),
 		LineChannelSecret: os.Getenv("LINE_CHANNEL_SECRET"),
-		Port:              os.Getenv("PORT"),
+		Port:              getEnvOrDefault("PORT", "3000"),
 		OCRURL:            os.Getenv("OCR_API_URL"),
 		RedisURL:          getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		BaseURL:           os.Getenv("BASE_URL"),
