@@ -3,6 +3,8 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -20,11 +22,14 @@ type Config struct {
 }
 
 type DatabaseConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Name     string
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	Name            string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
 }
 
 // ContactConfig holds contact information (loaded from env to avoid hardcoding)
@@ -51,11 +56,14 @@ func Load() *Config {
 		RedisURL:          getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		BaseURL:           os.Getenv("BASE_URL"),
 		DB: DatabaseConfig{
-			Host:     os.Getenv("DB_HOST"),
-			Port:     os.Getenv("DB_PORT"),
-			User:     os.Getenv("DB_USER"),
-			Password: os.Getenv("DB_PASSWORD"),
-			Name:     os.Getenv("DB_NAME"),
+			Host:            os.Getenv("DB_HOST"),
+			Port:            os.Getenv("DB_PORT"),
+			User:            os.Getenv("DB_USER"),
+			Password:        os.Getenv("DB_PASSWORD"),
+			Name:            os.Getenv("DB_NAME"),
+			MaxOpenConns:    getEnvAsInt("DB_MAX_OPEN_CONNS", 25),
+			MaxIdleConns:    getEnvAsInt("DB_MAX_IDLE_CONNS", 10),
+			ConnMaxLifetime: time.Duration(getEnvAsInt("DB_CONN_MAX_LIFETIME_MIN", 30)) * time.Minute,
 		},
 		Contact: ContactConfig{
 			CenterName:     getEnvOrDefault("CONTACT_CENTER_NAME", "ศูนย์เครื่องมือแพทย์"),
@@ -71,6 +79,16 @@ func Load() *Config {
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsInt returns the environment variable as int or a default
+func getEnvAsInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
 	}
 	return defaultValue
 }
