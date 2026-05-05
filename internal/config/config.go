@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -77,6 +79,49 @@ func Load() *Config {
 			WorkingHours:   getEnvOrDefault("CONTACT_WORKING_HOURS", "จ-ศ 08:00-17:00"),
 		},
 	}
+}
+
+// Validate checks that all required configuration values are present.
+// Returns an error listing all missing variables so the operator can fix them in one pass.
+func (c *Config) Validate() error {
+	var missing []string
+
+	// LINE API credentials (required for core functionality)
+	if c.LineChannelToken == "" {
+		missing = append(missing, "LINE_CHANNEL_TOKEN")
+	}
+	if c.LineChannelSecret == "" {
+		missing = append(missing, "LINE_CHANNEL_SECRET")
+	}
+
+	// Database (required — app cannot function without it)
+	if c.DB.Host == "" {
+		missing = append(missing, "DB_HOST")
+	}
+	if c.DB.Port == "" {
+		missing = append(missing, "DB_PORT")
+	}
+	if c.DB.User == "" {
+		missing = append(missing, "DB_USER")
+	}
+	if c.DB.Name == "" {
+		missing = append(missing, "DB_NAME")
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required environment variables: [%s]", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+// IsDev returns true if the application is running in development mode.
+func (c *Config) IsDev() bool {
+	return strings.EqualFold(c.AppEnv, "dev")
+}
+
+// IsProd returns true if the application is running in production mode.
+func (c *Config) IsProd() bool {
+	return strings.EqualFold(c.AppEnv, "prod") || strings.EqualFold(c.AppEnv, "production")
 }
 
 // getEnvOrDefault returns the environment variable value or a default

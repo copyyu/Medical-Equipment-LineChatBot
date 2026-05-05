@@ -2,12 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, develop]
 
 jobs:
-  build-and-test:
+  quality:
+    name: Quality Checks
     runs-on: ubuntu-latest
 
     steps:
@@ -22,6 +23,32 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      # ── Code Quality ─────────────────────────────────────
+      - name: Format check
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "❌ Code is not formatted. Run 'gofmt -w .' locally."
+            gofmt -l .
+            exit 1
+          fi
+          echo "✅ Code formatting is correct"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
+
+      # ── Security ─────────────────────────────────────────
+      - name: Vulnerability check
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      # ── Mock Freshness ───────────────────────────────────
       - name: Check mock freshness
         run: |
           go run github.com/vektra/mockery/v2@latest
@@ -32,8 +59,24 @@ jobs:
           fi
           echo "✅ Mock files are up-to-date"
 
+      # ── Build ────────────────────────────────────────────
       - name: Build
         run: go build ./...
 
-      - name: Run tests
-        run: go test ./... -v -count=1
+      # ── Tests ────────────────────────────────────────────
+      - name: Run tests with race detector
+        run: go test -race -coverprofile=coverage.out -covermode=atomic -count=1 ./...
+
+      - name: Display coverage
+        run: |
+          go tool cover -func=coverage.out
+          echo ""
+          COVERAGE=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | sed 's/%//')
+          echo "📊 Total coverage: ${COVERAGE}%"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+          retention-days: 30

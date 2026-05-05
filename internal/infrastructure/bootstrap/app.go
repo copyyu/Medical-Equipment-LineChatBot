@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"log/slog"
 	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/service"
@@ -39,6 +40,11 @@ type Application struct {
 func InitializeApp() (*Application, func(), error) {
 	// Load configuration
 	cfg := config.Load()
+
+	// Fail fast if critical config is missing
+	if err := cfg.Validate(); err != nil {
+		return nil, nil, err
+	}
 
 	// Initialize structured logger (must be first)
 	logger.Setup(cfg.AppEnv, cfg.LogLevel)
@@ -264,7 +270,15 @@ func (a *Application) Start() error {
 	return a.Server.Listen(":" + a.Config.Port)
 }
 
-// Shutdown - graceful shutdown
+// Shutdown - graceful shutdown (legacy, kept for compatibility)
 func (a *Application) Shutdown() error {
 	return a.Server.Shutdown()
 }
+
+// ShutdownWithContext performs graceful shutdown with a deadline.
+// Fiber will stop accepting new connections and wait for in-flight
+// requests to complete until the context expires.
+func (a *Application) ShutdownWithContext(ctx context.Context) error {
+	return a.Server.ShutdownWithContext(ctx)
+}
+
