@@ -2,11 +2,12 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"medical-webhook/internal/config"
-	"medical-webhook/internal/domain/line/entity"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -18,11 +19,6 @@ var (
 )
 
 func Connect(cfg *config.Config) error {
-
-	// if cfg.DB.Host == "" || cfg.DB.User == "" || cfg.DB.Name == "" || cfg.DB.Port == "" {
-	// 	return fmt.Errorf("database configuration is incomplete: host=%s, user=%s, dbname=%s, port=%s",
-	// 		cfg.DB.Host, cfg.DB.User, cfg.DB.Name, cfg.DB.Port)
-	// }
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		cfg.DB.Host, cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.Port,
@@ -39,32 +35,20 @@ func Connect(cfg *config.Config) error {
 		return fmt.Errorf("failed to get sql.DB: %w", err)
 	}
 
+	// Connection pool settings (production-grade)
+	sqlDB.SetMaxOpenConns(cfg.DB.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.DB.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(cfg.DB.ConnMaxLifetime)
+
 	// Store in global variables
 	DB = db
 	SqlDB = sqlDB
 
 	log.Println("Connected to PostgreSQL successfully!")
 
-	err = db.AutoMigrate(
-		&entity.Brand{},
-		&entity.Department{},
-		&entity.EquipmentCategory{},
-		&entity.EquipmentModel{},
-		&entity.Equipment{},
-		&entity.MaintenanceRecord{},
-		&entity.NotificationLog{},
-		&entity.NotificationSetting{},
-		&entity.Admin{},
-		&entity.AdminSession{},
-		&entity.Ticket{},
-		&entity.TicketCategory{},
-		&entity.TicketHistory{},
-	)
-	if err != nil {
-		return fmt.Errorf("migration failed: %w", err)
-	}
-
-	SeedTicketCategories(db)
+	// NOTE: Schema management is now handled by golang-migrate.
+	// Run migrations with: go run ./cmd/migrate up
+	// DO NOT use AutoMigrate in production.
 
 	return nil
 }
@@ -89,5 +73,7 @@ func HealthCheck() error {
 	if SqlDB == nil {
 		return fmt.Errorf("database connection is nil")
 	}
-	return SqlDB.Ping()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	return SqlDB.PingContext(ctx)
 }
