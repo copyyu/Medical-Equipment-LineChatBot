@@ -149,16 +149,28 @@ func (r *TicketRepository) GetAllTickets(page, limit int, status, priority, sear
 	}
 	if search != "" {
 		searchPattern := "%" + search + "%"
-		query = query.Where("ticket_no LIKE ? OR description LIKE ?", searchPattern, searchPattern)
+		query = query.Where("ticket_no ILIKE ? OR description ILIKE ?", searchPattern, searchPattern)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	if sortBy != "" {
+	// Whitelist allowed sort columns and directions to prevent SQL injection
+	allowedSortBy := map[string]bool{
+		"created_at":   true,
+		"updated_at":   true,
+		"ticket_no":    true,
+		"status":       true,
+		"priority":     true,
+		"reported_at":  true,
+		"completed_at": true,
+	}
+	allowedSortDir := map[string]bool{"ASC": true, "DESC": true, "asc": true, "desc": true}
+
+	if sortBy != "" && allowedSortBy[sortBy] {
 		order := sortBy
-		if sortDir != "" {
+		if sortDir != "" && allowedSortDir[sortDir] {
 			order += " " + sortDir
 		}
 		query = query.Order(order)

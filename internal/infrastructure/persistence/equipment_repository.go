@@ -246,14 +246,14 @@ func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, searc
 	if search != "" {
 		searchPattern := "%" + search + "%"
 		query = query.Where(
-			"equipments.id_code LIKE ? OR "+
-				"equipments.serial_no LIKE ? OR "+
-				"equipments.asset_name LIKE ? OR "+
-				"equipments.asset_type_name LIKE ? OR "+
-				"equipment_models.model_name LIKE ? OR "+
-				"equipment_categories.name LIKE ? OR "+
-				"departments.name LIKE ? OR "+
-				"equipments.building LIKE ?",
+			"equipments.id_code ILIKE ? OR "+
+				"equipments.serial_no ILIKE ? OR "+
+				"equipments.asset_name ILIKE ? OR "+
+				"equipments.asset_type_name ILIKE ? OR "+
+				"equipment_models.model_name ILIKE ? OR "+
+				"equipment_categories.name ILIKE ? OR "+
+				"departments.name ILIKE ? OR "+
+				"equipments.building ILIKE ?",
 			searchPattern, searchPattern, searchPattern, searchPattern,
 			searchPattern, searchPattern, searchPattern, searchPattern,
 		)
@@ -301,14 +301,14 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 	if search != "" {
 		searchPattern := "%" + search + "%"
 		query = query.Where(
-			"equipments.id_code LIKE ? OR "+
-				"equipments.serial_no LIKE ? OR "+
-				"equipments.asset_name LIKE ? OR "+
-				"equipments.asset_type_name LIKE ? OR "+
-				"equipment_models.model_name LIKE ? OR "+
-				"equipment_categories.name LIKE ? OR "+
-				"departments.name LIKE ? OR "+
-				"equipments.building LIKE ?",
+			"equipments.id_code ILIKE ? OR "+
+				"equipments.serial_no ILIKE ? OR "+
+				"equipments.asset_name ILIKE ? OR "+
+				"equipments.asset_type_name ILIKE ? OR "+
+				"equipment_models.model_name ILIKE ? OR "+
+				"equipment_categories.name ILIKE ? OR "+
+				"departments.name ILIKE ? OR "+
+				"equipments.building ILIKE ?",
 			searchPattern, searchPattern, searchPattern, searchPattern,
 			searchPattern, searchPattern, searchPattern, searchPattern,
 		)
@@ -565,7 +565,7 @@ func (r *EquipmentRepository) FindSimilarSorted(query string, limit int) ([]*ent
 	var equipments []*entity.Equipment
 	err := r.db.
 		Where("id_code LIKE ? AND deleted_at IS NULL", prefix+"%").
-		Order("similarity(id_code, '" + query + "') DESC").
+		Order(gorm.Expr("similarity(id_code, ?) DESC", query)).
 		Limit(limit).
 		Find(&equipments).Error
 
