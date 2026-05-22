@@ -357,6 +357,3 @@ Jobs:
 
 ---
 
-## License
-
-This project is for educational and internal use.
