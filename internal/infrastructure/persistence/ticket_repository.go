@@ -156,7 +156,7 @@ func (r *TicketRepository) GetAllTickets(page, limit int, status, priority, sear
 		query = query.Where("priority = ?", priority)
 	}
 	if search != "" {
-		searchPattern := "%" + search + "%"
+		searchPattern := "%" + escapeLike(search) + "%"
 		query = query.Where("ticket_no ILIKE ? OR description ILIKE ?", searchPattern, searchPattern)
 	}
 

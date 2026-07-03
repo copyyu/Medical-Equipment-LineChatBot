@@ -49,7 +49,7 @@ func (r *TicketHistoryRepository) GetStatusChangeLogs(
 
 	// Filter: search (ticket_no, equipment_name, admin full_name)
 	if search != "" {
-		pattern := "%" + search + "%"
+		pattern := "%" + escapeLike(search) + "%"
 		query = query.Where(
 			"(tickets.ticket_no ILIKE ? OR tickets.equipment_name ILIKE ? OR ticket_histories.changed_by ILIKE ?)",
 			pattern, pattern, pattern,
