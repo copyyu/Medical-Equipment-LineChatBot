@@ -279,4 +279,3 @@ func GetEquipmentExpiryFilteredFlex(items []entity.Equipment, sectionTitle strin
 		"footer": buildExportFooter(downloadURL, totalCount),
 	}
 }
-
