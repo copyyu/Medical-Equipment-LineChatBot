@@ -211,6 +211,7 @@ func (uc *MessageUseCase) handleInputIssueDescInput(msg *model.IncomingMessage, 
 
 	// Create ticket with category from session
 	ticket, err := uc.ticketUseCase.CreateTicketFromLINE(
+		context.Background(),
 		session.SerialNumber,
 		description,
 		msg.UserID,

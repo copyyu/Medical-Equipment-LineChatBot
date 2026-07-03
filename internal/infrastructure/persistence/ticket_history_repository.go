@@ -1,8 +1,10 @@
 package persistence
 
 import (
+	"context"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
+	"medical-webhook/internal/infrastructure/database"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,8 +20,8 @@ func NewTicketHistoryRepository(db *gorm.DB) *TicketHistoryRepository {
 	return &TicketHistoryRepository{db: db}
 }
 
-func (r *TicketHistoryRepository) CreateTicketHistory(history *entity.TicketHistory) error {
-	return r.db.Create(history).Error
+func (r *TicketHistoryRepository) CreateTicketHistory(ctx context.Context, history *entity.TicketHistory) error {
+	return database.DBFromContext(ctx, r.db).Create(history).Error
 }
 
 // GetStatusChangeLogs returns paginated & filtered status change log entries

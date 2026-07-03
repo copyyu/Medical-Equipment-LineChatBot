@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -51,7 +53,7 @@ func Load() *Config {
 	return &Config{
 		LineChannelToken:  os.Getenv("LINE_CHANNEL_TOKEN"),
 		LineChannelSecret: os.Getenv("LINE_CHANNEL_SECRET"),
-		Port:              os.Getenv("PORT"),
+		Port:              getEnvOrDefault("PORT", "8080"),
 		OCRURL:            os.Getenv("OCR_API_URL"),
 		RedisURL:          getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		BaseURL:           os.Getenv("BASE_URL"),
@@ -73,6 +75,31 @@ func Load() *Config {
 			WorkingHours:   getEnvOrDefault("CONTACT_WORKING_HOURS", "จ-ศ 08:00-17:00"),
 		},
 	}
+}
+
+// Validate ensures all required configuration is present, failing fast at
+// startup rather than surfacing confusing errors — or security holes such as an
+// empty LINE channel secret (which would make webhook signatures forgeable) —
+// only at request time.
+func (c *Config) Validate() error {
+	var missing []string
+	check := func(name, val string) {
+		if strings.TrimSpace(val) == "" {
+			missing = append(missing, name)
+		}
+	}
+
+	check("LINE_CHANNEL_TOKEN", c.LineChannelToken)
+	check("LINE_CHANNEL_SECRET", c.LineChannelSecret)
+	check("DB_HOST", c.DB.Host)
+	check("DB_PORT", c.DB.Port)
+	check("DB_USER", c.DB.User)
+	check("DB_NAME", c.DB.Name)
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }
 
 // getEnvOrDefault returns the environment variable value or a default

@@ -1,8 +1,10 @@
 package repository
 
 import (
-	"medical-webhook/internal/domain/line/entity"
+	"context"
 	"time"
+
+	"medical-webhook/internal/domain/line/entity"
 )
 
 // StatusChangeLogEntry is a flattened view of a ticket_history row joined with ticket + admin
@@ -27,7 +29,7 @@ type StatusChangeLogStats struct {
 }
 
 type TicketHistoryRepository interface {
-	CreateTicketHistory(history *entity.TicketHistory) error
+	CreateTicketHistory(ctx context.Context, history *entity.TicketHistory) error
 
 	// GetStatusChangeLogs returns paginated & filtered status change entries
 	GetStatusChangeLogs(page, limit int, search, fromStatus, toStatus, startDate, endDate string) ([]StatusChangeLogEntry, int64, error)

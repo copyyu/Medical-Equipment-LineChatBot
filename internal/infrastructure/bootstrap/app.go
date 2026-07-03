@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"fmt"
 	"log"
 	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/service"
@@ -36,8 +37,12 @@ type Application struct {
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
 func InitializeApp() (*Application, func(), error) {
-	// Load configuration
+	// Load and validate configuration (fail fast on missing required env vars,
+	// e.g. an empty LINE_CHANNEL_SECRET that would make webhook signatures forgeable)
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		return nil, nil, fmt.Errorf("invalid configuration: %w", err)
+	}
 
 	// Connect Database
 	if err := database.Connect(cfg); err != nil {
@@ -70,6 +75,12 @@ func InitializeApp() (*Application, func(), error) {
 	var eventBus event.EventBus
 	if redisinfra.GetClient() != nil {
 		eventBus = redisinfra.NewEventBus(redisinfra.GetClient())
+	}
+
+	// Idempotency store for de-duplicating LINE webhook events (nil if Redis down)
+	var idempotencyStore *redisinfra.IdempotencyStore
+	if redisinfra.GetClient() != nil {
+		idempotencyStore = redisinfra.NewIdempotencyStore(redisinfra.GetClient(), 0)
 	}
 
 	// Initialize repositories (Infrastructure Layer)
@@ -113,6 +124,9 @@ func InitializeApp() (*Application, func(), error) {
 		equipmentModelRepo,
 	)
 
+	// Initialize transaction manager
+	txManager := database.NewTxManager(database.GetDB())
+
 	// Initialize use cases (Application Layer)
 	ticketRepo := persistence.NewTicketRepository(database.GetDB())
 	ticketCategoryRepo := persistence.NewTicketCategoryRepository(database.GetDB())
@@ -126,6 +140,7 @@ func InitializeApp() (*Application, func(), error) {
 		ticketHistoryRepo,
 		ticketNotifyService,
 		eventBus,
+		txManager,
 	)
 
 	messageUseCase := usecase.NewMessageUseCase(
@@ -172,7 +187,7 @@ func InitializeApp() (*Application, func(), error) {
 	activityLogUseCase := usecase.NewActivityLogUseCase(ticketHistoryRepo)
 
 	// Initialize handlers (Interface Layer)
-	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
+	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase, idempotencyStore)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
 	equipmentImportHandler := handlers.NewEquipmentImportHandler(equipmentImportUseCase)
 	adminHandler := handlers.NewAdminHandler(adminUseCase)

@@ -12,6 +12,7 @@ import (
 	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
+	"medical-webhook/internal/domain/port"
 	"medical-webhook/internal/infrastructure/line/templates"
 	"medical-webhook/internal/utils/ptr"
 )
@@ -25,6 +26,7 @@ type TicketUseCase struct {
 	historyRepo   repository.TicketHistoryRepository
 	notifyService *service.TicketNotificationService
 	eventBus      event.EventBus
+	txManager     port.TxManager
 }
 
 // NewTicketUseCase creates a new ticket use case
@@ -36,6 +38,7 @@ func NewTicketUseCase(
 	historyRepo repository.TicketHistoryRepository,
 	notifyService *service.TicketNotificationService,
 	eventBus event.EventBus,
+	txManager port.TxManager,
 ) *TicketUseCase {
 	return &TicketUseCase{
 		lineRepo:      lineRepo,
@@ -45,6 +48,7 @@ func NewTicketUseCase(
 		historyRepo:   historyRepo,
 		notifyService: notifyService,
 		eventBus:      eventBus,
+		txManager:     txManager,
 	}
 }
 
@@ -273,15 +277,21 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 		}
 	}
 
-	// Update ticket in DB
-	if err := uc.ticketRepo.UpdateTicket(ticket); err != nil {
+	// Persist the ticket and its history records atomically so the audit trail
+	// can never diverge from the ticket's state (partial writes are rolled back).
+	if err := uc.txManager.WithTransaction(ctx, func(ctx context.Context) error {
+		if err := uc.ticketRepo.UpdateTicket(ctx, ticket); err != nil {
+			return err
+		}
+		for i := range changes {
+			changes[i].ChangedBy = req.ChangedBy
+			if err := uc.historyRepo.CreateTicketHistory(ctx, &changes[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return err
-	}
-
-	// Save history records
-	for i := range changes {
-		changes[i].ChangedBy = req.ChangedBy
-		_ = uc.historyRepo.CreateTicketHistory(&changes[i])
 	}
 
 	// Send LINE notification if status changed (fire-and-forget)
@@ -332,6 +342,7 @@ func (uc *TicketUseCase) GetTicketCategories(ctx context.Context) ([]entity.Tick
 
 // CreateTicketFromLINE creates a ticket from LINE report
 func (uc *TicketUseCase) CreateTicketFromLINE(
+	ctx context.Context,
 	serialOrCode string,
 	description string,
 	lineUserID string,
@@ -409,19 +420,26 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 		ReportedAt:       time.Now(),
 	}
 
-	err = uc.ticketRepo.CreateTicket(ticket)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ticket: %w", err)
+	// Create the ticket and its initial history in a single transaction so a
+	// ticket is never persisted without its creation (audit) record.
+	if err = uc.txManager.WithTransaction(ctx, func(ctx context.Context) error {
+		if err := uc.ticketRepo.CreateTicket(ctx, ticket); err != nil {
+			return fmt.Errorf("failed to create ticket: %w", err)
+		}
+		// Create initial history (no AdminID for LINE users)
+		history := &entity.TicketHistory{
+			TicketID: ticket.ID,
+			Action:   entity.ActionCreated,
+			Note:     ptr.StringPtr("สร้างจาก LINE โดย " + lineDisplayName),
+			IsSystem: true,
+		}
+		if err := uc.historyRepo.CreateTicketHistory(ctx, history); err != nil {
+			return fmt.Errorf("failed to create ticket history: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-
-	// Create initial history (no AdminID for LINE users)
-	history := &entity.TicketHistory{
-		TicketID: ticket.ID,
-		Action:   entity.ActionCreated,
-		Note:     ptr.StringPtr("สร้างจาก LINE โดย " + lineDisplayName),
-		IsSystem: true,
-	}
-	_ = uc.historyRepo.CreateTicketHistory(history)
 
 	// Publish ticket created event
 	if uc.eventBus != nil {

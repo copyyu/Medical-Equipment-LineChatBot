@@ -1,8 +1,10 @@
 package persistence
 
 import (
+	"context"
 	"fmt"
 	"medical-webhook/internal/domain/line/entity"
+	"medical-webhook/internal/infrastructure/database"
 	"medical-webhook/internal/utils/ptr"
 	"time"
 
@@ -18,8 +20,14 @@ func NewTicketRepository(db *gorm.DB) *TicketRepository {
 	return &TicketRepository{db: db}
 }
 
-func (r *TicketRepository) CreateTicket(ticket *entity.Ticket) error {
-	return r.db.Create(ticket).Error
+// conn returns the transaction bound to ctx if one is active, otherwise the
+// repository's own connection. This lets writes join a TxManager transaction.
+func (r *TicketRepository) conn(ctx context.Context) *gorm.DB {
+	return database.DBFromContext(ctx, r.db)
+}
+
+func (r *TicketRepository) CreateTicket(ctx context.Context, ticket *entity.Ticket) error {
+	return r.conn(ctx).Create(ticket).Error
 }
 
 func (r *TicketRepository) FindTicketByNo(ticketNo string) (*entity.Ticket, error) {
@@ -54,8 +62,8 @@ func (r *TicketRepository) FindTicketByID(id uint) (*entity.Ticket, error) {
 	return &ticket, err
 }
 
-func (r *TicketRepository) UpdateTicket(ticket *entity.Ticket) error {
-	return r.db.Save(ticket).Error
+func (r *TicketRepository) UpdateTicket(ctx context.Context, ticket *entity.Ticket) error {
+	return r.conn(ctx).Save(ticket).Error
 }
 
 func (r *TicketRepository) UpdateTicketStatus(ticketID uint, newStatus entity.TicketStatus, note string) error {
