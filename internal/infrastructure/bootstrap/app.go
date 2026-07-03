@@ -10,6 +10,7 @@ import (
 	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
+	"medical-webhook/internal/infrastructure/logger"
 	"medical-webhook/internal/infrastructure/persistence"
 	redisinfra "medical-webhook/internal/infrastructure/redis"
 	"medical-webhook/internal/infrastructure/session"
@@ -43,6 +44,10 @@ func InitializeApp() (*Application, func(), error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, nil, fmt.Errorf("invalid configuration: %w", err)
 	}
+
+	// Initialize structured logging (bridges the standard log package too)
+	logger.Init(cfg.AppEnv, cfg.LogLevel)
+	log.Printf("Starting application (env=%s, log_level=%s)", cfg.AppEnv, cfg.LogLevel)
 
 	// Connect Database
 	if err := database.Connect(cfg); err != nil {

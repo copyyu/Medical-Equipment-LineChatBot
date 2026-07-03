@@ -19,6 +19,8 @@ type Config struct {
 	OCRURL            string
 	RedisURL          string
 	BaseURL           string
+	AppEnv            string
+	LogLevel          string
 	DB                DatabaseConfig
 	Contact           ContactConfig
 }
@@ -57,6 +59,8 @@ func Load() *Config {
 		OCRURL:            os.Getenv("OCR_API_URL"),
 		RedisURL:          getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		BaseURL:           os.Getenv("BASE_URL"),
+		AppEnv:            getEnvOrDefault("APP_ENV", "development"),
+		LogLevel:          getEnvOrDefault("LOG_LEVEL", "info"),
 		DB: DatabaseConfig{
 			Host:            os.Getenv("DB_HOST"),
 			Port:            os.Getenv("DB_PORT"),
