@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TicketRepository struct {
@@ -55,7 +56,11 @@ func (r *TicketRepository) FindTicketByID(id uint) (*entity.Ticket, error) {
 }
 
 func (r *TicketRepository) UpdateTicket(ticket *entity.Ticket) error {
-	return r.db.Save(ticket).Error
+	// Omit associations: the ticket passed in is loaded with its Category,
+	// Equipment, Department, Reporter and Histories preloaded, and a plain Save
+	// would upsert all of them, overwriting unrelated rows (e.g. equipment or
+	// department records) with the stale in-memory snapshot.
+	return r.db.Omit(clause.Associations).Save(ticket).Error
 }
 
 func (r *TicketRepository) UpdateTicketStatus(ticketID uint, newStatus entity.TicketStatus, note string) error {

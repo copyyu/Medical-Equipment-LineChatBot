@@ -91,6 +91,14 @@ func (m *EquipmentMapper) ToEquipmentEntity(dto *dto.CreateEquipmentDTO) *entity
 		UpdatedBy:      dto.UpdatedBy,
 	}
 
+	// Map the asset status from the Excel column. Only assign when a value is
+	// provided so an empty column keeps the DB default on create and leaves an
+	// existing (possibly manually-set) status untouched on update, while a real
+	// value like "defective"/"decommission" is no longer silently discarded.
+	if dto.AssetStatus != "" {
+		eq.Status = entity.ParseAssetStatus(dto.AssetStatus)
+	}
+
 	// Compute lifecycle fields
 	m.computeLifecycleFields(eq)
 

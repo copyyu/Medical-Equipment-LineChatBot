@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,6 +19,32 @@ const (
 	AssetStatusMissing           AssetStatus = "missing"              // สูญหาย
 	AssetStatusPlanToReplace     AssetStatus = "plan_to_replace"      // รอเปลี่ยนใหม่
 )
+
+// ParseAssetStatus converts a raw status string (from Excel import — either the
+// canonical enum value or its Thai label) into an AssetStatus. Empty or
+// unrecognized input falls back to AssetStatusActive so behavior matches the
+// column's DB default, but recognized non-active values are preserved instead of
+// being silently dropped.
+func ParseAssetStatus(raw string) AssetStatus {
+	switch strings.TrimSpace(raw) {
+	case string(AssetStatusActive), "ใช้งานอยู่":
+		return AssetStatusActive
+	case string(AssetStatusDefective), "ชำรุด":
+		return AssetStatusDefective
+	case string(AssetStatusWaitDecom), "รอปลดระวาง":
+		return AssetStatusWaitDecom
+	case string(AssetStatusDecommission), "ปลดระวางแล้ว":
+		return AssetStatusDecommission
+	case string(AssetStatusActiveReadyToSell), "พร้อมขาย":
+		return AssetStatusActiveReadyToSell
+	case string(AssetStatusMissing), "สูญหาย":
+		return AssetStatusMissing
+	case string(AssetStatusPlanToReplace), "รอเปลี่ยนใหม่":
+		return AssetStatusPlanToReplace
+	default:
+		return AssetStatusActive
+	}
+}
 
 // GetStatusText returns Thai text for asset status
 func (s AssetStatus) GetStatusText() string {

@@ -1,6 +1,8 @@
 package bootstrap
 
 import (
+	"context"
+	"errors"
 	"log"
 	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/service"
@@ -104,6 +106,10 @@ func InitializeApp() (*Application, func(), error) {
 		adminRepo,
 		adminSessionRepo,
 	)
+
+	// Provision the first admin from env if none exists. Registration is now
+	// authenticated-only, so this is the sole bootstrap path for the initial account.
+	ensureInitialAdmin(adminService, cfg.InitialAdmin)
 
 	equipmentService := service.NewEquipmentService(
 		equipmentRepo,
@@ -250,6 +256,37 @@ func InitializeApp() (*Application, func(), error) {
 		ActivityLogHandler:     activityLogHandler,
 		SSEHandler:             sseHandler,
 	}, cleanup, nil
+}
+
+// ensureInitialAdmin creates the first admin account from configuration if the
+// admins table is empty. It is a no-op when at least one admin already exists or
+// when the INITIAL_ADMIN_* env vars are not provided.
+func ensureInitialAdmin(adminService service.AdminService, cfg config.InitialAdminConfig) {
+	ctx := context.Background()
+
+	admins, err := adminService.GetAllAdmins(ctx, 1, 0)
+	if err != nil {
+		log.Printf("⚠️  Could not check for existing admins, skipping initial-admin bootstrap: %v", err)
+		return
+	}
+	if len(admins) > 0 {
+		return // an admin already exists — nothing to do
+	}
+
+	if cfg.Username == "" || cfg.Password == "" {
+		log.Println("⚠️  No admin accounts exist and INITIAL_ADMIN_USERNAME/INITIAL_ADMIN_PASSWORD are not set. " +
+			"Set them to provision the first admin (registration is authenticated-only).")
+		return
+	}
+
+	if _, err := adminService.Register(ctx, cfg.Username, cfg.Email, cfg.Password, cfg.FullName); err != nil {
+		if errors.Is(err, service.ErrUsernameExists) || errors.Is(err, service.ErrEmailExists) {
+			return // created concurrently / already present
+		}
+		log.Printf("⚠️  Failed to provision initial admin %q: %v", cfg.Username, err)
+		return
+	}
+	log.Printf("✅ Provisioned initial admin account %q", cfg.Username)
 }
 
 // Start - start the server
