@@ -14,6 +14,7 @@ import (
 	"medical-webhook/internal/domain/line/repository"
 	notificationRepo "medical-webhook/internal/domain/line/repository"
 	"medical-webhook/internal/infrastructure/line/templates"
+	"medical-webhook/internal/utils/exporturl"
 
 	excelize "github.com/xuri/excelize/v2"
 )
@@ -112,12 +113,12 @@ func (uc *NotificationUseCase) broadcastAlerts(ctx context.Context, alerts []dto
 		baseURL = "http://localhost:8080"
 	}
 
-	// สร้างลิงก์โหลด Excel ตามรอบ
+	// สร้างลิงก์โหลด Excel ตามรอบ (signed URL — เปิดจากปุ่มใน LINE ได้โดยไม่ต้อง login)
 	var downloadURL string
 	if notifyRound == "JUNE" {
-		downloadURL = fmt.Sprintf("%s/notifications/export/expiry?filter=this_year", baseURL)
+		downloadURL = exporturl.SignedURL(baseURL, nil, "this_year")
 	} else {
-		downloadURL = fmt.Sprintf("%s/notifications/export/expiry?filter=next_year", baseURL)
+		downloadURL = exporturl.SignedURL(baseURL, nil, "next_year")
 	}
 
 	var messageText string

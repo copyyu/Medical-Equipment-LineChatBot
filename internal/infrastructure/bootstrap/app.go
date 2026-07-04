@@ -17,6 +17,7 @@ import (
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
+	"medical-webhook/internal/utils/exporturl"
 	"medical-webhook/internal/utils/scheduler"
 
 	"github.com/gofiber/fiber/v2"
@@ -40,6 +41,10 @@ type Application struct {
 func InitializeApp() (*Application, func(), error) {
 	// Load configuration
 	cfg := config.Load()
+
+	// Initialize signing key for the public (bearer-less) Excel export links.
+	// Uses the LINE channel secret, which is already a required, stable secret.
+	exporturl.Init(cfg.LineChannelSecret)
 
 	// Connect Database
 	if err := database.Connect(cfg); err != nil {

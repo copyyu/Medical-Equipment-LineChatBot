@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"medical-webhook/internal/domain/line/entity"
+	"medical-webhook/internal/utils/exporturl"
 	"net/url"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ func GetEquipmentExpiryFlex(expired []entity.Equipment, nearExpiry []entity.Equi
 	nextYear := thisYear + 1
 
 	totalCount := len(expired) + len(nearExpiry)
-	downloadURL := baseURL + "/notifications/export/expiry"
+	downloadURL := exporturl.SignedURL(baseURL, nil, "")
 
 	bodyContents := []interface{}{}
 	bodyContents = append(bodyContents, buildSectionHeader(
@@ -46,7 +47,7 @@ func GetEquipmentExpiryByDeptFlex(expired []entity.Equipment, nearExpiry []entit
 	nextYear := thisYear + 1
 
 	totalCount := len(expired) + len(nearExpiry)
-	downloadURL := fmt.Sprintf("%s/notifications/export/expiry?dept_id=%d", baseURL, departmentID)
+	downloadURL := exporturl.SignedURL(baseURL, &departmentID, "")
 
 	bodyContents := []interface{}{}
 	bodyContents = append(bodyContents, buildSectionHeader(
@@ -262,7 +263,7 @@ func buildExportFooter(downloadURL string, totalCount int) map[string]interface{
 // filter เช่น "this_year" หรือ "next_year"
 func GetEquipmentExpiryFilteredFlex(items []entity.Equipment, sectionTitle string, sectionColor string, deptName string, departmentID uint, baseURL string, filter string) map[string]interface{} {
 	totalCount := len(items)
-	downloadURL := fmt.Sprintf("%s/notifications/export/expiry?dept_id=%d&filter=%s", baseURL, departmentID, filter)
+	downloadURL := exporturl.SignedURL(baseURL, &departmentID, filter)
 
 	bodyContents := []interface{}{}
 	bodyContents = append(bodyContents, buildSectionHeader(sectionTitle, sectionColor))
@@ -279,4 +280,3 @@ func GetEquipmentExpiryFilteredFlex(items []entity.Equipment, sectionTitle strin
 		"footer": buildExportFooter(downloadURL, totalCount),
 	}
 }
-
