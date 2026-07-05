@@ -344,17 +344,23 @@ func (s *excelParserService) ParseExcelRow(row []string, rowNum int) (*dto.Excel
 		data.BorrowStatus = &v
 	}
 
+	data.RowNum = rowNum
+
 	return data, nil
 }
 
 // parseDate - parse วันที่จากหลายรูปแบบ
+// NOTE: the order matters for ambiguous slash/dash dates. Day-first (DD/MM,
+// DD-MM) is listed before month-first (MM/DD, MM-DD) on purpose because the
+// source spreadsheets use the Thai day-first convention, so e.g. "03/05/2024"
+// is intentionally parsed as 3 May, not 5 March.
 func (s *excelParserService) parseDate(dateStr string) (time.Time, error) {
 	formats := []string{
 		"2006-01-02",
-		"02/01/2006",
+		"02/01/2006", // DD/MM (Thai day-first) — kept before MM/DD below
 		"01/02/2006",
 		"2006/01/02",
-		"02-01-2006",
+		"02-01-2006", // DD-MM (Thai day-first) — kept before MM-DD below
 		"01-02-2006",
 		"2-Jan-2006",
 		"02-Jan-06",

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"medical-webhook/internal/domain/line/entity"
+	"medical-webhook/internal/utils/exporturl"
 	"net/url"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ func GetEquipmentExpiryFlex(expired []entity.Equipment, nearExpiry []entity.Equi
 	nextYear := thisYear + 1
 
 	totalCount := len(expired) + len(nearExpiry)
-	downloadURL := baseURL + "/notifications/export/expiry"
+	downloadURL := exporturl.SignedURL(baseURL, nil, "")
 
 	bodyContents := []interface{}{}
 	bodyContents = append(bodyContents, buildSectionHeader(
@@ -46,7 +47,7 @@ func GetEquipmentExpiryByDeptFlex(expired []entity.Equipment, nearExpiry []entit
 	nextYear := thisYear + 1
 
 	totalCount := len(expired) + len(nearExpiry)
-	downloadURL := fmt.Sprintf("%s/notifications/export/expiry?dept_id=%d", baseURL, departmentID)
+	downloadURL := exporturl.SignedURL(baseURL, &departmentID, "")
 
 	bodyContents := []interface{}{}
 	bodyContents = append(bodyContents, buildSectionHeader(
@@ -214,9 +215,19 @@ func buildEquipmentRow(num int, e entity.Equipment) map[string]interface{} {
 	}
 }
 
+// replacementDeadlineMonth is the month of the replacement year by which
+// equipment is expected to be replaced (August, matching the August alert
+// round). calcMonthsRemaining counts the months from now until that deadline.
+const replacementDeadlineMonth = 8
+
+// calcMonthsRemaining returns the number of months from now until the
+// replacement deadline (replacementDeadlineMonth of replacementYear). The result
+// is negative once that deadline has passed. It is equivalent to:
+//
+//	(replacementYear - thisYear)*12 + (replacementDeadlineMonth - thisMonth)
 func calcMonthsRemaining(replacementYear int) int {
 	now := time.Now()
-	return (replacementYear-now.Year())*12 - int(now.Month()) + 8
+	return (replacementYear-now.Year())*12 - int(now.Month()) + replacementDeadlineMonth
 }
 
 func buildExportFooter(downloadURL string, totalCount int) map[string]interface{} {
@@ -262,7 +273,7 @@ func buildExportFooter(downloadURL string, totalCount int) map[string]interface{
 // filter เช่น "this_year" หรือ "next_year"
 func GetEquipmentExpiryFilteredFlex(items []entity.Equipment, sectionTitle string, sectionColor string, deptName string, departmentID uint, baseURL string, filter string) map[string]interface{} {
 	totalCount := len(items)
-	downloadURL := fmt.Sprintf("%s/notifications/export/expiry?dept_id=%d&filter=%s", baseURL, departmentID, filter)
+	downloadURL := exporturl.SignedURL(baseURL, &departmentID, filter)
 
 	bodyContents := []interface{}{}
 	bodyContents = append(bodyContents, buildSectionHeader(sectionTitle, sectionColor))

@@ -11,7 +11,12 @@ import (
 // SeedTicketCategories seeds default ticket categories if they don't exist
 func SeedTicketCategories(db *gorm.DB) {
 	var count int64
-	db.Model(&entity.TicketCategory{}).Count(&count)
+	if err := db.Model(&entity.TicketCategory{}).Count(&count).Error; err != nil {
+		// Bail out on a count error instead of proceeding to seed, which could
+		// insert duplicate categories on a transient failure.
+		log.Printf("Failed to count ticket categories, skipping seed: %v", err)
+		return
+	}
 	if count > 0 {
 		return
 	}

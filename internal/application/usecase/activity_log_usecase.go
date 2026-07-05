@@ -22,12 +22,7 @@ func NewActivityLogUseCase(historyRepo repository.TicketHistoryRepository) *Acti
 
 // GetActivityLogs returns paginated & filtered activity logs
 func (uc *ActivityLogUseCase) GetActivityLogs(ctx context.Context, req dto.ActivityLogListRequest) (*dto.ActivityLogListResponse, error) {
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	if req.Limit <= 0 {
-		req.Limit = 20
-	}
+	req.Page, req.Limit = clampPagination(req.Page, req.Limit)
 
 	entries, total, err := uc.historyRepo.GetStatusChangeLogs(
 		req.Page, req.Limit,

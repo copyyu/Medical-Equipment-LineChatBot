@@ -380,7 +380,4 @@ Jobs:
 - ระดับความเร่งด่วน: `low`, `medium`, `high`, `urgent`
 
 ---
-
-## License
-
-This project is for educational and internal use.
+Private - Internal Use Only

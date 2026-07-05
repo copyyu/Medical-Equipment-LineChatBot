@@ -6,6 +6,7 @@ import (
 	"log"
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/application/usecase"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -208,18 +209,9 @@ func buildSuccessMessage(result *dto.EquipmentImportResultDTO) string {
 	return "Excel file imported successfully!"
 }
 
-// isValidExcelFile validates the file extension
+// isValidExcelFile validates the file extension (case-insensitive, so an
+// uppercase "Report.XLSX" from Windows is accepted).
 func isValidExcelFile(filename string) bool {
-	if len(filename) < 4 {
-		return false
-	}
-	// Check for .xlsx (5 chars)
-	if len(filename) >= 5 && filename[len(filename)-5:] == ".xlsx" {
-		return true
-	}
-	// Check for .xls (4 chars)
-	if filename[len(filename)-4:] == ".xls" {
-		return true
-	}
-	return false
+	lower := strings.ToLower(filename)
+	return strings.HasSuffix(lower, ".xlsx") || strings.HasSuffix(lower, ".xls")
 }

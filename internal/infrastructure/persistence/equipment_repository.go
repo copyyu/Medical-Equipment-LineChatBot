@@ -501,11 +501,15 @@ func (r *EquipmentRepository) FindNearExpiryByDepartment(ctx context.Context, de
 func (r *EquipmentRepository) FindSimilarByIDCodePrefix(prefix string, limit int) ([]*entity.Equipment, error) {
 	var equipments []*entity.Equipment
 
-	// ดึงมาทั้งหมดที่ match prefix ก่อน
-	err := r.db.
-		Where("id_code LIKE ?", prefix+"%").
-		Find(&equipments).Error
-	if err != nil {
+	// Over-fetch a bounded multiple of the requested limit so the shuffle still
+	// has variety, without loading every row that matches a short/common prefix
+	// into memory (a common OCR prefix could otherwise pull a large fraction of
+	// the table on every LINE lookup).
+	query := r.db.Where("id_code LIKE ?", prefix+"%")
+	if limit > 0 {
+		query = query.Limit(limit * 10)
+	}
+	if err := query.Find(&equipments).Error; err != nil {
 		return nil, err
 	}
 

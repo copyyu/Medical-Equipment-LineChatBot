@@ -14,6 +14,7 @@ import (
 	"medical-webhook/internal/domain/line/repository"
 	notificationRepo "medical-webhook/internal/domain/line/repository"
 	"medical-webhook/internal/infrastructure/line/templates"
+	"medical-webhook/internal/utils/exporturl"
 
 	excelize "github.com/xuri/excelize/v2"
 )
@@ -112,12 +113,12 @@ func (uc *NotificationUseCase) broadcastAlerts(ctx context.Context, alerts []dto
 		baseURL = "http://localhost:8080"
 	}
 
-	// สร้างลิงก์โหลด Excel ตามรอบ
+	// สร้างลิงก์โหลด Excel ตามรอบ (signed URL — เปิดจากปุ่มใน LINE ได้โดยไม่ต้อง login)
 	var downloadURL string
 	if notifyRound == "JUNE" {
-		downloadURL = fmt.Sprintf("%s/notifications/export/expiry?filter=this_year", baseURL)
+		downloadURL = exporturl.SignedURL(baseURL, nil, "this_year")
 	} else {
-		downloadURL = fmt.Sprintf("%s/notifications/export/expiry?filter=next_year", baseURL)
+		downloadURL = exporturl.SignedURL(baseURL, nil, "next_year")
 	}
 
 	var messageText string
@@ -153,7 +154,9 @@ func (uc *NotificationUseCase) broadcastAlerts(ctx context.Context, alerts []dto
 			SentAt:      now,
 			ErrorMsg:    errorMsg,
 		}
-		uc.notificationRepo.CreateLog(ctx, notifLog)
+		if logErr := uc.notificationRepo.CreateLog(ctx, notifLog); logErr != nil {
+			log.Printf("⚠️ Failed to persist notification log for equipment %d (round %s): %v", alert.EquipmentID, notifyRound, logErr)
+		}
 	}
 
 	if err != nil {
@@ -173,8 +176,14 @@ func (uc *NotificationUseCase) GetNotificationSummary(ctx context.Context) (*dto
 	}
 
 	// นับเครื่องที่ต้อง alert แยกตามรอบ
-	juneAlerts, _ := uc.notificationRepo.GetEquipmentsForJuneAlert(ctx)
-	augustAlerts, _ := uc.notificationRepo.GetEquipmentsForAugustAlert(ctx)
+	juneAlerts, err := uc.notificationRepo.GetEquipmentsForJuneAlert(ctx)
+	if err != nil {
+		log.Printf("Error fetching June alerts for summary: %v", err)
+	}
+	augustAlerts, err := uc.notificationRepo.GetEquipmentsForAugustAlert(ctx)
+	if err != nil {
+		log.Printf("Error fetching August alerts for summary: %v", err)
+	}
 
 	summary := &dto.NotificationSummaryDTO{
 		TotalEquipments: totalEquipments,   // ใช้จำนวนทั้งหมด

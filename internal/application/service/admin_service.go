@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"log"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	"time"
@@ -20,6 +21,9 @@ var (
 	ErrInvalidToken       = errors.New("invalid or expired token")
 	ErrUsernameExists     = errors.New("username already exists")
 	ErrEmailExists        = errors.New("email already exists")
+	// ErrNoInitialAdminConfig means no super admin exists yet and the
+	// INITIAL_ADMIN_* configuration needed to provision one was not supplied.
+	ErrNoInitialAdminConfig = errors.New("no super admin exists and initial admin is not configured")
 )
 
 type AdminService interface {
@@ -31,6 +35,9 @@ type AdminService interface {
 	UpdateProfile(ctx context.Context, adminID uuid.UUID, fullName, email string) error
 	ChangePassword(ctx context.Context, adminID uuid.UUID, oldPassword, newPassword string) error
 	GetAllAdmins(ctx context.Context, limit, offset int) ([]*entity.Admin, error)
+	// EnsureInitialSuperAdmin provisions (or promotes) a super admin at startup
+	// when none exists, so there is always an account that can manage admins.
+	EnsureInitialSuperAdmin(ctx context.Context, username, email, password, fullName string) error
 }
 
 type adminService struct {
@@ -46,6 +53,13 @@ func NewAdminService(adminRepo repository.AdminRepository, sessionRepo repositor
 }
 
 func (s *adminService) Register(ctx context.Context, username, email, password, fullName string) (*entity.Admin, error) {
+	return s.createAdmin(ctx, username, email, password, fullName, entity.RoleAdmin)
+}
+
+// createAdmin validates uniqueness, hashes the password, and persists a new
+// admin with the given role. Shared by Register (regular admins) and the
+// initial super-admin bootstrap.
+func (s *adminService) createAdmin(ctx context.Context, username, email, password, fullName string, role entity.AdminRole) (*entity.Admin, error) {
 	// Check if username exists
 	existingAdmin, err := s.adminRepo.GetByUsername(ctx, username)
 	if err != nil {
@@ -75,7 +89,7 @@ func (s *adminService) Register(ctx context.Context, username, email, password, 
 		Email:        email,
 		PasswordHash: string(hashedPassword),
 		FullName:     fullName,
-		Role:         string(entity.RoleAdmin),
+		Role:         string(role),
 	}
 
 	if err := s.adminRepo.Create(ctx, admin); err != nil {
@@ -83,6 +97,40 @@ func (s *adminService) Register(ctx context.Context, username, email, password, 
 	}
 
 	return admin, nil
+}
+
+// EnsureInitialSuperAdmin makes sure at least one super admin exists. If one
+// already does it is a no-op. Otherwise, when INITIAL_ADMIN_* is configured, it
+// promotes an existing account with the given username to super admin, or
+// creates a new super admin. Returns ErrNoInitialAdminConfig when no super admin
+// exists and no configuration was supplied.
+func (s *adminService) EnsureInitialSuperAdmin(ctx context.Context, username, email, password, fullName string) error {
+	admins, err := s.adminRepo.List(ctx, 1000, 0)
+	if err != nil {
+		return err
+	}
+	for _, a := range admins {
+		if a.Role == string(entity.RoleSuperAdmin) {
+			return nil // a super admin already exists
+		}
+	}
+
+	if username == "" || password == "" {
+		return ErrNoInitialAdminConfig
+	}
+
+	// Promote an existing account with this username, otherwise create one.
+	existing, err := s.adminRepo.GetByUsername(ctx, username)
+	if err != nil {
+		return err
+	}
+	if existing != nil {
+		existing.Role = string(entity.RoleSuperAdmin)
+		return s.adminRepo.Update(ctx, existing)
+	}
+
+	_, err = s.createAdmin(ctx, username, email, password, fullName, entity.RoleSuperAdmin)
+	return err
 }
 
 func (s *adminService) Login(ctx context.Context, username, password, ipAddress string) (*entity.Admin, string, error) {
@@ -118,9 +166,11 @@ func (s *adminService) Login(ctx context.Context, username, password, ipAddress 
 		return nil, "", err
 	}
 
-	// Update last login
+	// Update last login (best-effort): the session is already created and the
+	// token is valid, so a failure here must not fail an otherwise-successful
+	// login — just log it.
 	if err := s.adminRepo.UpdateLastLogin(ctx, admin.ID); err != nil {
-		return nil, "", err
+		log.Printf("⚠️ Failed to update last-login for admin %s: %v", admin.Username, err)
 	}
 
 	return admin, token, nil

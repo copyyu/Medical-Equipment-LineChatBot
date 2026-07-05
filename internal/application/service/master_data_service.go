@@ -8,6 +8,7 @@ import (
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	"strings"
+	"sync"
 )
 
 // MasterDataService - Service สำหรับจัดการ Master Data (Brand, Category, Department, Model)
@@ -27,7 +28,10 @@ type masterDataService struct {
 	modelRepo      repository.EquipmentModelRepository
 	mapper         *mapper.EquipmentMapper
 
-	// Cache for reducing duplicate queries during import
+	// Cache for reducing duplicate queries during import.
+	// mu guards all cache maps: the service is a shared singleton, so concurrent
+	// imports would otherwise race on these maps (a fatal, unrecoverable panic).
+	mu              sync.Mutex
 	brandCache      map[string]*entity.Brand
 	categoryCache   map[string]*entity.EquipmentCategory
 	departmentCache map[string]*entity.Department
@@ -62,6 +66,9 @@ func (s *masterDataService) GetOrCreateBrand(ctx context.Context, name string) (
 
 	// Normalize name
 	name = strings.TrimSpace(name)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// Check cache first
 	if brand, exists := s.brandCache[name]; exists {
@@ -101,6 +108,9 @@ func (s *masterDataService) GetOrCreateCategory(ctx context.Context, name, ecriR
 
 	// Normalize name
 	name = strings.TrimSpace(name)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// Check cache first
 	if category, exists := s.categoryCache[name]; exists {
@@ -144,6 +154,9 @@ func (s *masterDataService) GetOrCreateDepartment(ctx context.Context, name stri
 	// Normalize name
 	name = strings.TrimSpace(name)
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	// Check cache first
 	if dept, exists := s.departmentCache[name]; exists {
 		log.Printf("🔄 Using cached department: %s", name)
@@ -185,6 +198,9 @@ func (s *masterDataService) GetOrCreateModel(ctx context.Context, brandID, categ
 
 	// Create cache key
 	cacheKey := fmt.Sprintf("%d-%d-%s", brandID, categoryID, modelName)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	// Check cache first
 	if model, exists := s.modelCache[cacheKey]; exists {
@@ -234,6 +250,8 @@ func (s *masterDataService) normalizeECRIRisk(risk string) string {
 
 // ClearCache - ล้าง cache (เรียกหลังจบ import แต่ละครั้ง)
 func (s *masterDataService) ClearCache() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	log.Println("🧹 Clearing master data cache...")
 	s.brandCache = make(map[string]*entity.Brand)
 	s.categoryCache = make(map[string]*entity.EquipmentCategory)
