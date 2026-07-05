@@ -25,6 +25,11 @@ func SetupAdminRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, admin
 	// the ADMIN_BOOTSTRAP_* env vars (see docs/CONFIGURATION.md).
 	adminProtected.Post("/register", middleware.RequireRole(string(entity.RoleSuperAdmin)), adminHandler.Register)
 	adminProtected.Post("/logout", adminHandler.Logout)
+
+	// Self-service: an authenticated admin manages their own profile/password
+	adminProtected.Get("/profile", adminHandler.GetProfile)
+	adminProtected.Put("/profile", adminHandler.UpdateProfile)
+	adminProtected.Post("/change-password", adminHandler.ChangePassword)
 	// adminProtected.Get("/profile", adminHandler.GetProfile)
 	// adminProtected.Put("/profile", adminHandler.UpdateProfile)
 	// adminProtected.Post("/change-password", adminHandler.ChangePassword)

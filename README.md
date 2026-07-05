@@ -290,6 +290,15 @@ curl http://localhost:3000/
 |--------|------|---------|
 | `GET` | `/api/dashboard` | ข้อมูลสรุป Dashboard |
 
+#### Admin (บัญชีผู้ดูแล)
+
+| Method | Path | คำอธิบาย |
+|--------|------|---------|
+| `POST` | `/api/admin/logout` | ออกจากระบบ |
+| `GET` | `/api/admin/profile` | ดูโปรไฟล์ตัวเอง |
+| `PUT` | `/api/admin/profile` | แก้ไขโปรไฟล์ตัวเอง |
+| `POST` | `/api/admin/change-password` | เปลี่ยนรหัสผ่านตัวเอง |
+
 #### Equipment (เครื่องมือแพทย์)
 
 | Method | Path | คำอธิบาย |

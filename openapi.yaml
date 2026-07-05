@@ -98,6 +98,49 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/Success" }
         "401": { $ref: "#/components/responses/Error" }
+  /api/admin/profile:
+    get:
+      tags: [Auth]
+      summary: Get the current admin's profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "401": { $ref: "#/components/responses/Error" }
+    put:
+      tags: [Auth]
+      summary: Update the current admin's profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name, email]
+              properties:
+                full_name: { type: string }
+                email: { type: string, format: email }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "401": { $ref: "#/components/responses/Error" }
+  /api/admin/change-password:
+    post:
+      tags: [Auth]
+      summary: Change the current admin's password
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_password, new_password]
+              properties:
+                old_password: { type: string, format: password }
+                new_password: { type: string, format: password, minLength: 8 }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "401": { $ref: "#/components/responses/Error" }
 
   /api/tickets:
     get:
