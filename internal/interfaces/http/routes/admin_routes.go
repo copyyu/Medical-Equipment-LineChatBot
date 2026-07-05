@@ -15,9 +15,10 @@ func SetupAdminRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, admin
 	// Admin routes
 	admin := api.Group("/admin")
 
-	// Public routes - ไม่ต้อง auth
-	admin.Post("/login", adminHandler.Login)
-	admin.Post("/register", adminHandler.Register)
+	// Public routes - ไม่ต้อง auth (rate-limited to blunt brute-force/abuse)
+	authLimiter := middleware.AuthRateLimiter()
+	admin.Post("/login", authLimiter, adminHandler.Login)
+	admin.Post("/register", authLimiter, adminHandler.Register)
 
 	// Protected routes - ต้อง auth (Bearer token)
 	adminProtected := admin.Group("", middleware.AuthMiddleware(adminUsecase))
