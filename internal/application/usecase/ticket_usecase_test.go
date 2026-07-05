@@ -13,9 +13,9 @@ import (
 
 func TestGetTicketList_NormalizesMissingPagination(t *testing.T) {
 	repo := mock_repository.NewMockTicketRepository(t)
-	// page=0/limit=0 must be normalized to page=1/limit=defaultTicketPageLimit
+	// page=0/limit=0 must be normalized to page=1/limit=defaultPageLimit
 	repo.EXPECT().
-		GetAllTickets(1, defaultTicketPageLimit, "", "", "", "", "").
+		GetAllTickets(1, defaultPageLimit, "", "", "", "", "").
 		Return([]entity.Ticket{}, int64(0), nil).
 		Once()
 
@@ -25,13 +25,13 @@ func TestGetTicketList_NormalizesMissingPagination(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, 1, resp.Pagination.Page)
-	assert.Equal(t, defaultTicketPageLimit, resp.Pagination.Limit)
+	assert.Equal(t, defaultPageLimit, resp.Pagination.Limit)
 }
 
 func TestGetTicketList_CapsExcessiveLimit(t *testing.T) {
 	repo := mock_repository.NewMockTicketRepository(t)
 	repo.EXPECT().
-		GetAllTickets(2, maxTicketPageLimit, "", "", "", "", "").
+		GetAllTickets(2, maxPageLimit, "", "", "", "", "").
 		Return([]entity.Ticket{}, int64(0), nil).
 		Once()
 
@@ -39,7 +39,7 @@ func TestGetTicketList_CapsExcessiveLimit(t *testing.T) {
 	resp, err := uc.GetTicketList(context.Background(), dto.TicketListRequest{Page: 2, Limit: 9999})
 
 	assert.NoError(t, err)
-	assert.Equal(t, maxTicketPageLimit, resp.Pagination.Limit)
+	assert.Equal(t, maxPageLimit, resp.Pagination.Limit)
 }
 
 func TestGetTicketByID_NotFoundReturnsNil(t *testing.T) {

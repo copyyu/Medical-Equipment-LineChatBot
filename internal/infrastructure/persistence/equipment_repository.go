@@ -8,6 +8,7 @@ import (
 	"medical-webhook/internal/infrastructure/database"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // EquipmentRepository implements repository.EquipmentRepository using GORM
@@ -151,7 +152,10 @@ func (r *EquipmentRepository) CreateOrUpdate(ctx context.Context, equipment *ent
 
 // Update updates equipment
 func (r *EquipmentRepository) Update(ctx context.Context, equipment *entity.Equipment) error {
-	err := r.db.WithContext(ctx).Save(equipment).Error
+	// Omit associations: equipment is loaded with its Model and Department
+	// preloaded (FindByID), and a plain Save would upsert those shared catalog
+	// rows with the in-memory snapshot, corrupting them from an unrelated edit.
+	err := r.db.WithContext(ctx).Omit(clause.Associations).Save(equipment).Error
 	if err != nil {
 		log.Printf("Error updating equipment: %v", err)
 		return err
@@ -244,7 +248,7 @@ func (r *EquipmentRepository) CountWithFilter(ctx context.Context, status, searc
 	}
 
 	if search != "" {
-		searchPattern := "%" + search + "%"
+		searchPattern := "%" + escapeLike(search) + "%"
 		query = query.Where(
 			"equipments.id_code ILIKE ? OR "+
 				"equipments.serial_no ILIKE ? OR "+
@@ -299,7 +303,7 @@ func (r *EquipmentRepository) FindAllWithFilter(ctx context.Context, limit, offs
 	}
 
 	if search != "" {
-		searchPattern := "%" + search + "%"
+		searchPattern := "%" + escapeLike(search) + "%"
 		query = query.Where(
 			"equipments.id_code ILIKE ? OR "+
 				"equipments.serial_no ILIKE ? OR "+

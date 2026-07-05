@@ -30,7 +30,4 @@ func SetupAdminRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, admin
 	adminProtected.Get("/profile", adminHandler.GetProfile)
 	adminProtected.Put("/profile", adminHandler.UpdateProfile)
 	adminProtected.Post("/change-password", adminHandler.ChangePassword)
-	// adminProtected.Get("/profile", adminHandler.GetProfile)
-	// adminProtected.Put("/profile", adminHandler.UpdateProfile)
-	// adminProtected.Post("/change-password", adminHandler.ChangePassword)
 }
