@@ -2,6 +2,7 @@ package routes
 
 import (
 	"medical-webhook/internal/application/usecase"
+	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 
@@ -21,11 +22,11 @@ func SetupAdminRoutes(app *fiber.App, adminHandler *handlers.AdminHandler, admin
 	// Protected routes - ต้อง auth (Bearer token)
 	adminProtected := admin.Group("", middleware.AuthMiddleware(adminUsecase))
 	adminProtected.Post("/logout", adminHandler.Logout)
-	// Registration creates a full-privilege admin account, so it must only be
-	// reachable by an already-authenticated admin — never from the public
-	// internet. The first admin is provisioned at startup from environment
-	// variables (see bootstrap.ensureInitialAdmin).
-	adminProtected.Post("/register", adminHandler.Register)
+	// Registration creates an admin account, so it must only be reachable by an
+	// authenticated super admin — never from the public internet. The first
+	// super admin is provisioned at startup from environment variables (see
+	// bootstrap.ensureInitialAdmin).
+	adminProtected.Post("/register", middleware.RequireRole(entity.RoleSuperAdmin), adminHandler.Register)
 	// adminProtected.Get("/profile", adminHandler.GetProfile)
 	// adminProtected.Put("/profile", adminHandler.UpdateProfile)
 	// adminProtected.Post("/change-password", adminHandler.ChangePassword)

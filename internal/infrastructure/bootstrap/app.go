@@ -263,35 +263,22 @@ func InitializeApp() (*Application, func(), error) {
 	}, cleanup, nil
 }
 
-// ensureInitialAdmin creates the first admin account from configuration if the
-// admins table is empty. It is a no-op when at least one admin already exists or
-// when the INITIAL_ADMIN_* env vars are not provided.
+// ensureInitialAdmin makes sure a super admin exists so the admin surface can be
+// managed. Creating new admins requires the super-admin role, so without this a
+// fresh install would have no way to bootstrap that first account.
 func ensureInitialAdmin(adminService service.AdminService, cfg config.InitialAdminConfig) {
 	ctx := context.Background()
 
-	admins, err := adminService.GetAllAdmins(ctx, 1, 0)
-	if err != nil {
-		log.Printf("⚠️  Could not check for existing admins, skipping initial-admin bootstrap: %v", err)
-		return
+	err := adminService.EnsureInitialSuperAdmin(ctx, cfg.Username, cfg.Email, cfg.Password, cfg.FullName)
+	switch {
+	case err == nil:
+		// A super admin already existed, or one was just provisioned/promoted.
+	case errors.Is(err, service.ErrNoInitialAdminConfig):
+		log.Println("⚠️  No super admin exists and INITIAL_ADMIN_USERNAME/INITIAL_ADMIN_PASSWORD are not set. " +
+			"Set them to provision one (creating admins requires the super-admin role).")
+	default:
+		log.Printf("⚠️  Failed to ensure an initial super admin (%q): %v", cfg.Username, err)
 	}
-	if len(admins) > 0 {
-		return // an admin already exists — nothing to do
-	}
-
-	if cfg.Username == "" || cfg.Password == "" {
-		log.Println("⚠️  No admin accounts exist and INITIAL_ADMIN_USERNAME/INITIAL_ADMIN_PASSWORD are not set. " +
-			"Set them to provision the first admin (registration is authenticated-only).")
-		return
-	}
-
-	if _, err := adminService.Register(ctx, cfg.Username, cfg.Email, cfg.Password, cfg.FullName); err != nil {
-		if errors.Is(err, service.ErrUsernameExists) || errors.Is(err, service.ErrEmailExists) {
-			return // created concurrently / already present
-		}
-		log.Printf("⚠️  Failed to provision initial admin %q: %v", cfg.Username, err)
-		return
-	}
-	log.Printf("✅ Provisioned initial admin account %q", cfg.Username)
 }
 
 // Start - start the server

@@ -97,6 +97,14 @@ func Unauthorized(c *fiber.Ctx, message string) error {
 	})
 }
 
+// Forbidden response
+func Forbidden(c *fiber.Ctx, message string) error {
+	return c.Status(fiber.StatusForbidden).JSON(Response{
+		Success: false,
+		Error:   message,
+	})
+}
+
 // NotFound response
 func NotFound(c *fiber.Ctx, message string) error {
 	return c.Status(fiber.StatusNotFound).JSON(Response{
