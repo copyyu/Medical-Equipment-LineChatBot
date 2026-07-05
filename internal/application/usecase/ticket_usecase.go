@@ -76,6 +76,7 @@ var ErrDuplicateTicket = fmt.Errorf("duplicate ticket exists")
 
 // GetTicketList returns paginated ticket list
 func (uc *TicketUseCase) GetTicketList(ctx context.Context, req dto.TicketListRequest) (*dto.TicketListResponse, error) {
+	req.Page, req.Limit = clampPagination(req.Page, req.Limit)
 	tickets, total, err := uc.ticketRepo.GetAllTickets(
 		req.Page,
 		req.Limit,

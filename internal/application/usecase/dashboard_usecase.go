@@ -129,18 +129,6 @@ func (u *dashboardUsecase) GetDashboardSummary(ctx context.Context) (*dto.Dashbo
 	}, nil
 }
 
-// Helper functions
-func formatJobID(id uint) string {
-	return fmt.Sprintf("JOB-2026-%04d", id)
-}
-
-func getAssignee(name string) string {
-	if name == "" {
-		return "ยังไม่ได้มอบหมาย"
-	}
-	return name
-}
-
 func formatTimeAgo(t time.Time) string {
 	diff := time.Since(t)
 
