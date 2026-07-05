@@ -57,10 +57,6 @@ func NewTicketUseCase(
 var ErrDuplicateTicket = fmt.Errorf("duplicate ticket exists")
 
 const (
-	// defaultTicketPageLimit / maxTicketPageLimit bound pagination so a missing
-	// or hostile limit can't cause a divide-by-zero or an unbounded query.
-	defaultTicketPageLimit = 20
-	maxTicketPageLimit     = 100
 	// maxTicketCreateAttempts bounds retries when a generated ticket number
 	// collides with a concurrent insert (rejected by the ticket_no unique index).
 	maxTicketCreateAttempts = 3
@@ -83,14 +79,7 @@ func goSafe(name string, fn func()) {
 // GetTicketList returns paginated ticket list
 func (uc *TicketUseCase) GetTicketList(ctx context.Context, req dto.TicketListRequest) (*dto.TicketListResponse, error) {
 	// Normalize pagination to avoid a bad offset or divide-by-zero on TotalPages.
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.Limit < 1 {
-		req.Limit = defaultTicketPageLimit
-	} else if req.Limit > maxTicketPageLimit {
-		req.Limit = maxTicketPageLimit
-	}
+	req.Page, req.Limit = clampPagination(req.Page, req.Limit)
 
 	tickets, total, err := uc.ticketRepo.GetAllTickets(
 		req.Page,

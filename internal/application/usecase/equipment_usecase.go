@@ -189,7 +189,7 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 
 	// Publish equipment updated event
 	if u.eventBus != nil {
-		go func() {
+		goSafe("publish equipment.updated", func() {
 			publishErr := u.eventBus.Publish(context.Background(), event.NewEvent(event.EquipmentUpdated, map[string]interface{}{
 				"id_code": idCode,
 				"status":  string(equipment.Status),
@@ -197,7 +197,7 @@ func (u *equipmentUsecase) UpdateEquipment(ctx context.Context, idCode string, r
 			if publishErr != nil {
 				log.Printf("Usecase: Failed to publish equipment.updated event: %v", publishErr)
 			}
-		}()
+		})
 	}
 
 	log.Printf("Usecase: UpdateEquipment - Equipment ID: %s updated successfully", idCode)
@@ -223,14 +223,14 @@ func (u *equipmentUsecase) DeleteEquipment(ctx context.Context, idCode string) e
 
 	// Publish equipment deleted event
 	if u.eventBus != nil {
-		go func() {
+		goSafe("publish equipment.deleted", func() {
 			publishErr := u.eventBus.Publish(context.Background(), event.NewEvent(event.EquipmentDeleted, map[string]interface{}{
 				"id_code": idCode,
 			}))
 			if publishErr != nil {
 				log.Printf("Usecase: Failed to publish equipment.deleted event: %v", publishErr)
 			}
-		}()
+		})
 	}
 
 	log.Printf("Usecase: DeleteEquipment - Equipment ID: %s deleted successfully", idCode)
@@ -398,7 +398,7 @@ func (u *equipmentUsecase) CreateEquipment(ctx context.Context, req dto.CreateEq
 
 	// 12. Publish equipment created event
 	if u.eventBus != nil {
-		go func() {
+		goSafe("publish equipment.created", func() {
 			publishErr := u.eventBus.Publish(context.Background(), event.NewEvent(event.EquipmentCreated, map[string]interface{}{
 				"id_code":   equipment.IDCode,
 				"serial_no": req.SerialNo,
@@ -407,7 +407,7 @@ func (u *equipmentUsecase) CreateEquipment(ctx context.Context, req dto.CreateEq
 			if publishErr != nil {
 				log.Printf("Usecase: Failed to publish equipment.created event: %v", publishErr)
 			}
-		}()
+		})
 	}
 
 	// 13. Map to response DTO using mapper
