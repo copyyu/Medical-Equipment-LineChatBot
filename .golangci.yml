@@ -1,0 +1,22 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - gosimple
+    - typecheck
+
+linters-settings:
+  errcheck:
+    check-blank: false
+
+issues:
+  exclude-dirs:
+    - internal/mocks
+  max-issues-per-linter: 50
+  max-same-issues: 5
