@@ -24,6 +24,16 @@ type Config struct {
 	DB                DatabaseConfig
 	Contact           ContactConfig
 	HTTP              HTTPConfig
+	Admin             AdminBootstrapConfig
+}
+
+// AdminBootstrapConfig seeds the first super-admin on startup when no admin
+// exists yet (registration is otherwise restricted to super-admins).
+type AdminBootstrapConfig struct {
+	Username string
+	Password string
+	Email    string
+	FullName string
 }
 
 // HTTPConfig holds server, client, and CORS timeouts/settings.
@@ -89,6 +99,12 @@ func Load() *Config {
 			Email:          getEnvOrDefault("CONTACT_EMAIL", ""),
 			EmergencyPhone: getEnvOrDefault("CONTACT_EMERGENCY_PHONE", ""),
 			WorkingHours:   getEnvOrDefault("CONTACT_WORKING_HOURS", "จ-ศ 08:00-17:00"),
+		},
+		Admin: AdminBootstrapConfig{
+			Username: os.Getenv("ADMIN_BOOTSTRAP_USERNAME"),
+			Password: os.Getenv("ADMIN_BOOTSTRAP_PASSWORD"),
+			Email:    os.Getenv("ADMIN_BOOTSTRAP_EMAIL"),
+			FullName: getEnvOrDefault("ADMIN_BOOTSTRAP_FULLNAME", "Super Admin"),
 		},
 		HTTP: HTTPConfig{
 			ReadTimeout:     getEnvAsDuration("HTTP_READ_TIMEOUT_SEC", 15),
