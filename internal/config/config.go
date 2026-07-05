@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -17,8 +19,22 @@ type Config struct {
 	OCRURL            string
 	RedisURL          string
 	BaseURL           string
+	AppEnv            string
+	LogLevel          string
 	DB                DatabaseConfig
 	Contact           ContactConfig
+	HTTP              HTTPConfig
+}
+
+// HTTPConfig holds server, client, and CORS timeouts/settings.
+type HTTPConfig struct {
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	IdleTimeout     time.Duration
+	ShutdownTimeout time.Duration
+	AllowedOrigins  string
+	LineAPITimeout  time.Duration
+	OCRAPITimeout   time.Duration
 }
 
 type DatabaseConfig struct {
@@ -51,10 +67,12 @@ func Load() *Config {
 	return &Config{
 		LineChannelToken:  os.Getenv("LINE_CHANNEL_TOKEN"),
 		LineChannelSecret: os.Getenv("LINE_CHANNEL_SECRET"),
-		Port:              os.Getenv("PORT"),
+		Port:              getEnvOrDefault("PORT", "3000"),
 		OCRURL:            os.Getenv("OCR_API_URL"),
 		RedisURL:          getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		BaseURL:           os.Getenv("BASE_URL"),
+		AppEnv:            getEnvOrDefault("APP_ENV", "development"),
+		LogLevel:          getEnvOrDefault("LOG_LEVEL", "info"),
 		DB: DatabaseConfig{
 			Host:            os.Getenv("DB_HOST"),
 			Port:            os.Getenv("DB_PORT"),
@@ -72,7 +90,41 @@ func Load() *Config {
 			EmergencyPhone: getEnvOrDefault("CONTACT_EMERGENCY_PHONE", ""),
 			WorkingHours:   getEnvOrDefault("CONTACT_WORKING_HOURS", "จ-ศ 08:00-17:00"),
 		},
+		HTTP: HTTPConfig{
+			ReadTimeout:     getEnvAsDuration("HTTP_READ_TIMEOUT_SEC", 15),
+			WriteTimeout:    getEnvAsDuration("HTTP_WRITE_TIMEOUT_SEC", 120),
+			IdleTimeout:     getEnvAsDuration("HTTP_IDLE_TIMEOUT_SEC", 120),
+			ShutdownTimeout: getEnvAsDuration("SHUTDOWN_TIMEOUT_SEC", 15),
+			AllowedOrigins:  getEnvOrDefault("ALLOWED_ORIGINS", "*"),
+			LineAPITimeout:  getEnvAsDuration("LINE_API_TIMEOUT_SEC", 10),
+			OCRAPITimeout:   getEnvAsDuration("OCR_API_TIMEOUT_SEC", 90),
+		},
 	}
+}
+
+// Validate ensures all required configuration is present, failing fast at
+// startup rather than surfacing confusing errors — or security holes such as an
+// empty LINE channel secret (which would make webhook signatures forgeable) —
+// only at request time.
+func (c *Config) Validate() error {
+	var missing []string
+	check := func(name, val string) {
+		if strings.TrimSpace(val) == "" {
+			missing = append(missing, name)
+		}
+	}
+
+	check("LINE_CHANNEL_TOKEN", c.LineChannelToken)
+	check("LINE_CHANNEL_SECRET", c.LineChannelSecret)
+	check("DB_HOST", c.DB.Host)
+	check("DB_PORT", c.DB.Port)
+	check("DB_USER", c.DB.User)
+	check("DB_NAME", c.DB.Name)
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required environment variables: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }
 
 // getEnvOrDefault returns the environment variable value or a default
@@ -91,4 +143,10 @@ func getEnvAsInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// getEnvAsDuration returns the environment variable interpreted as a number of
+// seconds, or defaultSeconds if unset/invalid.
+func getEnvAsDuration(key string, defaultSeconds int) time.Duration {
+	return time.Duration(getEnvAsInt(key, defaultSeconds)) * time.Second
 }

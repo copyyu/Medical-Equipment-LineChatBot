@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"fmt"
 	"log"
 	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/service"
@@ -9,12 +10,14 @@ import (
 	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
+	"medical-webhook/internal/infrastructure/logger"
 	"medical-webhook/internal/infrastructure/persistence"
 	redisinfra "medical-webhook/internal/infrastructure/redis"
 	"medical-webhook/internal/infrastructure/session"
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
+	apperrors "medical-webhook/internal/utils/errors"
 	"medical-webhook/internal/utils/scheduler"
 
 	"github.com/gofiber/fiber/v2"
@@ -36,8 +39,16 @@ type Application struct {
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
 func InitializeApp() (*Application, func(), error) {
-	// Load configuration
+	// Load and validate configuration (fail fast on missing required env vars,
+	// e.g. an empty LINE_CHANNEL_SECRET that would make webhook signatures forgeable)
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		return nil, nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	// Initialize structured logging (bridges the standard log package too)
+	logger.Init(cfg.AppEnv, cfg.LogLevel)
+	log.Printf("Starting application (env=%s, log_level=%s)", cfg.AppEnv, cfg.LogLevel)
 
 	// Connect Database
 	if err := database.Connect(cfg); err != nil {
@@ -45,7 +56,7 @@ func InitializeApp() (*Application, func(), error) {
 	}
 
 	// Initialize LINE client
-	lineClient, err := client.NewClient(cfg.LineChannelToken)
+	lineClient, err := client.NewClient(cfg.LineChannelToken, cfg.HTTP.LineAPITimeout)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -53,7 +64,7 @@ func InitializeApp() (*Application, func(), error) {
 	// Initialize OCR client (optional - may be nil if not configured)
 	var ocrClient *client.OCRClient
 	if cfg.OCRURL != "" {
-		ocrClient = client.NewOCRClient(cfg.OCRURL)
+		ocrClient = client.NewOCRClient(cfg.OCRURL, cfg.HTTP.OCRAPITimeout)
 		log.Printf("OCR client initialized: %s", cfg.OCRURL)
 	} else {
 		log.Println("OCR_API_URL not configured, OCR features disabled")
@@ -70,6 +81,12 @@ func InitializeApp() (*Application, func(), error) {
 	var eventBus event.EventBus
 	if redisinfra.GetClient() != nil {
 		eventBus = redisinfra.NewEventBus(redisinfra.GetClient())
+	}
+
+	// Idempotency store for de-duplicating LINE webhook events (nil if Redis down)
+	var idempotencyStore *redisinfra.IdempotencyStore
+	if redisinfra.GetClient() != nil {
+		idempotencyStore = redisinfra.NewIdempotencyStore(redisinfra.GetClient(), 0)
 	}
 
 	// Initialize repositories (Infrastructure Layer)
@@ -113,6 +130,9 @@ func InitializeApp() (*Application, func(), error) {
 		equipmentModelRepo,
 	)
 
+	// Initialize transaction manager
+	txManager := database.NewTxManager(database.GetDB())
+
 	// Initialize use cases (Application Layer)
 	ticketRepo := persistence.NewTicketRepository(database.GetDB())
 	ticketCategoryRepo := persistence.NewTicketCategoryRepository(database.GetDB())
@@ -126,6 +146,7 @@ func InitializeApp() (*Application, func(), error) {
 		ticketHistoryRepo,
 		ticketNotifyService,
 		eventBus,
+		txManager,
 	)
 
 	messageUseCase := usecase.NewMessageUseCase(
@@ -172,7 +193,7 @@ func InitializeApp() (*Application, func(), error) {
 	activityLogUseCase := usecase.NewActivityLogUseCase(ticketHistoryRepo)
 
 	// Initialize handlers (Interface Layer)
-	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
+	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase, idempotencyStore)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
 	equipmentImportHandler := handlers.NewEquipmentImportHandler(equipmentImportUseCase)
 	adminHandler := handlers.NewAdminHandler(adminUseCase)
@@ -183,17 +204,11 @@ func InitializeApp() (*Application, func(), error) {
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
-		AppName: "Medical Equipment Webhook",
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				code = e.Code
-			}
-			return c.Status(code).JSON(fiber.Map{
-				"error":   err.Error(),
-				"success": false,
-			})
-		},
+		AppName:      "Medical Equipment Webhook",
+		ErrorHandler: apperrors.FiberErrorHandler,
+		ReadTimeout:  cfg.HTTP.ReadTimeout,
+		WriteTimeout: cfg.HTTP.WriteTimeout,
+		IdleTimeout:  cfg.HTTP.IdleTimeout,
 	})
 
 	// Initialize SSE handler for real-time event streaming
@@ -201,7 +216,7 @@ func InitializeApp() (*Application, func(), error) {
 	sseHandler := handlers.NewSSEHandler(eventBus)
 
 	// Register Middlewares
-	middleware.FiberMiddleware(app)
+	middleware.FiberMiddleware(app, cfg.HTTP.AllowedOrigins)
 
 	// Register Routes (SSE handler passed for public registration before 404 catch-all)
 	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler, activityLogHandler, sseHandler, adminUseCase)
@@ -257,7 +272,8 @@ func (a *Application) Start() error {
 	return a.Server.Listen(":" + a.Config.Port)
 }
 
-// Shutdown - graceful shutdown
+// Shutdown - graceful shutdown, bounded by the configured timeout so a stuck
+// in-flight request cannot block the process from exiting indefinitely.
 func (a *Application) Shutdown() error {
-	return a.Server.Shutdown()
+	return a.Server.ShutdownWithTimeout(a.Config.HTTP.ShutdownTimeout)
 }

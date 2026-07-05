@@ -251,9 +251,9 @@ func GetOCRErrorFlex() map[string]interface{} {
 			"spacing": "md",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text",
-					"text": "ระบบไม่สามารถอ่านหมายเลขจากรูปได้",
-					"size": "sm",
+					"type":  "text",
+					"text":  "ระบบไม่สามารถอ่านหมายเลขจากรูปได้",
+					"size":  "sm",
 					"color": ColorText,
 				},
 				map[string]interface{}{
@@ -298,8 +298,8 @@ func GetRetryPhotoFlex() map[string]interface{} {
 			"spacing": "md",
 			"contents": []interface{}{
 				map[string]interface{}{
-					"type": "text",
-					"text": "ขออภัยค่ะ รูปอาจไม่ชัด",
+					"type":  "text",
+					"text":  "ขออภัยค่ะ รูปอาจไม่ชัด",
 					"color": ColorText,
 				},
 				map[string]interface{}{

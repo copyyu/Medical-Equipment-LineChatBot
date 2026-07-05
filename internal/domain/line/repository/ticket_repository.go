@@ -1,12 +1,16 @@
 package repository
 
-import "medical-webhook/internal/domain/line/entity"
+import (
+	"context"
+
+	"medical-webhook/internal/domain/line/entity"
+)
 
 type TicketRepository interface {
-	CreateTicket(ticket *entity.Ticket) error
+	CreateTicket(ctx context.Context, ticket *entity.Ticket) error
 	FindTicketByNo(ticketNo string) (*entity.Ticket, error)
 	FindTicketByID(id uint) (*entity.Ticket, error)
-	UpdateTicket(ticket *entity.Ticket) error
+	UpdateTicket(ctx context.Context, ticket *entity.Ticket) error
 	UpdateTicketStatus(ticketID uint, newStatus entity.TicketStatus, note string) error
 	GetTicketsByLineUserID(lineUserID string) ([]entity.Ticket, error)
 	GetLatestTicketNumber(year int) (string, error)

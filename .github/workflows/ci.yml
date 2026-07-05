@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, develop]
 
 jobs:
   build-and-test:
@@ -22,6 +22,19 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Check formatting (gofmt)
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "❌ These files are not gofmt-formatted (run 'gofmt -w .'):"
+            echo "$unformatted"
+            exit 1
+          fi
+          echo "✅ gofmt clean"
+
+      - name: Static analysis (go vet)
+        run: go vet ./...
+
       - name: Check mock freshness
         run: |
           go run github.com/vektra/mockery/v2@latest
@@ -35,5 +48,11 @@ jobs:
       - name: Build
         run: go build ./...
 
-      - name: Run tests
-        run: go test ./... -v -count=1
+      - name: Run tests (race detector + coverage)
+        run: go test ./... -race -count=1 -coverprofile=coverage.out -covermode=atomic
+
+      - name: Vulnerability scan (govulncheck)
+        # Non-blocking for now: surfaces known vulnerabilities in dependencies
+        # without failing the build. Remove continue-on-error to make it a gate.
+        continue-on-error: true
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...

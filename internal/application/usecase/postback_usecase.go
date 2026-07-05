@@ -191,7 +191,7 @@ func (uc *MessageUseCase) HandlePostbackEvent(event webhook.PostbackEvent) error
 				log.Printf("❌ GetUserTickets error: %v", err)
 				return uc.lineRepo.ReplyMessage(replyToken, "❌ ไม่สามารถดึงข้อมูลได้ กรุณาลองใหม่ค่ะ")
 			}
-			
+
 			var filteredTickets []entity.Ticket
 			if statusFilter == "ALL" {
 				filteredTickets = tickets
@@ -409,6 +409,7 @@ func (uc *MessageUseCase) handleSubmitIssue(event webhook.PostbackEvent, replyTo
 	}
 
 	ticket, err := uc.ticketUseCase.CreateTicketFromLINE(
+		context.Background(),
 		serial,
 		desc,
 		userID,
