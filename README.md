@@ -280,7 +280,7 @@ curl http://localhost:3000/
 | Method | Path | คำอธิบาย |
 |--------|------|---------|
 | `POST` | `/api/admin/login` | เข้าสู่ระบบ Admin (rate-limited 10/นาที/IP) |
-| `POST` | `/api/admin/register` | สมัคร Admin (rate-limited) |
+| `POST` | `/api/admin/register` | สร้าง Admin — **ต้อง auth เป็น super-admin** (bootstrap คนแรกผ่าน `ADMIN_BOOTSTRAP_*`) |
 
 ### Protected (ต้องผ่านการยืนยันตัวตน)
 

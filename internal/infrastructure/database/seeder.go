@@ -4,6 +4,7 @@ import (
 	"log"
 	"medical-webhook/internal/domain/line/entity"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -27,4 +28,53 @@ func SeedTicketCategories(db *gorm.DB) {
 	} else {
 		log.Println("Default ticket categories seeded successfully.")
 	}
+}
+
+// SeedBootstrapAdmin creates the first super-admin from the provided credentials
+// when no admin exists yet. It is idempotent (no-op once any admin exists) and
+// safe to call on every startup. If no admin exists and no credentials are
+// provided, it logs guidance since /api/admin/register is restricted to
+// super-admins.
+func SeedBootstrapAdmin(db *gorm.DB, username, password, email, fullName string) {
+	var count int64
+	if err := db.Model(&entity.Admin{}).Count(&count).Error; err != nil {
+		log.Printf("bootstrap admin: could not count admins: %v", err)
+		return
+	}
+	if count > 0 {
+		return // admins already exist
+	}
+
+	if username == "" || password == "" {
+		log.Println("⚠️ No admin exists. Set ADMIN_BOOTSTRAP_USERNAME and " +
+			"ADMIN_BOOTSTRAP_PASSWORD to create the first super-admin " +
+			"(/api/admin/register is restricted to super-admins).")
+		return
+	}
+
+	if email == "" {
+		email = username + "@local"
+	}
+	if fullName == "" {
+		fullName = "Super Admin"
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("bootstrap admin: failed to hash password: %v", err)
+		return
+	}
+
+	admin := &entity.Admin{
+		Username:     username,
+		Email:        email,
+		PasswordHash: string(hash),
+		FullName:     fullName,
+		Role:         string(entity.RoleSuperAdmin),
+	}
+	if err := db.Create(admin).Error; err != nil {
+		log.Printf("bootstrap admin: failed to create super-admin: %v", err)
+		return
+	}
+	log.Printf("✅ Bootstrapped super-admin '%s'", username)
 }

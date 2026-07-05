@@ -68,7 +68,11 @@ paths:
   /api/admin/register:
     post:
       tags: [Auth]
-      summary: Register a new admin (rate-limited)
+      summary: Create a new admin (super-admin only)
+      description: >
+        Requires an authenticated super-admin. Bootstrap the first super-admin
+        via the ADMIN_BOOTSTRAP_* environment variables.
+      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -83,8 +87,9 @@ paths:
                 full_name: { type: string }
       responses:
         "201": { $ref: "#/components/responses/Success" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
-        "429": { $ref: "#/components/responses/Error" }
   /api/admin/logout:
     post:
       tags: [Auth]

@@ -38,10 +38,15 @@ All API errors share:
 `code` is stable/machine-readable (see `openapi.yaml` for the full list). 5xx
 responses use a generic message and never leak internal details.
 
-## Rate limiting
+## Rate limiting & admin registration
 
-`/api/admin/login` and `/api/admin/register` are limited to **10 requests/minute
-per IP**; exceeding it returns `429` with `code: RATE_LIMITED`.
+`/api/admin/login` is limited to **10 requests/minute per IP**; exceeding it
+returns `429` with `code: RATE_LIMITED`.
+
+`/api/admin/register` is **not public** — it requires an authenticated
+super-admin. Bootstrap the first super-admin with the `ADMIN_BOOTSTRAP_*` env
+vars (see [CONFIGURATION.md](CONFIGURATION.md)); it is created on startup only
+when no admin exists.
 
 ## Graceful shutdown
 

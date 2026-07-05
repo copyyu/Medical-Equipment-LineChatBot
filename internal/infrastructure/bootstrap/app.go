@@ -55,6 +55,9 @@ func InitializeApp() (*Application, func(), error) {
 		return nil, nil, err
 	}
 
+	// Create the first super-admin if none exists (idempotent)
+	database.SeedBootstrapAdmin(database.GetDB(), cfg.Admin.Username, cfg.Admin.Password, cfg.Admin.Email, cfg.Admin.FullName)
+
 	// Initialize LINE client
 	lineClient, err := client.NewClient(cfg.LineChannelToken, cfg.HTTP.LineAPITimeout)
 	if err != nil {

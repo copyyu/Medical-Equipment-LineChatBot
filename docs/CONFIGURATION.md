@@ -38,6 +38,19 @@ See [`.env.example`](../.env.example) for a ready-to-copy template.
 | `LINE_API_TIMEOUT_SEC` | `10` | HTTP timeout for outbound LINE API calls |
 | `OCR_API_TIMEOUT_SEC` | `90` | HTTP timeout for OCR calls |
 
+## Admin bootstrap
+
+Registration (`POST /api/admin/register`) is restricted to super-admins. On first
+deploy, set these to create the initial super-admin (created only when **no admin
+exists yet** — idempotent afterwards).
+
+| Variable | Default | Description |
+|---|---|---|
+| `ADMIN_BOOTSTRAP_USERNAME` | — | First super-admin username |
+| `ADMIN_BOOTSTRAP_PASSWORD` | — | First super-admin password (bcrypt-hashed at rest) |
+| `ADMIN_BOOTSTRAP_EMAIL` | `<username>@local` | First super-admin email |
+| `ADMIN_BOOTSTRAP_FULLNAME` | `Super Admin` | Display name |
+
 ## Database pool
 
 | Variable | Default |
