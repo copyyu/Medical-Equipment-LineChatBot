@@ -36,9 +36,10 @@ func Setup(app *fiber.App, webhookHandler *handlers.WebhookHandler,
 	// Setup admin routes (login = public, rest = protected)
 	SetupAdminRoutes(app, adminHandler, adminUsecase)
 
-	// Setup SSE routes (public — MUST be before protected routes because
-	// notification_routes uses app.Group("", AuthMiddleware) which catches all subsequent routes)
-	SetupSSERoutes(app, sseHandler)
+	// Setup SSE routes (authenticated via ?token= — MUST be before the
+	// notification_routes app.Group("", AuthMiddleware) which would otherwise
+	// catch all subsequent routes)
+	SetupSSERoutes(app, sseHandler, adminUsecase)
 
 	// ===== Protected routes (require auth) =====
 

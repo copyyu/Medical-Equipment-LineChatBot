@@ -215,9 +215,19 @@ func buildEquipmentRow(num int, e entity.Equipment) map[string]interface{} {
 	}
 }
 
+// replacementDeadlineMonth is the month of the replacement year by which
+// equipment is expected to be replaced (August, matching the August alert
+// round). calcMonthsRemaining counts the months from now until that deadline.
+const replacementDeadlineMonth = 8
+
+// calcMonthsRemaining returns the number of months from now until the
+// replacement deadline (replacementDeadlineMonth of replacementYear). The result
+// is negative once that deadline has passed. It is equivalent to:
+//
+//	(replacementYear - thisYear)*12 + (replacementDeadlineMonth - thisMonth)
 func calcMonthsRemaining(replacementYear int) int {
 	now := time.Now()
-	return (replacementYear-now.Year())*12 - int(now.Month()) + 8
+	return (replacementYear-now.Year())*12 - int(now.Month()) + replacementDeadlineMonth
 }
 
 func buildExportFooter(downloadURL string, totalCount int) map[string]interface{} {
