@@ -154,7 +154,9 @@ func (uc *NotificationUseCase) broadcastAlerts(ctx context.Context, alerts []dto
 			SentAt:      now,
 			ErrorMsg:    errorMsg,
 		}
-		uc.notificationRepo.CreateLog(ctx, notifLog)
+		if logErr := uc.notificationRepo.CreateLog(ctx, notifLog); logErr != nil {
+			log.Printf("⚠️ Failed to persist notification log for equipment %d (round %s): %v", alert.EquipmentID, notifyRound, logErr)
+		}
 	}
 
 	if err != nil {
