@@ -67,7 +67,7 @@ func Load() *Config {
 	return &Config{
 		LineChannelToken:  os.Getenv("LINE_CHANNEL_TOKEN"),
 		LineChannelSecret: os.Getenv("LINE_CHANNEL_SECRET"),
-		Port:              getEnvOrDefault("PORT", "8080"),
+		Port:              getEnvOrDefault("PORT", "3000"),
 		OCRURL:            os.Getenv("OCR_API_URL"),
 		RedisURL:          getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		BaseURL:           os.Getenv("BASE_URL"),
