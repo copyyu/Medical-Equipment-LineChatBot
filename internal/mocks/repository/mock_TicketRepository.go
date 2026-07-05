@@ -3,6 +3,7 @@
 package mock_repository
 
 import (
+	context "context"
 	entity "medical-webhook/internal/domain/line/entity"
 
 	mock "github.com/stretchr/testify/mock"
@@ -21,17 +22,17 @@ func (_m *MockTicketRepository) EXPECT() *MockTicketRepository_Expecter {
 	return &MockTicketRepository_Expecter{mock: &_m.Mock}
 }
 
-// CreateTicket provides a mock function with given fields: ticket
-func (_m *MockTicketRepository) CreateTicket(ticket *entity.Ticket) error {
-	ret := _m.Called(ticket)
+// CreateTicket provides a mock function with given fields: ctx, ticket
+func (_m *MockTicketRepository) CreateTicket(ctx context.Context, ticket *entity.Ticket) error {
+	ret := _m.Called(ctx, ticket)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateTicket")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*entity.Ticket) error); ok {
-		r0 = rf(ticket)
+	if rf, ok := ret.Get(0).(func(context.Context, *entity.Ticket) error); ok {
+		r0 = rf(ctx, ticket)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -45,14 +46,15 @@ type MockTicketRepository_CreateTicket_Call struct {
 }
 
 // CreateTicket is a helper method to define mock.On call
+//   - ctx context.Context
 //   - ticket *entity.Ticket
-func (_e *MockTicketRepository_Expecter) CreateTicket(ticket interface{}) *MockTicketRepository_CreateTicket_Call {
-	return &MockTicketRepository_CreateTicket_Call{Call: _e.mock.On("CreateTicket", ticket)}
+func (_e *MockTicketRepository_Expecter) CreateTicket(ctx interface{}, ticket interface{}) *MockTicketRepository_CreateTicket_Call {
+	return &MockTicketRepository_CreateTicket_Call{Call: _e.mock.On("CreateTicket", ctx, ticket)}
 }
 
-func (_c *MockTicketRepository_CreateTicket_Call) Run(run func(ticket *entity.Ticket)) *MockTicketRepository_CreateTicket_Call {
+func (_c *MockTicketRepository_CreateTicket_Call) Run(run func(ctx context.Context, ticket *entity.Ticket)) *MockTicketRepository_CreateTicket_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*entity.Ticket))
+		run(args[0].(context.Context), args[1].(*entity.Ticket))
 	})
 	return _c
 }
@@ -62,7 +64,7 @@ func (_c *MockTicketRepository_CreateTicket_Call) Return(_a0 error) *MockTicketR
 	return _c
 }
 
-func (_c *MockTicketRepository_CreateTicket_Call) RunAndReturn(run func(*entity.Ticket) error) *MockTicketRepository_CreateTicket_Call {
+func (_c *MockTicketRepository_CreateTicket_Call) RunAndReturn(run func(context.Context, *entity.Ticket) error) *MockTicketRepository_CreateTicket_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -619,17 +621,17 @@ func (_c *MockTicketRepository_GetTicketsByLineUserID_Call) RunAndReturn(run fun
 	return _c
 }
 
-// UpdateTicket provides a mock function with given fields: ticket
-func (_m *MockTicketRepository) UpdateTicket(ticket *entity.Ticket) error {
-	ret := _m.Called(ticket)
+// UpdateTicket provides a mock function with given fields: ctx, ticket
+func (_m *MockTicketRepository) UpdateTicket(ctx context.Context, ticket *entity.Ticket) error {
+	ret := _m.Called(ctx, ticket)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateTicket")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*entity.Ticket) error); ok {
-		r0 = rf(ticket)
+	if rf, ok := ret.Get(0).(func(context.Context, *entity.Ticket) error); ok {
+		r0 = rf(ctx, ticket)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -643,14 +645,15 @@ type MockTicketRepository_UpdateTicket_Call struct {
 }
 
 // UpdateTicket is a helper method to define mock.On call
+//   - ctx context.Context
 //   - ticket *entity.Ticket
-func (_e *MockTicketRepository_Expecter) UpdateTicket(ticket interface{}) *MockTicketRepository_UpdateTicket_Call {
-	return &MockTicketRepository_UpdateTicket_Call{Call: _e.mock.On("UpdateTicket", ticket)}
+func (_e *MockTicketRepository_Expecter) UpdateTicket(ctx interface{}, ticket interface{}) *MockTicketRepository_UpdateTicket_Call {
+	return &MockTicketRepository_UpdateTicket_Call{Call: _e.mock.On("UpdateTicket", ctx, ticket)}
 }
 
-func (_c *MockTicketRepository_UpdateTicket_Call) Run(run func(ticket *entity.Ticket)) *MockTicketRepository_UpdateTicket_Call {
+func (_c *MockTicketRepository_UpdateTicket_Call) Run(run func(ctx context.Context, ticket *entity.Ticket)) *MockTicketRepository_UpdateTicket_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*entity.Ticket))
+		run(args[0].(context.Context), args[1].(*entity.Ticket))
 	})
 	return _c
 }
@@ -660,7 +663,7 @@ func (_c *MockTicketRepository_UpdateTicket_Call) Return(_a0 error) *MockTicketR
 	return _c
 }
 
-func (_c *MockTicketRepository_UpdateTicket_Call) RunAndReturn(run func(*entity.Ticket) error) *MockTicketRepository_UpdateTicket_Call {
+func (_c *MockTicketRepository_UpdateTicket_Call) RunAndReturn(run func(context.Context, *entity.Ticket) error) *MockTicketRepository_UpdateTicket_Call {
 	_c.Call.Return(run)
 	return _c
 }

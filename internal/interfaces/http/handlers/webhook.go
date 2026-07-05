@@ -7,6 +7,7 @@ import (
 
 	"medical-webhook/internal/application/usecase"
 	"medical-webhook/internal/domain/line/model"
+	redisinfra "medical-webhook/internal/infrastructure/redis"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/line/line-bot-sdk-go/v8/linebot/webhook"
@@ -16,13 +17,16 @@ import (
 type WebhookHandler struct {
 	secret         string
 	messageUseCase *usecase.MessageUseCase
+	idempotency    *redisinfra.IdempotencyStore
 }
 
-// NewWebhookHandler creates a new webhook handler
-func NewWebhookHandler(secret string, messageUseCase *usecase.MessageUseCase) *WebhookHandler {
+// NewWebhookHandler creates a new webhook handler. idempotency may be nil (e.g.
+// when Redis is unavailable); de-duplication is then skipped gracefully.
+func NewWebhookHandler(secret string, messageUseCase *usecase.MessageUseCase, idempotency *redisinfra.IdempotencyStore) *WebhookHandler {
 	return &WebhookHandler{
 		secret:         secret,
 		messageUseCase: messageUseCase,
+		idempotency:    idempotency,
 	}
 }
 
@@ -55,12 +59,40 @@ func (h *WebhookHandler) HandleCallback(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Process events
+	// Process events, skipping duplicates that LINE may redeliver (at-least-once).
+	ctx := c.UserContext()
 	for _, event := range cb.Events {
+		if eventID := webhookEventID(event); eventID != "" && h.idempotency != nil {
+			firstTime, err := h.idempotency.MarkProcessed(ctx, eventID)
+			if err != nil {
+				// Fail open: on Redis error, process anyway rather than drop the event.
+				log.Printf("⚠️ Idempotency check failed for event %s, processing anyway: %v", eventID, err)
+			} else if !firstTime {
+				log.Printf("↩️ Skipping duplicate webhook event %s", eventID)
+				continue
+			}
+		}
 		h.handleEvent(event)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
+}
+
+// webhookEventID returns LINE's unique webhookEventId for the event types this
+// handler acts on, or "" for events we don't de-duplicate.
+func webhookEventID(event webhook.EventInterface) string {
+	switch e := event.(type) {
+	case webhook.MessageEvent:
+		return e.WebhookEventId
+	case webhook.FollowEvent:
+		return e.WebhookEventId
+	case webhook.UnfollowEvent:
+		return e.WebhookEventId
+	case webhook.PostbackEvent:
+		return e.WebhookEventId
+	default:
+		return ""
+	}
 }
 
 // readCloser implements io.ReadCloser for bytes

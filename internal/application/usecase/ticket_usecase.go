@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"strings"
 	"time"
 
 	"medical-webhook/internal/application/dto"
@@ -14,30 +13,10 @@ import (
 	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
+	"medical-webhook/internal/domain/port"
 	"medical-webhook/internal/infrastructure/line/templates"
 	"medical-webhook/internal/utils/ptr"
-
-	"gorm.io/gorm"
 )
-
-// maxTicketCreateAttempts bounds how many times a ticket create is retried when
-// the generated ticket number collides with a concurrently-created one.
-const maxTicketCreateAttempts = 5
-
-// isDuplicateKeyErr reports whether err is a unique-constraint violation, used to
-// detect a ticket-number collision. GORM translates the driver error to
-// ErrDuplicatedKey when supported; the string check is a fallback for drivers
-// that don't.
-func isDuplicateKeyErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return true
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "duplicate key") || strings.Contains(msg, "unique constraint")
-}
 
 // TicketUseCase handles ticket-related business logic
 type TicketUseCase struct {
@@ -48,6 +27,7 @@ type TicketUseCase struct {
 	historyRepo   repository.TicketHistoryRepository
 	notifyService *service.TicketNotificationService
 	eventBus      event.EventBus
+	txManager     port.TxManager
 }
 
 // NewTicketUseCase creates a new ticket use case
@@ -59,6 +39,7 @@ func NewTicketUseCase(
 	historyRepo repository.TicketHistoryRepository,
 	notifyService *service.TicketNotificationService,
 	eventBus event.EventBus,
+	txManager port.TxManager,
 ) *TicketUseCase {
 	return &TicketUseCase{
 		lineRepo:      lineRepo,
@@ -68,15 +49,49 @@ func NewTicketUseCase(
 		historyRepo:   historyRepo,
 		notifyService: notifyService,
 		eventBus:      eventBus,
+		txManager:     txManager,
 	}
 }
 
 // ErrDuplicateTicket is returned when user already has a pending ticket for this equipment
 var ErrDuplicateTicket = fmt.Errorf("duplicate ticket exists")
 
+const (
+	// defaultTicketPageLimit / maxTicketPageLimit bound pagination so a missing
+	// or hostile limit can't cause a divide-by-zero or an unbounded query.
+	defaultTicketPageLimit = 20
+	maxTicketPageLimit     = 100
+	// maxTicketCreateAttempts bounds retries when a generated ticket number
+	// collides with a concurrent insert (rejected by the ticket_no unique index).
+	maxTicketCreateAttempts = 3
+)
+
+// goSafe runs fn in a new goroutine with panic recovery. Fire-and-forget tasks
+// (notifications, event publishing) must never crash the whole process — an
+// unrecovered panic in any goroutine would terminate the program.
+func goSafe(name string, fn func()) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("recovered panic in background task %q: %v", name, r)
+			}
+		}()
+		fn()
+	}()
+}
+
 // GetTicketList returns paginated ticket list
 func (uc *TicketUseCase) GetTicketList(ctx context.Context, req dto.TicketListRequest) (*dto.TicketListResponse, error) {
-	req.Page, req.Limit = clampPagination(req.Page, req.Limit)
+	// Normalize pagination to avoid a bad offset or divide-by-zero on TotalPages.
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.Limit < 1 {
+		req.Limit = defaultTicketPageLimit
+	} else if req.Limit > maxTicketPageLimit {
+		req.Limit = maxTicketPageLimit
+	}
+
 	tickets, total, err := uc.ticketRepo.GetAllTickets(
 		req.Page,
 		req.Limit,
@@ -297,29 +312,35 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 		}
 	}
 
-	// Update ticket in DB
-	if err := uc.ticketRepo.UpdateTicket(ticket); err != nil {
+	// Persist the ticket and its history records atomically so the audit trail
+	// can never diverge from the ticket's state (partial writes are rolled back).
+	if err := uc.txManager.WithTransaction(ctx, func(ctx context.Context) error {
+		if err := uc.ticketRepo.UpdateTicket(ctx, ticket); err != nil {
+			return err
+		}
+		for i := range changes {
+			changes[i].ChangedBy = req.ChangedBy
+			if err := uc.historyRepo.CreateTicketHistory(ctx, &changes[i]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return err
-	}
-
-	// Save history records
-	for i := range changes {
-		changes[i].ChangedBy = req.ChangedBy
-		_ = uc.historyRepo.CreateTicketHistory(&changes[i])
 	}
 
 	// Send LINE notification if status changed (fire-and-forget)
 	if statusChanged && uc.notifyService != nil {
-		go func() {
+		goSafe("notify status change", func() {
 			if err := uc.notifyService.NotifyStatusChange(ticket.ID, oldStatusValue, newStatusValue, statusNote); err != nil {
 				log.Printf("Failed to send status change notification for ticket %s: %v", ticket.TicketNo, err)
 			}
-		}()
+		})
 	}
 
 	// Publish ticket updated event
 	if uc.eventBus != nil {
-		go func() {
+		goSafe("publish ticket.updated", func() {
 			publishErr := uc.eventBus.Publish(context.Background(), event.NewEvent(event.TicketUpdated, map[string]interface{}{
 				"ticket_id": ticket.ID,
 				"ticket_no": ticket.TicketNo,
@@ -329,7 +350,7 @@ func (uc *TicketUseCase) UpdateTicket(ctx context.Context, id uint, req dto.Upda
 			if publishErr != nil {
 				log.Printf("Failed to publish ticket.updated event: %v", publishErr)
 			}
-		}()
+		})
 	}
 
 	return nil
@@ -356,6 +377,7 @@ func (uc *TicketUseCase) GetTicketCategories(ctx context.Context) ([]entity.Tick
 
 // CreateTicketFromLINE creates a ticket from LINE report
 func (uc *TicketUseCase) CreateTicketFromLINE(
+	ctx context.Context,
 	serialOrCode string,
 	description string,
 	lineUserID string,
@@ -377,12 +399,6 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 	if existingTicket != nil {
 		log.Printf("⚠️ User %s already has pending ticket %s for equipment %d", lineUserID, existingTicket.TicketNo, equipment.ID)
 		return existingTicket, ErrDuplicateTicket
-	}
-
-	// Generate ticket number from DB to avoid duplicates
-	ticketNo, err := uc.generateTicketNumberFromDB()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ticket number: %w", err)
 	}
 
 	equipmentName := "อุปกรณ์"
@@ -419,7 +435,6 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 
 	// Create ticket (LINE users don't have Admin accounts, use ReporterLineID and ReporterName)
 	ticket := &entity.Ticket{
-		TicketNo:         ticketNo,
 		Description:      &description,
 		CategoryID:       categoryID,
 		Priority:         entity.PriorityMedium,
@@ -433,39 +448,46 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 		ReportedAt:       time.Now(),
 	}
 
-	// Create the ticket with a bounded retry. The ticket number is generated by
-	// reading the latest one and incrementing, so two concurrent creates (two
-	// users, or one user double-tapping submit) can pick the same number and
-	// collide on the unique index. On a duplicate-key error, regenerate the
-	// number and try again instead of failing a valid request.
-	for attempt := 1; ; attempt++ {
-		err = uc.ticketRepo.CreateTicket(ticket)
+	// Generate a unique ticket number and persist the ticket + its initial
+	// history atomically. The number is derived from the latest row, so under
+	// concurrency two requests can compute the same value; the ticket_no unique
+	// index rejects the loser and we retry with a fresh number.
+	var ticketNo string
+	for attempt := 1; attempt <= maxTicketCreateAttempts; attempt++ {
+		no, genErr := uc.generateTicketNumberFromDB()
+		if genErr != nil {
+			return nil, fmt.Errorf("failed to generate ticket number: %w", genErr)
+		}
+		ticketNo = no
+		ticket.TicketNo = ticketNo
+
+		err = uc.txManager.WithTransaction(ctx, func(ctx context.Context) error {
+			if err := uc.ticketRepo.CreateTicket(ctx, ticket); err != nil {
+				return err
+			}
+			// Create initial history (no AdminID for LINE users)
+			history := &entity.TicketHistory{
+				TicketID: ticket.ID,
+				Action:   entity.ActionCreated,
+				Note:     ptr.StringPtr("สร้างจาก LINE โดย " + lineDisplayName),
+				IsSystem: true,
+			}
+			return uc.historyRepo.CreateTicketHistory(ctx, history)
+		})
 		if err == nil {
 			break
 		}
-		if attempt >= maxTicketCreateAttempts || !isDuplicateKeyErr(err) {
-			return nil, fmt.Errorf("failed to create ticket: %w", err)
+		if errors.Is(err, repository.ErrDuplicate) && attempt < maxTicketCreateAttempts {
+			log.Printf("⚠️ Ticket number %s collided, retrying (%d/%d)", ticketNo, attempt, maxTicketCreateAttempts)
+			ticket.ID = 0 // reset PK so the retry performs a fresh insert
+			continue
 		}
-		newNo, genErr := uc.generateTicketNumberFromDB()
-		if genErr != nil {
-			return nil, fmt.Errorf("failed to regenerate ticket number after collision: %w", genErr)
-		}
-		log.Printf("Ticket number %s collided, retrying as %s (attempt %d/%d)", ticket.TicketNo, newNo, attempt+1, maxTicketCreateAttempts)
-		ticket.TicketNo = newNo
+		return nil, fmt.Errorf("failed to create ticket: %w", err)
 	}
-
-	// Create initial history (no AdminID for LINE users)
-	history := &entity.TicketHistory{
-		TicketID: ticket.ID,
-		Action:   entity.ActionCreated,
-		Note:     ptr.StringPtr("สร้างจาก LINE โดย " + lineDisplayName),
-		IsSystem: true,
-	}
-	_ = uc.historyRepo.CreateTicketHistory(history)
 
 	// Publish ticket created event
 	if uc.eventBus != nil {
-		go func() {
+		goSafe("publish ticket.created", func() {
 			publishErr := uc.eventBus.Publish(context.Background(), event.NewEvent(event.TicketCreated, map[string]interface{}{
 				"ticket_id": ticket.ID,
 				"ticket_no": ticketNo,
@@ -476,7 +498,7 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 			if publishErr != nil {
 				log.Printf("Failed to publish ticket.created event: %v", publishErr)
 			}
-		}()
+		})
 	}
 
 	log.Printf("Created ticket %s for equipment %s", ticketNo, serialOrCode)

@@ -1,8 +1,7 @@
 package bootstrap
 
 import (
-	"context"
-	"errors"
+	"fmt"
 	"log"
 	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/service"
@@ -11,12 +10,14 @@ import (
 	"medical-webhook/internal/domain/event"
 	"medical-webhook/internal/infrastructure/client"
 	"medical-webhook/internal/infrastructure/database"
+	"medical-webhook/internal/infrastructure/logger"
 	"medical-webhook/internal/infrastructure/persistence"
 	redisinfra "medical-webhook/internal/infrastructure/redis"
 	"medical-webhook/internal/infrastructure/session"
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
+	apperrors "medical-webhook/internal/utils/errors"
 	"medical-webhook/internal/utils/exporturl"
 	"medical-webhook/internal/utils/scheduler"
 
@@ -39,10 +40,18 @@ type Application struct {
 
 // InitializeApp - setup dependencies, routes, and return ready-to-run Application
 func InitializeApp() (*Application, func(), error) {
-	// Load configuration
+	// Load and validate configuration (fail fast on missing required env vars,
+	// e.g. an empty LINE_CHANNEL_SECRET that would make webhook signatures forgeable)
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		return nil, nil, fmt.Errorf("invalid configuration: %w", err)
+	}
 
-	// Initialize signing key for the public (bearer-less) Excel export links.
+	// Initialize structured logging (bridges the standard log package too)
+	logger.Init(cfg.AppEnv, cfg.LogLevel)
+	log.Printf("Starting application (env=%s, log_level=%s)", cfg.AppEnv, cfg.LogLevel)
+
+	// Initialize the signing key for the public (bearer-less) Excel export links.
 	// Uses the LINE channel secret, which is already a required, stable secret.
 	exporturl.Init(cfg.LineChannelSecret)
 
@@ -51,8 +60,11 @@ func InitializeApp() (*Application, func(), error) {
 		return nil, nil, err
 	}
 
+	// Create the first super-admin if none exists (idempotent)
+	database.SeedBootstrapAdmin(database.GetDB(), cfg.Admin.Username, cfg.Admin.Password, cfg.Admin.Email, cfg.Admin.FullName)
+
 	// Initialize LINE client
-	lineClient, err := client.NewClient(cfg.LineChannelToken)
+	lineClient, err := client.NewClient(cfg.LineChannelToken, cfg.HTTP.LineAPITimeout)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -60,7 +72,7 @@ func InitializeApp() (*Application, func(), error) {
 	// Initialize OCR client (optional - may be nil if not configured)
 	var ocrClient *client.OCRClient
 	if cfg.OCRURL != "" {
-		ocrClient = client.NewOCRClient(cfg.OCRURL)
+		ocrClient = client.NewOCRClient(cfg.OCRURL, cfg.HTTP.OCRAPITimeout)
 		log.Printf("OCR client initialized: %s", cfg.OCRURL)
 	} else {
 		log.Println("OCR_API_URL not configured, OCR features disabled")
@@ -77,6 +89,12 @@ func InitializeApp() (*Application, func(), error) {
 	var eventBus event.EventBus
 	if redisinfra.GetClient() != nil {
 		eventBus = redisinfra.NewEventBus(redisinfra.GetClient())
+	}
+
+	// Idempotency store for de-duplicating LINE webhook events (nil if Redis down)
+	var idempotencyStore *redisinfra.IdempotencyStore
+	if redisinfra.GetClient() != nil {
+		idempotencyStore = redisinfra.NewIdempotencyStore(redisinfra.GetClient(), 0)
 	}
 
 	// Initialize repositories (Infrastructure Layer)
@@ -112,10 +130,6 @@ func InitializeApp() (*Application, func(), error) {
 		adminSessionRepo,
 	)
 
-	// Provision the first admin from env if none exists. Registration is now
-	// authenticated-only, so this is the sole bootstrap path for the initial account.
-	ensureInitialAdmin(adminService, cfg.InitialAdmin)
-
 	equipmentService := service.NewEquipmentService(
 		equipmentRepo,
 		brandRepo,
@@ -123,6 +137,9 @@ func InitializeApp() (*Application, func(), error) {
 		departmentRepo,
 		equipmentModelRepo,
 	)
+
+	// Initialize transaction manager
+	txManager := database.NewTxManager(database.GetDB())
 
 	// Initialize use cases (Application Layer)
 	ticketRepo := persistence.NewTicketRepository(database.GetDB())
@@ -137,6 +154,7 @@ func InitializeApp() (*Application, func(), error) {
 		ticketHistoryRepo,
 		ticketNotifyService,
 		eventBus,
+		txManager,
 	)
 
 	messageUseCase := usecase.NewMessageUseCase(
@@ -183,7 +201,7 @@ func InitializeApp() (*Application, func(), error) {
 	activityLogUseCase := usecase.NewActivityLogUseCase(ticketHistoryRepo)
 
 	// Initialize handlers (Interface Layer)
-	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase)
+	webhookHandler := handlers.NewWebhookHandler(cfg.LineChannelSecret, messageUseCase, idempotencyStore)
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
 	equipmentImportHandler := handlers.NewEquipmentImportHandler(equipmentImportUseCase)
 	adminHandler := handlers.NewAdminHandler(adminUseCase)
@@ -194,17 +212,11 @@ func InitializeApp() (*Application, func(), error) {
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
-		AppName: "Medical Equipment Webhook",
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				code = e.Code
-			}
-			return c.Status(code).JSON(fiber.Map{
-				"error":   err.Error(),
-				"success": false,
-			})
-		},
+		AppName:      "Medical Equipment Webhook",
+		ErrorHandler: apperrors.FiberErrorHandler,
+		ReadTimeout:  cfg.HTTP.ReadTimeout,
+		WriteTimeout: cfg.HTTP.WriteTimeout,
+		IdleTimeout:  cfg.HTTP.IdleTimeout,
 	})
 
 	// Initialize SSE handler for real-time event streaming
@@ -212,7 +224,7 @@ func InitializeApp() (*Application, func(), error) {
 	sseHandler := handlers.NewSSEHandler(eventBus)
 
 	// Register Middlewares
-	middleware.FiberMiddleware(app)
+	middleware.FiberMiddleware(app, cfg.HTTP.AllowedOrigins)
 
 	// Register Routes (SSE handler passed for public registration before 404 catch-all)
 	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler, activityLogHandler, sseHandler, adminUseCase)
@@ -263,30 +275,13 @@ func InitializeApp() (*Application, func(), error) {
 	}, cleanup, nil
 }
 
-// ensureInitialAdmin makes sure a super admin exists so the admin surface can be
-// managed. Creating new admins requires the super-admin role, so without this a
-// fresh install would have no way to bootstrap that first account.
-func ensureInitialAdmin(adminService service.AdminService, cfg config.InitialAdminConfig) {
-	ctx := context.Background()
-
-	err := adminService.EnsureInitialSuperAdmin(ctx, cfg.Username, cfg.Email, cfg.Password, cfg.FullName)
-	switch {
-	case err == nil:
-		// A super admin already existed, or one was just provisioned/promoted.
-	case errors.Is(err, service.ErrNoInitialAdminConfig):
-		log.Println("⚠️  No super admin exists and INITIAL_ADMIN_USERNAME/INITIAL_ADMIN_PASSWORD are not set. " +
-			"Set them to provision one (creating admins requires the super-admin role).")
-	default:
-		log.Printf("⚠️  Failed to ensure an initial super admin (%q): %v", cfg.Username, err)
-	}
-}
-
 // Start - start the server
 func (a *Application) Start() error {
 	return a.Server.Listen(":" + a.Config.Port)
 }
 
-// Shutdown - graceful shutdown
+// Shutdown - graceful shutdown, bounded by the configured timeout so a stuck
+// in-flight request cannot block the process from exiting indefinitely.
 func (a *Application) Shutdown() error {
-	return a.Server.Shutdown()
+	return a.Server.ShutdownWithTimeout(a.Config.HTTP.ShutdownTimeout)
 }

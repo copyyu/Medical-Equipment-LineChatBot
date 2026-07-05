@@ -1,8 +1,12 @@
 package persistence
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"medical-webhook/internal/domain/line/entity"
+	"medical-webhook/internal/domain/line/repository"
+	"medical-webhook/internal/infrastructure/database"
 	"medical-webhook/internal/utils/ptr"
 	"time"
 
@@ -19,8 +23,20 @@ func NewTicketRepository(db *gorm.DB) *TicketRepository {
 	return &TicketRepository{db: db}
 }
 
-func (r *TicketRepository) CreateTicket(ticket *entity.Ticket) error {
-	return r.db.Create(ticket).Error
+// conn returns the transaction bound to ctx if one is active, otherwise the
+// repository's own connection. This lets writes join a TxManager transaction.
+func (r *TicketRepository) conn(ctx context.Context) *gorm.DB {
+	return database.DBFromContext(ctx, r.db)
+}
+
+func (r *TicketRepository) CreateTicket(ctx context.Context, ticket *entity.Ticket) error {
+	if err := r.conn(ctx).Create(ticket).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return fmt.Errorf("%w: %v", repository.ErrDuplicate, err)
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *TicketRepository) FindTicketByNo(ticketNo string) (*entity.Ticket, error) {
@@ -55,12 +71,12 @@ func (r *TicketRepository) FindTicketByID(id uint) (*entity.Ticket, error) {
 	return &ticket, err
 }
 
-func (r *TicketRepository) UpdateTicket(ticket *entity.Ticket) error {
+func (r *TicketRepository) UpdateTicket(ctx context.Context, ticket *entity.Ticket) error {
 	// Omit associations: the ticket passed in is loaded with its Category,
 	// Equipment, Department, Reporter and Histories preloaded, and a plain Save
 	// would upsert all of them, overwriting unrelated rows (e.g. equipment or
 	// department records) with the stale in-memory snapshot.
-	return r.db.Omit(clause.Associations).Save(ticket).Error
+	return r.conn(ctx).Omit(clause.Associations).Save(ticket).Error
 }
 
 func (r *TicketRepository) UpdateTicketStatus(ticketID uint, newStatus entity.TicketStatus, note string) error {
@@ -153,7 +169,7 @@ func (r *TicketRepository) GetAllTickets(page, limit int, status, priority, sear
 		query = query.Where("priority = ?", priority)
 	}
 	if search != "" {
-		searchPattern := "%" + search + "%"
+		searchPattern := "%" + escapeLike(search) + "%"
 		query = query.Where("ticket_no ILIKE ? OR description ILIKE ?", searchPattern, searchPattern)
 	}
 

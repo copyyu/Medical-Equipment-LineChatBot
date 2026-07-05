@@ -37,12 +37,17 @@ type OCRClient struct {
 	client  *http.Client
 }
 
-// NewOCRClient creates a new OCR client
-func NewOCRClient(baseURL string) *OCRClient {
+// NewOCRClient creates a new OCR client. An optional timeout overrides the
+// default of 90s (OCR can be slow); a non-positive value falls back to 90s.
+func NewOCRClient(baseURL string, timeout ...time.Duration) *OCRClient {
+	t := 90 * time.Second
+	if len(timeout) > 0 && timeout[0] > 0 {
+		t = timeout[0]
+	}
 	return &OCRClient{
 		baseURL: baseURL,
 		client: &http.Client{
-			Timeout: 90 * time.Second,
+			Timeout: t,
 		},
 	}
 }
