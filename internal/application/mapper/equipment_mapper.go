@@ -1,9 +1,11 @@
 package mapper
 
 import (
+	"log"
 	"medical-webhook/internal/application/dto"
 	"medical-webhook/internal/domain/line/entity"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -91,12 +93,15 @@ func (m *EquipmentMapper) ToEquipmentEntity(dto *dto.CreateEquipmentDTO) *entity
 		UpdatedBy:      dto.UpdatedBy,
 	}
 
-	// Map the asset status from the Excel column. Only assign when a value is
-	// provided so an empty column keeps the DB default on create and leaves an
-	// existing (possibly manually-set) status untouched on update, while a real
-	// value like "defective"/"decommission" is no longer silently discarded.
-	if dto.AssetStatus != "" {
-		eq.Status = entity.ParseAssetStatus(dto.AssetStatus)
+	// Map the asset status from the Excel column. Only assign when the value is
+	// recognized, so an empty or unknown column keeps the DB default on create
+	// and leaves an existing (possibly manually-set) status untouched on update,
+	// while a real value like "defective"/"decommission" is no longer silently
+	// discarded. An unrecognized non-empty value is logged for data-quality.
+	if status, ok := entity.ParseAssetStatus(dto.AssetStatus); ok {
+		eq.Status = status
+	} else if strings.TrimSpace(dto.AssetStatus) != "" {
+		log.Printf("⚠️ Unknown asset status %q for equipment %s; leaving status unchanged", dto.AssetStatus, dto.IDCode)
 	}
 
 	// Compute lifecycle fields

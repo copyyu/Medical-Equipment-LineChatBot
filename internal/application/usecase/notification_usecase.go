@@ -176,8 +176,14 @@ func (uc *NotificationUseCase) GetNotificationSummary(ctx context.Context) (*dto
 	}
 
 	// นับเครื่องที่ต้อง alert แยกตามรอบ
-	juneAlerts, _ := uc.notificationRepo.GetEquipmentsForJuneAlert(ctx)
-	augustAlerts, _ := uc.notificationRepo.GetEquipmentsForAugustAlert(ctx)
+	juneAlerts, err := uc.notificationRepo.GetEquipmentsForJuneAlert(ctx)
+	if err != nil {
+		log.Printf("Error fetching June alerts for summary: %v", err)
+	}
+	augustAlerts, err := uc.notificationRepo.GetEquipmentsForAugustAlert(ctx)
+	if err != nil {
+		log.Printf("Error fetching August alerts for summary: %v", err)
+	}
 
 	summary := &dto.NotificationSummaryDTO{
 		TotalEquipments: totalEquipments,   // ใช้จำนวนทั้งหมด

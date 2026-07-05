@@ -21,28 +21,28 @@ const (
 )
 
 // ParseAssetStatus converts a raw status string (from Excel import — either the
-// canonical enum value or its Thai label) into an AssetStatus. Empty or
-// unrecognized input falls back to AssetStatusActive so behavior matches the
-// column's DB default, but recognized non-active values are preserved instead of
-// being silently dropped.
-func ParseAssetStatus(raw string) AssetStatus {
+// canonical enum value or its Thai label) into an AssetStatus. ok is false when
+// the input is empty or unrecognized, so callers can leave the field unset
+// rather than defaulting to a wrong value (which, on an update, would silently
+// overwrite a manually-set status).
+func ParseAssetStatus(raw string) (status AssetStatus, ok bool) {
 	switch strings.TrimSpace(raw) {
 	case string(AssetStatusActive), "ใช้งานอยู่":
-		return AssetStatusActive
+		return AssetStatusActive, true
 	case string(AssetStatusDefective), "ชำรุด":
-		return AssetStatusDefective
+		return AssetStatusDefective, true
 	case string(AssetStatusWaitDecom), "รอปลดระวาง":
-		return AssetStatusWaitDecom
+		return AssetStatusWaitDecom, true
 	case string(AssetStatusDecommission), "ปลดระวางแล้ว":
-		return AssetStatusDecommission
+		return AssetStatusDecommission, true
 	case string(AssetStatusActiveReadyToSell), "พร้อมขาย":
-		return AssetStatusActiveReadyToSell
+		return AssetStatusActiveReadyToSell, true
 	case string(AssetStatusMissing), "สูญหาย":
-		return AssetStatusMissing
+		return AssetStatusMissing, true
 	case string(AssetStatusPlanToReplace), "รอเปลี่ยนใหม่":
-		return AssetStatusPlanToReplace
+		return AssetStatusPlanToReplace, true
 	default:
-		return AssetStatusActive
+		return "", false
 	}
 }
 

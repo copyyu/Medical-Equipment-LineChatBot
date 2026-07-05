@@ -10,23 +10,27 @@ import (
 
 func TestParseAssetStatus(t *testing.T) {
 	tests := []struct {
-		name string
-		raw  string
-		want AssetStatus
+		name   string
+		raw    string
+		want   AssetStatus
+		wantOK bool
 	}{
-		{"canonical defective", "defective", AssetStatusDefective},
-		{"thai defective", "ชำรุด", AssetStatusDefective},
-		{"canonical decommission", "decommission", AssetStatusDecommission},
-		{"thai decommission", "ปลดระวางแล้ว", AssetStatusDecommission},
-		{"thai missing", "สูญหาย", AssetStatusMissing},
-		{"thai wait decom", "รอปลดระวาง", AssetStatusWaitDecom},
-		{"whitespace padded", "  defective  ", AssetStatusDefective},
-		{"empty falls back to active", "", AssetStatusActive},
-		{"unknown falls back to active", "แปลกๆ", AssetStatusActive},
+		{"canonical defective", "defective", AssetStatusDefective, true},
+		{"thai defective", "ชำรุด", AssetStatusDefective, true},
+		{"canonical decommission", "decommission", AssetStatusDecommission, true},
+		{"thai decommission", "ปลดระวางแล้ว", AssetStatusDecommission, true},
+		{"thai missing", "สูญหาย", AssetStatusMissing, true},
+		{"thai wait decom", "รอปลดระวาง", AssetStatusWaitDecom, true},
+		{"canonical active", "active", AssetStatusActive, true},
+		{"whitespace padded", "  defective  ", AssetStatusDefective, true},
+		{"empty is not ok", "", "", false},
+		{"unknown is not ok", "แปลกๆ", "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, ParseAssetStatus(tt.raw))
+			got, ok := ParseAssetStatus(tt.raw)
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

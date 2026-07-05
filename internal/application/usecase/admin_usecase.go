@@ -94,6 +94,7 @@ func (u *adminUsecase) GetProfile(ctx context.Context, adminID string) (*dto.Adm
 		Username:    admin.Username,
 		Email:       admin.Email,
 		FullName:    admin.FullName,
+		Role:        admin.Role,
 		LastLoginAt: lastLogin,
 	}, nil
 }
@@ -133,6 +134,7 @@ func (u *adminUsecase) ValidateToken(ctx context.Context, token string) (*dto.Ad
 		Username:    admin.Username,
 		Email:       admin.Email,
 		FullName:    admin.FullName,
+		Role:        admin.Role,
 		LastLoginAt: lastLogin,
 	}, nil
 }
