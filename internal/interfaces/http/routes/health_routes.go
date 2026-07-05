@@ -6,16 +6,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// SetupHealthRoutes configures health check endpoints
+// SetupHealthRoutes configures health check endpoints.
 func SetupHealthRoutes(app *fiber.App) {
-	// Direct health endpoint (basic check)
+	// Basic health endpoint (kept for backward compatibility)
 	app.Get("/health", handlers.HealthCheck)
 
-	// API v1 health routes
-	// v1 := app.Group("/api/v1")
-	// health := v1.Group("/health")
-	// {
-	// 	// Basic health check
-	// 	health.Get("/", handlers.HealthCheck)
-	// }
+	// Kubernetes-style probes
+	app.Get("/livez", handlers.LivenessCheck)   // process is up
+	app.Get("/readyz", handlers.ReadinessCheck) // dependencies (DB) are reachable
 }

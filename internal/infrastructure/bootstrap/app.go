@@ -17,6 +17,7 @@ import (
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
+	apperrors "medical-webhook/internal/utils/errors"
 	"medical-webhook/internal/utils/scheduler"
 
 	"github.com/gofiber/fiber/v2"
@@ -203,17 +204,8 @@ func InitializeApp() (*Application, func(), error) {
 
 	// Initialize Fiber
 	app := fiber.New(fiber.Config{
-		AppName: "Medical Equipment Webhook",
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			code := fiber.StatusInternalServerError
-			if e, ok := err.(*fiber.Error); ok {
-				code = e.Code
-			}
-			return c.Status(code).JSON(fiber.Map{
-				"error":   err.Error(),
-				"success": false,
-			})
-		},
+		AppName:      "Medical Equipment Webhook",
+		ErrorHandler: apperrors.FiberErrorHandler,
 	})
 
 	// Initialize SSE handler for real-time event streaming
