@@ -28,6 +28,11 @@ migrate-force:
 test:
 	go test -race -v -count=1 ./...
 
+# Integration tests (build-tagged). Requires TEST_DATABASE_URL to actually run;
+# skips gracefully otherwise.
+test-integration:
+	go test -tags=integration -count=1 ./...
+
 coverage:
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -func=coverage.out
