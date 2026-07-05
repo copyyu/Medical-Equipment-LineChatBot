@@ -1,6 +1,8 @@
 package bootstrap
 
 import (
+	"context"
+	"errors"
 	"log"
 	"medical-webhook/internal/application/mapper"
 	"medical-webhook/internal/application/service"
@@ -15,6 +17,7 @@ import (
 	"medical-webhook/internal/interfaces/http/handlers"
 	"medical-webhook/internal/interfaces/http/middleware"
 	"medical-webhook/internal/interfaces/http/routes"
+	"medical-webhook/internal/utils/exporturl"
 	"medical-webhook/internal/utils/scheduler"
 
 	"github.com/gofiber/fiber/v2"
@@ -38,6 +41,10 @@ type Application struct {
 func InitializeApp() (*Application, func(), error) {
 	// Load configuration
 	cfg := config.Load()
+
+	// Initialize signing key for the public (bearer-less) Excel export links.
+	// Uses the LINE channel secret, which is already a required, stable secret.
+	exporturl.Init(cfg.LineChannelSecret)
 
 	// Connect Database
 	if err := database.Connect(cfg); err != nil {
@@ -104,6 +111,10 @@ func InitializeApp() (*Application, func(), error) {
 		adminRepo,
 		adminSessionRepo,
 	)
+
+	// Provision the first admin from env if none exists. Registration is now
+	// authenticated-only, so this is the sole bootstrap path for the initial account.
+	ensureInitialAdmin(adminService, cfg.InitialAdmin)
 
 	equipmentService := service.NewEquipmentService(
 		equipmentRepo,
@@ -250,6 +261,24 @@ func InitializeApp() (*Application, func(), error) {
 		ActivityLogHandler:     activityLogHandler,
 		SSEHandler:             sseHandler,
 	}, cleanup, nil
+}
+
+// ensureInitialAdmin makes sure a super admin exists so the admin surface can be
+// managed. Creating new admins requires the super-admin role, so without this a
+// fresh install would have no way to bootstrap that first account.
+func ensureInitialAdmin(adminService service.AdminService, cfg config.InitialAdminConfig) {
+	ctx := context.Background()
+
+	err := adminService.EnsureInitialSuperAdmin(ctx, cfg.Username, cfg.Email, cfg.Password, cfg.FullName)
+	switch {
+	case err == nil:
+		// A super admin already existed, or one was just provisioned/promoted.
+	case errors.Is(err, service.ErrNoInitialAdminConfig):
+		log.Println("⚠️  No super admin exists and INITIAL_ADMIN_USERNAME/INITIAL_ADMIN_PASSWORD are not set. " +
+			"Set them to provision one (creating admins requires the super-admin role).")
+	default:
+		log.Printf("⚠️  Failed to ensure an initial super admin (%q): %v", cfg.Username, err)
+	}
 }
 
 // Start - start the server

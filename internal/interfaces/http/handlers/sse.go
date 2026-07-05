@@ -8,10 +8,17 @@ import (
 	"log"
 	"medical-webhook/internal/domain/event"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/valyala/fasthttp"
 )
+
+// sseHeartbeatInterval is how often a keepalive comment is written so an idle
+// stream can detect a disconnected client (a flush then fails) and release its
+// goroutine and Redis subscription, instead of blocking forever on the next
+// event that may never come.
+const sseHeartbeatInterval = 15 * time.Second
 
 // SSEHandler handles Server-Sent Events connections for real-time streaming
 type SSEHandler struct {
@@ -76,6 +83,13 @@ func (h *SSEHandler) Stream(c *fiber.Ctx) error {
 		fmt.Fprintf(w, "event: connected\ndata: {\"message\":\"Connected to event stream\"}\n\n")
 		w.Flush()
 
+		// Heartbeat so an idle client's disconnect is detected (via a failing
+		// flush) even when no matching event ever arrives — otherwise the loop
+		// blocks on <-events forever, leaking this goroutine and the Redis
+		// subscription.
+		heartbeat := time.NewTicker(sseHeartbeatInterval)
+		defer heartbeat.Stop()
+
 		for {
 			select {
 			case <-bgCtx.Done():
@@ -84,6 +98,14 @@ func (h *SSEHandler) Stream(c *fiber.Ctx) error {
 				// when the client actually disconnects.
 				log.Println("📡 SSE client disconnected (bgCtx)")
 				return
+			case <-heartbeat.C:
+				// SSE comment line (ignored by EventSource clients); a flush
+				// error means the client has gone away.
+				fmt.Fprintf(w, ": ping\n\n")
+				if err := w.Flush(); err != nil {
+					log.Printf("📡 SSE heartbeat flush failed (client disconnected): %v", err)
+					return
+				}
 			case evt, ok := <-events:
 				if !ok {
 					log.Println("📡 Event channel closed")

@@ -6,6 +6,35 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ─── ParseAssetStatus ─────────────────────────────────────
+
+func TestParseAssetStatus(t *testing.T) {
+	tests := []struct {
+		name   string
+		raw    string
+		want   AssetStatus
+		wantOK bool
+	}{
+		{"canonical defective", "defective", AssetStatusDefective, true},
+		{"thai defective", "ชำรุด", AssetStatusDefective, true},
+		{"canonical decommission", "decommission", AssetStatusDecommission, true},
+		{"thai decommission", "ปลดระวางแล้ว", AssetStatusDecommission, true},
+		{"thai missing", "สูญหาย", AssetStatusMissing, true},
+		{"thai wait decom", "รอปลดระวาง", AssetStatusWaitDecom, true},
+		{"canonical active", "active", AssetStatusActive, true},
+		{"whitespace padded", "  defective  ", AssetStatusDefective, true},
+		{"empty is not ok", "", "", false},
+		{"unknown is not ok", "แปลกๆ", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := ParseAssetStatus(tt.raw)
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 // ─── GetStatusText ────────────────────────────────────────
 
 func TestAssetStatus_GetStatusText(t *testing.T) {

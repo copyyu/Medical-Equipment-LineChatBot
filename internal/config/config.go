@@ -19,6 +19,17 @@ type Config struct {
 	BaseURL           string
 	DB                DatabaseConfig
 	Contact           ContactConfig
+	InitialAdmin      InitialAdminConfig
+}
+
+// InitialAdminConfig provisions the first admin account at startup. Without it,
+// the admin registration endpoint is authenticated (so no public self-service),
+// which would otherwise leave no way to create the very first admin.
+type InitialAdminConfig struct {
+	Username string
+	Email    string
+	Password string
+	FullName string
 }
 
 type DatabaseConfig struct {
@@ -71,6 +82,12 @@ func Load() *Config {
 			Email:          getEnvOrDefault("CONTACT_EMAIL", ""),
 			EmergencyPhone: getEnvOrDefault("CONTACT_EMERGENCY_PHONE", ""),
 			WorkingHours:   getEnvOrDefault("CONTACT_WORKING_HOURS", "จ-ศ 08:00-17:00"),
+		},
+		InitialAdmin: InitialAdminConfig{
+			Username: os.Getenv("INITIAL_ADMIN_USERNAME"),
+			Email:    os.Getenv("INITIAL_ADMIN_EMAIL"),
+			Password: os.Getenv("INITIAL_ADMIN_PASSWORD"),
+			FullName: getEnvOrDefault("INITIAL_ADMIN_FULLNAME", "System Administrator"),
 		},
 	}
 }

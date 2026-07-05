@@ -19,19 +19,35 @@ func NewNotificationRepository(db *gorm.DB) *NotificationRepository {
 	return &NotificationRepository{db: db}
 }
 
+// notificationSettingsID pins the settings to a single well-known row so
+// concurrent first-time reads collide on the primary key instead of each
+// inserting its own settings row (which would make later reads pick an
+// arbitrary one).
+const notificationSettingsID = 1
+
 // GetSettings - ดึงการตั้งค่า
 func (r *NotificationRepository) GetSettings(ctx context.Context) (*entity.NotificationSetting, error) {
 	var settings entity.NotificationSetting
-	err := r.db.WithContext(ctx).First(&settings).Error
-	if err == gorm.ErrRecordNotFound {
-		// สร้างค่าเริ่มต้นถ้าไม่มี
-		settings = entity.NotificationSetting{
-			IsEnabled: false,
-		}
-		r.db.WithContext(ctx).Create(&settings)
+	err := r.db.WithContext(ctx).First(&settings, notificationSettingsID).Error
+	if err == nil {
 		return &settings, nil
 	}
-	return &settings, err
+	if err != gorm.ErrRecordNotFound {
+		return &settings, err
+	}
+
+	// No settings yet — create the singleton row with the fixed id so a
+	// concurrent creator collides on the primary key rather than duplicating.
+	settings = entity.NotificationSetting{IsEnabled: false}
+	settings.ID = notificationSettingsID
+	if createErr := r.db.WithContext(ctx).Create(&settings).Error; createErr != nil {
+		// A concurrent request likely created it first; return that row.
+		if fetchErr := r.db.WithContext(ctx).First(&settings, notificationSettingsID).Error; fetchErr == nil {
+			return &settings, nil
+		}
+		return nil, createErr
+	}
+	return &settings, nil
 }
 
 // UpdateSettings - อัพเดทการตั้งค่า
