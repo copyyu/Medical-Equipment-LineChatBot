@@ -58,7 +58,10 @@ func (uc *equipmentImportUseCase) Execute(ctx context.Context, file io.Reader) (
 
 	// 2. Process each row
 	for i, excelRow := range excelRows {
-		rowNum := i + 2
+		// Use the true spreadsheet row captured at parse time; the slice index i
+		// no longer maps to the physical row because blank/invalid rows were
+		// skipped during parsing.
+		rowNum := excelRow.RowNum
 
 		// ⭐ Progress reporting for large files
 		if (i+1)%100 == 0 {

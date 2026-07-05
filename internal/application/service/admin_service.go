@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"log"
 	"medical-webhook/internal/domain/line/entity"
 	"medical-webhook/internal/domain/line/repository"
 	"time"
@@ -165,9 +166,11 @@ func (s *adminService) Login(ctx context.Context, username, password, ipAddress 
 		return nil, "", err
 	}
 
-	// Update last login
+	// Update last login (best-effort): the session is already created and the
+	// token is valid, so a failure here must not fail an otherwise-successful
+	// login — just log it.
 	if err := s.adminRepo.UpdateLastLogin(ctx, admin.ID); err != nil {
-		return nil, "", err
+		log.Printf("⚠️ Failed to update last-login for admin %s: %v", admin.Username, err)
 	}
 
 	return admin, token, nil

@@ -344,6 +344,8 @@ func (s *excelParserService) ParseExcelRow(row []string, rowNum int) (*dto.Excel
 		data.BorrowStatus = &v
 	}
 
+	data.RowNum = rowNum
+
 	return data, nil
 }
 

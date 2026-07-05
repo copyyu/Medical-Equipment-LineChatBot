@@ -4,6 +4,10 @@ import "time"
 
 // ExcelRowDTO - DTO สำหรับข้อมูลจาก Excel แต่ละ row
 type ExcelRowDTO struct {
+	// RowNum is the 1-based physical spreadsheet row this data came from, kept so
+	// import error messages point at the correct line even though blank/invalid
+	// rows are skipped during parsing (which shifts slice indices).
+	RowNum               int
 	AssetTypeName        string
 	Category             string
 	ECRICode             string

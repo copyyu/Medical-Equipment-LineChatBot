@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/valyala/fasthttp"
 )
 
 // sseHeartbeatInterval is how often a keepalive comment is written so an idle
@@ -129,27 +128,4 @@ func (h *SSEHandler) Stream(c *fiber.Ctx) error {
 	})
 
 	return nil
-}
-
-// StreamWithFastHTTP is an alternative implementation using fasthttp hijack
-// for better compatibility with Fiber's streaming
-func (h *SSEHandler) StreamWithFastHTTP(ctx *fasthttp.RequestCtx) {
-	ctx.SetContentType("text/event-stream")
-	ctx.Response.Header.Set("Cache-Control", "no-cache")
-	ctx.Response.Header.Set("Connection", "keep-alive")
-	ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-
-	fmt.Fprintf(ctx, "event: connected\ndata: {\"message\":\"Connected\"}\n\n")
-	ctx.SetBodyStreamWriter(func(w *bufio.Writer) {
-		events, err := h.eventBus.Subscribe(ctx)
-		if err != nil {
-			return
-		}
-
-		for evt := range events {
-			data, _ := json.Marshal(evt)
-			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", evt.Type, string(data))
-			w.Flush()
-		}
-	})
 }
