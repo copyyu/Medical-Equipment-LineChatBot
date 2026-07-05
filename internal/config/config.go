@@ -23,6 +23,18 @@ type Config struct {
 	LogLevel          string
 	DB                DatabaseConfig
 	Contact           ContactConfig
+	HTTP              HTTPConfig
+}
+
+// HTTPConfig holds server, client, and CORS timeouts/settings.
+type HTTPConfig struct {
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	IdleTimeout     time.Duration
+	ShutdownTimeout time.Duration
+	AllowedOrigins  string
+	LineAPITimeout  time.Duration
+	OCRAPITimeout   time.Duration
 }
 
 type DatabaseConfig struct {
@@ -78,6 +90,15 @@ func Load() *Config {
 			EmergencyPhone: getEnvOrDefault("CONTACT_EMERGENCY_PHONE", ""),
 			WorkingHours:   getEnvOrDefault("CONTACT_WORKING_HOURS", "จ-ศ 08:00-17:00"),
 		},
+		HTTP: HTTPConfig{
+			ReadTimeout:     getEnvAsDuration("HTTP_READ_TIMEOUT_SEC", 15),
+			WriteTimeout:    getEnvAsDuration("HTTP_WRITE_TIMEOUT_SEC", 120),
+			IdleTimeout:     getEnvAsDuration("HTTP_IDLE_TIMEOUT_SEC", 120),
+			ShutdownTimeout: getEnvAsDuration("SHUTDOWN_TIMEOUT_SEC", 15),
+			AllowedOrigins:  getEnvOrDefault("ALLOWED_ORIGINS", "*"),
+			LineAPITimeout:  getEnvAsDuration("LINE_API_TIMEOUT_SEC", 10),
+			OCRAPITimeout:   getEnvAsDuration("OCR_API_TIMEOUT_SEC", 90),
+		},
 	}
 }
 
@@ -122,4 +143,10 @@ func getEnvAsInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// getEnvAsDuration returns the environment variable interpreted as a number of
+// seconds, or defaultSeconds if unset/invalid.
+func getEnvAsDuration(key string, defaultSeconds int) time.Duration {
+	return time.Duration(getEnvAsInt(key, defaultSeconds)) * time.Second
 }

@@ -12,12 +12,18 @@ import (
 //     500s) with an accurate status.
 //   - recover, to turn a panic in any handler into a 500 instead of crashing.
 //   - CORS last, before the routes.
-func FiberMiddleware(app *fiber.App) {
+//
+// allowedOrigins is the comma-separated CORS allow-list; pass a specific origin
+// list in production rather than the "*" wildcard.
+func FiberMiddleware(app *fiber.App, allowedOrigins string) {
+	if allowedOrigins == "" {
+		allowedOrigins = "*"
+	}
 	app.Use(RequestContext())
 	app.Use(RequestLogger())
 	app.Use(recovermw.New(recovermw.Config{EnableStackTrace: true}))
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*", // need to be changed in production
+		AllowOrigins: allowedOrigins,
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 }

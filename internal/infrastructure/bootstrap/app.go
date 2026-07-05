@@ -56,7 +56,7 @@ func InitializeApp() (*Application, func(), error) {
 	}
 
 	// Initialize LINE client
-	lineClient, err := client.NewClient(cfg.LineChannelToken)
+	lineClient, err := client.NewClient(cfg.LineChannelToken, cfg.HTTP.LineAPITimeout)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -64,7 +64,7 @@ func InitializeApp() (*Application, func(), error) {
 	// Initialize OCR client (optional - may be nil if not configured)
 	var ocrClient *client.OCRClient
 	if cfg.OCRURL != "" {
-		ocrClient = client.NewOCRClient(cfg.OCRURL)
+		ocrClient = client.NewOCRClient(cfg.OCRURL, cfg.HTTP.OCRAPITimeout)
 		log.Printf("OCR client initialized: %s", cfg.OCRURL)
 	} else {
 		log.Println("OCR_API_URL not configured, OCR features disabled")
@@ -206,6 +206,9 @@ func InitializeApp() (*Application, func(), error) {
 	app := fiber.New(fiber.Config{
 		AppName:      "Medical Equipment Webhook",
 		ErrorHandler: apperrors.FiberErrorHandler,
+		ReadTimeout:  cfg.HTTP.ReadTimeout,
+		WriteTimeout: cfg.HTTP.WriteTimeout,
+		IdleTimeout:  cfg.HTTP.IdleTimeout,
 	})
 
 	// Initialize SSE handler for real-time event streaming
@@ -213,7 +216,7 @@ func InitializeApp() (*Application, func(), error) {
 	sseHandler := handlers.NewSSEHandler(eventBus)
 
 	// Register Middlewares
-	middleware.FiberMiddleware(app)
+	middleware.FiberMiddleware(app, cfg.HTTP.AllowedOrigins)
 
 	// Register Routes (SSE handler passed for public registration before 404 catch-all)
 	routes.Setup(app, webhookHandler, notificationHandler, equipmentImportHandler, adminHandler, dashboardHandler, equipmentHandler, ticketHandler, activityLogHandler, sseHandler, adminUseCase)
@@ -269,7 +272,8 @@ func (a *Application) Start() error {
 	return a.Server.Listen(":" + a.Config.Port)
 }
 
-// Shutdown - graceful shutdown
+// Shutdown - graceful shutdown, bounded by the configured timeout so a stuck
+// in-flight request cannot block the process from exiting indefinitely.
 func (a *Application) Shutdown() error {
-	return a.Server.Shutdown()
+	return a.Server.ShutdownWithTimeout(a.Config.HTTP.ShutdownTimeout)
 }
