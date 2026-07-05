@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -60,6 +61,9 @@ const (
 	// or hostile limit can't cause a divide-by-zero or an unbounded query.
 	defaultTicketPageLimit = 20
 	maxTicketPageLimit     = 100
+	// maxTicketCreateAttempts bounds retries when a generated ticket number
+	// collides with a concurrent insert (rejected by the ticket_no unique index).
+	maxTicketCreateAttempts = 3
 )
 
 // goSafe runs fn in a new goroutine with panic recovery. Fire-and-forget tasks
@@ -397,12 +401,6 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 		return existingTicket, ErrDuplicateTicket
 	}
 
-	// Generate ticket number from DB to avoid duplicates
-	ticketNo, err := uc.generateTicketNumberFromDB()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate ticket number: %w", err)
-	}
-
 	equipmentName := "อุปกรณ์"
 	if equipment.Model.ModelName != "" {
 		equipmentName = equipment.Model.ModelName
@@ -437,7 +435,6 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 
 	// Create ticket (LINE users don't have Admin accounts, use ReporterLineID and ReporterName)
 	ticket := &entity.Ticket{
-		TicketNo:         ticketNo,
 		Description:      &description,
 		CategoryID:       categoryID,
 		Priority:         entity.PriorityMedium,
@@ -451,25 +448,41 @@ func (uc *TicketUseCase) CreateTicketFromLINE(
 		ReportedAt:       time.Now(),
 	}
 
-	// Create the ticket and its initial history in a single transaction so a
-	// ticket is never persisted without its creation (audit) record.
-	if err = uc.txManager.WithTransaction(ctx, func(ctx context.Context) error {
-		if err := uc.ticketRepo.CreateTicket(ctx, ticket); err != nil {
-			return fmt.Errorf("failed to create ticket: %w", err)
+	// Generate a unique ticket number and persist the ticket + its initial
+	// history atomically. The number is derived from the latest row, so under
+	// concurrency two requests can compute the same value; the ticket_no unique
+	// index rejects the loser and we retry with a fresh number.
+	var ticketNo string
+	for attempt := 1; attempt <= maxTicketCreateAttempts; attempt++ {
+		no, genErr := uc.generateTicketNumberFromDB()
+		if genErr != nil {
+			return nil, fmt.Errorf("failed to generate ticket number: %w", genErr)
 		}
-		// Create initial history (no AdminID for LINE users)
-		history := &entity.TicketHistory{
-			TicketID: ticket.ID,
-			Action:   entity.ActionCreated,
-			Note:     ptr.StringPtr("สร้างจาก LINE โดย " + lineDisplayName),
-			IsSystem: true,
+		ticketNo = no
+		ticket.TicketNo = ticketNo
+
+		err = uc.txManager.WithTransaction(ctx, func(ctx context.Context) error {
+			if err := uc.ticketRepo.CreateTicket(ctx, ticket); err != nil {
+				return err
+			}
+			// Create initial history (no AdminID for LINE users)
+			history := &entity.TicketHistory{
+				TicketID: ticket.ID,
+				Action:   entity.ActionCreated,
+				Note:     ptr.StringPtr("สร้างจาก LINE โดย " + lineDisplayName),
+				IsSystem: true,
+			}
+			return uc.historyRepo.CreateTicketHistory(ctx, history)
+		})
+		if err == nil {
+			break
 		}
-		if err := uc.historyRepo.CreateTicketHistory(ctx, history); err != nil {
-			return fmt.Errorf("failed to create ticket history: %w", err)
+		if errors.Is(err, repository.ErrDuplicate) && attempt < maxTicketCreateAttempts {
+			log.Printf("⚠️ Ticket number %s collided, retrying (%d/%d)", ticketNo, attempt, maxTicketCreateAttempts)
+			ticket.ID = 0 // reset PK so the retry performs a fresh insert
+			continue
 		}
-		return nil
-	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create ticket: %w", err)
 	}
 
 	// Publish ticket created event

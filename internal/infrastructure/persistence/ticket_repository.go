@@ -2,8 +2,10 @@ package persistence
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"medical-webhook/internal/domain/line/entity"
+	"medical-webhook/internal/domain/line/repository"
 	"medical-webhook/internal/infrastructure/database"
 	"medical-webhook/internal/utils/ptr"
 	"time"
@@ -27,7 +29,13 @@ func (r *TicketRepository) conn(ctx context.Context) *gorm.DB {
 }
 
 func (r *TicketRepository) CreateTicket(ctx context.Context, ticket *entity.Ticket) error {
-	return r.conn(ctx).Create(ticket).Error
+	if err := r.conn(ctx).Create(ticket).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return fmt.Errorf("%w: %v", repository.ErrDuplicate, err)
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *TicketRepository) FindTicketByNo(ticketNo string) (*entity.Ticket, error) {

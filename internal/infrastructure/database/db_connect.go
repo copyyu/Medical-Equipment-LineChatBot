@@ -24,7 +24,11 @@ func Connect(cfg *config.Config) error {
 		cfg.DB.Host, cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.Port,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		// Translate driver errors into gorm sentinels (e.g. ErrDuplicatedKey) so
+		// repositories can detect unique-constraint violations portably.
+		TranslateError: true,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to Postgres: %w", err)
 	}
