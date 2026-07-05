@@ -1,0 +1,305 @@
+openapi: 3.0.3
+info:
+  title: Medical Equipment LINE ChatBot API
+  version: "1.0.0"
+  description: >
+    REST API for the Medical Equipment LINE ChatBot backend (Go + Fiber).
+    All JSON responses share a common envelope (see SuccessResponse /
+    ErrorResponse). Admin endpoints require a Bearer session token obtained
+    from /api/admin/login.
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Tickets
+  - name: Equipment
+  - name: Dashboard
+  - name: Activity Logs
+  - name: Webhook
+  - name: Realtime
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Basic health status
+      responses:
+        "200": { description: OK }
+  /livez:
+    get:
+      tags: [Health]
+      summary: Liveness probe (process is up; no dependency checks)
+      responses:
+        "200": { description: Alive }
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness probe (database required; Redis reported but optional)
+      responses:
+        "200": { description: Ready }
+        "503": { description: Not ready (a required dependency is down) }
+
+  /api/admin/login:
+    post:
+      tags: [Auth]
+      summary: Log in and obtain a session token
+      description: Rate-limited to 10 requests/minute/IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuccessResponse" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /api/admin/register:
+    post:
+      tags: [Auth]
+      summary: Register a new admin (rate-limited)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password, full_name]
+              properties:
+                username: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+                full_name: { type: string }
+      responses:
+        "201": { $ref: "#/components/responses/Success" }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /api/admin/logout:
+    post:
+      tags: [Auth]
+      summary: Invalidate the current session
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /api/tickets:
+    get:
+      tags: [Tickets]
+      summary: List tickets (paginated)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
+        - { name: limit, in: query, schema: { type: integer, default: 10, minimum: 1, maximum: 100 } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: priority, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: sort_by, in: query, schema: { type: string, default: created_at } }
+        - { name: sort_dir, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "401": { $ref: "#/components/responses/Error" }
+  /api/tickets/stats:
+    get:
+      tags: [Tickets]
+      summary: Ticket statistics
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /api/tickets/categories:
+    get:
+      tags: [Tickets]
+      summary: List ticket categories
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /api/tickets/{id}:
+    get:
+      tags: [Tickets]
+      summary: Ticket detail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      tags: [Tickets]
+      summary: Update a ticket (status/priority/description)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+                priority: { type: string }
+                description: { type: string }
+                note: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /api/equipment:
+    get:
+      tags: [Equipment]
+      summary: List equipment (paginated)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+    post:
+      tags: [Equipment]
+      summary: Create equipment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "201": { $ref: "#/components/responses/Success" }
+  /api/equipment/categories:
+    get:
+      tags: [Equipment]
+      summary: List equipment categories
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /api/equipment/{id}:
+    get:
+      tags: [Equipment]
+      summary: Equipment detail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      tags: [Equipment]
+      summary: Update equipment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+    delete:
+      tags: [Equipment]
+      summary: Delete equipment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+
+  /api/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Dashboard summary metrics
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+
+  /api/activity-logs:
+    get:
+      tags: [Activity Logs]
+      summary: List status-change activity logs (paginated/filtered)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+  /api/activity-logs/stats:
+    get:
+      tags: [Activity Logs]
+      summary: Activity-log aggregate stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/Success" }
+
+  /webhook:
+    post:
+      tags: [Webhook]
+      summary: LINE webhook callback (also available at /callback)
+      description: >
+        Verifies the X-Line-Signature (HMAC-SHA256) before processing. Events
+        are de-duplicated by webhookEventId via Redis. Always returns 200 on a
+        valid signature.
+      parameters:
+        - name: X-Line-Signature
+          in: header
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Accepted }
+        "400": { description: Invalid signature }
+
+  /api/events/stream:
+    get:
+      tags: [Realtime]
+      summary: Server-Sent Events stream of domain events
+      responses:
+        "200":
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "503": { description: Realtime disabled (Redis not connected) }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Session token from /api/admin/login, sent as `Authorization: Bearer <token>`
+  responses:
+    Success:
+      description: Standard success envelope
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/SuccessResponse" }
+    Error:
+      description: Standard error envelope
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string }
+        data: { description: Endpoint-specific payload }
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error: { type: string, description: Human-readable message }
+        code:
+          type: string
+          description: Stable machine-readable code
+          enum:
+            - BAD_REQUEST
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - VALIDATION_FAILED
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+            - INVALID_CREDENTIALS
+            - INVALID_TOKEN
+            - SESSION_EXPIRED
+            - USERNAME_EXISTS
+            - EMAIL_EXISTS
+            - WEAK_PASSWORD
+        request_id:
+          type: string
+          description: Correlates with the X-Request-ID response header and server logs

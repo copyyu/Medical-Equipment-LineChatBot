@@ -22,6 +22,7 @@
 - [ตัวแปรสิ่งแวดล้อม](#ตัวแปรสิ่งแวดล้อม)
 - [API Endpoints](#api-endpoints)
 - [CI/CD](#cicd)
+- [เอกสาร (Documentation)](#เอกสาร-documentation)
 - [Entity Relationships](#entity-relationships)
 
 ---
@@ -268,15 +269,18 @@ curl http://localhost:3000/
 | Method | Path | คำอธิบาย |
 |--------|------|---------|
 | `GET` | `/` | Root — แสดงสถานะ Server |
-| `GET` | `/health` | Health Check |
-| `POST` | `/webhook` | LINE Webhook Callback |
+| `GET` | `/health` | Health Check (basic) |
+| `GET` | `/livez` | Liveness probe (process ทำงานอยู่) |
+| `GET` | `/readyz` | Readiness probe (DB พร้อม → 200, ไม่พร้อม → 503) |
+| `POST` | `/webhook` | LINE Webhook Callback (ตรวจ signature + กัน event ซ้ำด้วย webhookEventId) |
 | `GET` | `/api/events/stream` | SSE Event Stream (query: `?types=equipment.updated,ticket.created`) |
 
 ### Authentication
 
 | Method | Path | คำอธิบาย |
 |--------|------|---------|
-| `POST` | `/api/admin/login` | เข้าสู่ระบบ Admin |
+| `POST` | `/api/admin/login` | เข้าสู่ระบบ Admin (rate-limited 10/นาที/IP) |
+| `POST` | `/api/admin/register` | สมัคร Admin (rate-limited) |
 
 ### Protected (ต้องผ่านการยืนยันตัวตน)
 
@@ -330,15 +334,26 @@ curl http://localhost:3000/
 
 ```yaml
 # .github/workflows/ci.yml
-Trigger: push / pull_request -> main, master
+Trigger: push / pull_request -> main, master, develop
 
 Jobs:
-  - Checkout code
-  - Setup Go 1.24
-  - Download dependencies
+  - gofmt & go vet
+  - Mock freshness check
   - Build
-  - Run tests
+  - Tests with -race + coverage
+  - govulncheck (vulnerability scan)
 ```
+
+---
+
+## เอกสาร (Documentation)
+
+- [`openapi.yaml`](openapi.yaml) — OpenAPI 3.0 spec ของ REST API (response envelope + error codes)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — สถาปัตยกรรมและ design decisions (transactions, idempotency, observability)
+- [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) — อ้างอิงตัวแปรสิ่งแวดล้อมทั้งหมด
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — health probes, logging, error format, rate limiting, graceful shutdown
+
+**Response envelope:** ทุก endpoint ตอบรูปแบบเดียวกัน — `success` + (`message`/`data` หรือ `error`) พร้อม `code` (machine-readable) และ `request_id` (ตรงกับ header `X-Request-ID` และ log) เพื่อ debug ง่าย
 
 ---
 
