@@ -8,21 +8,22 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// SetupNotificationRoutes - protected routes for notifications
+// SetupNotificationRoutes registers notification endpoints. All of them require
+// admin authentication — they either send LINE notifications or expose internal
+// data, so none may be public.
 func SetupNotificationRoutes(app *fiber.App, notificationHandler *handlers.NotificationHandler, adminUsecase usecase.AdminUsecase) {
-
-	app.Get("/notifications/export/expiry", notificationHandler.DownloadExpiryExcel)
-
-	// Temporary manual trigger endpoints for testing cronjob messages
-	app.Get("/test/cron/june", notificationHandler.TestJuneAlerts)
-	app.Get("/test/cron/august", notificationHandler.TestAugustAlerts)
-
-	// Notification routes - protected
 	notifGroup := app.Group("", middleware.AuthMiddleware(adminUsecase))
 
-	// Manual trigger endpoints
+	// Export (exposes equipment/expiry data)
+	notifGroup.Get("/notifications/export/expiry", notificationHandler.DownloadExpiryExcel)
+
+	// Manual trigger endpoints (send real LINE notifications)
 	notifGroup.Post("/send/june", notificationHandler.SendJuneAlerts)
 	notifGroup.Post("/send/august", notificationHandler.SendAugustAlerts)
+
+	// Manual test triggers (kept for diagnostics, now authenticated)
+	notifGroup.Get("/test/cron/june", notificationHandler.TestJuneAlerts)
+	notifGroup.Get("/test/cron/august", notificationHandler.TestAugustAlerts)
 
 	// Summary
 	notifGroup.Get("/summary", notificationHandler.GetSummary)
