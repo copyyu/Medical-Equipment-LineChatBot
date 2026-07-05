@@ -7,6 +7,7 @@ import (
 	"medical-webhook/internal/infrastructure/database"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // EquipmentModelRepository implements repository.EquipmentModelRepository using GORM
@@ -123,7 +124,9 @@ func (r *EquipmentModelRepository) FindAll(ctx context.Context) ([]entity.Equipm
 
 // Update updates equipment model
 func (r *EquipmentModelRepository) Update(ctx context.Context, model *entity.EquipmentModel) error {
-	err := r.db.WithContext(ctx).Save(model).Error
+	// Omit associations so a preloaded Brand/Category isn't upserted over the
+	// shared catalog rows on a plain Save.
+	err := r.db.WithContext(ctx).Omit(clause.Associations).Save(model).Error
 	if err != nil {
 		log.Printf("Error updating equipment model: %v", err)
 		return err

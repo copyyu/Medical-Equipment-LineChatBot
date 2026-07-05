@@ -152,6 +152,11 @@ func (uc *MessageUseCase) handleTrackStatusInput(msg *model.IncomingMessage, tex
 			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่พบ Ticket หมายเลข: "+sanitizedText+"\nกรุณาตรวจสอบหมายเลขอีกครั้งค่ะ")
 		}
 		uc.sessionStore.Delete(msg.UserID)
+		if ticket == nil {
+			// Not found: GetTicketByNo returns (nil, nil). GetTicketStatusFlex
+			// dereferences the ticket, so replying with it would panic.
+			return uc.lineRepo.ReplyMessage(msg.ReplyToken, "❌ ไม่พบ Ticket หมายเลข: "+sanitizedText+"\nกรุณาตรวจสอบหมายเลขอีกครั้งค่ะ")
+		}
 		return uc.lineRepo.ReplyFlexMessage(msg.ReplyToken, "สถานะ Ticket", templates.GetTicketStatusFlex(ticket))
 	}
 

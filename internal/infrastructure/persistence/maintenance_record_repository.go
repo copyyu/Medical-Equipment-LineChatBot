@@ -7,6 +7,7 @@ import (
 	"medical-webhook/internal/infrastructure/database"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // MaintenanceRecordRepository implements repository.MaintenanceRecordRepository using GORM
@@ -87,7 +88,8 @@ func (r *MaintenanceRecordRepository) FindByEquipmentIDAndType(ctx context.Conte
 
 // Update updates maintenance record
 func (r *MaintenanceRecordRepository) Update(ctx context.Context, record *entity.MaintenanceRecord) error {
-	err := r.db.WithContext(ctx).Save(record).Error
+	// Omit associations so a preloaded Equipment isn't upserted on a plain Save.
+	err := r.db.WithContext(ctx).Omit(clause.Associations).Save(record).Error
 	if err != nil {
 		log.Printf("Error updating maintenance record: %v", err)
 		return err

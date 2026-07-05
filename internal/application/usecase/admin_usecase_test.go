@@ -36,9 +36,6 @@ func (s *stubAdminService) ChangePassword(context.Context, uuid.UUID, string, st
 func (s *stubAdminService) GetAllAdmins(context.Context, int, int) ([]*entity.Admin, error) {
 	return []*entity.Admin{s.admin}, nil
 }
-func (s *stubAdminService) EnsureInitialSuperAdmin(context.Context, string, string, string, string) error {
-	return nil
-}
 
 func newRoleAdmin() *entity.Admin {
 	return &entity.Admin{ID: uuid.New(), Username: "boss", Email: "b@x.com", FullName: "Boss", Role: string(entity.RoleSuperAdmin)}
